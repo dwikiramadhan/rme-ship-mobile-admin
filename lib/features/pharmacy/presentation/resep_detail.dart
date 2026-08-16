@@ -49,8 +49,8 @@ class ResepDetail extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              RichText(
-                text: TextSpan(
+              Text.rich(
+                TextSpan(
                   style: const TextStyle(fontSize: 12.5, color: AppColors.sub, fontFamily: 'PlusJakartaSans'),
                   children: [
                     const TextSpan(text: 'Diagnosa: '),

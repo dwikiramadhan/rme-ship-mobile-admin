@@ -33,8 +33,8 @@ class AppSelect<T> extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        RichText(
-          text: TextSpan(
+        Text.rich(
+          TextSpan(
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,

@@ -117,8 +117,8 @@ class _DokterPatientDetailState extends ConsumerState<DokterPatientDetail> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RichText(
-                  text: TextSpan(
+                Text.rich(
+                  TextSpan(
                     style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text, fontFamily: 'PlusJakartaSans'),
                     children: [TextSpan(text: r.obat), TextSpan(text: ' · ${r.dosis}', style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.sub))],
                   ),

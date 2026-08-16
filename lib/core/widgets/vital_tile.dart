@@ -23,31 +23,48 @@ class VitalTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      decoration: BoxDecoration(color: AppColors.card2, borderRadius: BorderRadius.circular(10)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.card2,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+      ),
       child: Row(
         children: [
           Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, size: 15, color: color),
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 17, color: color),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(fontSize: 10.5, color: AppColors.sub, fontWeight: FontWeight.w600)),
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(fontSize: 14, color: AppColors.text, fontWeight: FontWeight.w800, fontFamily: 'PlusJakartaSans'),
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.sub, fontWeight: FontWeight.w600),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 1),
+                Text.rich(
+                  TextSpan(
+                    style: const TextStyle(fontSize: 16, color: AppColors.text, fontWeight: FontWeight.w800, fontFamily: 'PlusJakartaSans'),
                     children: [
                       TextSpan(text: value),
-                      TextSpan(text: ' $unit', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: AppColors.sub)),
+                      TextSpan(text: ' $unit', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.sub)),
                     ],
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

@@ -15,14 +15,14 @@ class SideNavRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 96,
+      width: 100,
       decoration: const BoxDecoration(color: AppColors.card, border: Border(right: BorderSide(color: AppColors.border))),
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Column(
         children: [
           Container(
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             alignment: Alignment.center,
             margin: const EdgeInsets.only(bottom: 22),
             decoration: BoxDecoration(
@@ -31,7 +31,7 @@ class SideNavRail extends StatelessWidget {
               border: Border.all(color: AppColors.border),
               boxShadow: [BoxShadow(color: AppColors.text.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2))],
             ),
-            child: Image.asset('assets/images/bayan_logo.png', width: 28, height: 28, fit: BoxFit.contain),
+            child: Image.asset('assets/images/bayan_logo.png', width: 30, height: 30, fit: BoxFit.contain),
           ),
           for (final item in items) _RailButton(item: item, active: item.key == activeKey, onTap: () => onChange(item.key)),
         ],
@@ -56,7 +56,7 @@ class _RailButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: SizedBox(
-            width: 76,
+            width: 84,
             child: Column(
               children: [
                 Stack(

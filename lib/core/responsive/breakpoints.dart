@@ -10,3 +10,15 @@ bool isTabletLayout(BuildContext context) {
   final shortestSide = size.width < size.height ? size.width : size.height;
   return shortestSide >= kTabletShortestSideBreakpoint;
 }
+
+double getAdaptiveTextScale(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  final shortestSide = size.width < size.height ? size.width : size.height;
+  if (shortestSide >= 900) {
+    return 1.20;
+  } else if (shortestSide >= kTabletShortestSideBreakpoint) {
+    return 1.14;
+  }
+  return 1.0;
+}
+

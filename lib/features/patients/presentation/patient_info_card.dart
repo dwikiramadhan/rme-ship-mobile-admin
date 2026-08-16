@@ -102,22 +102,33 @@ class PatientInfoCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Tanda Vital', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
-              const SizedBox(height: 9),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                childAspectRatio: 2.6,
-                children: [
-                  VitalTile(icon: LucideIcons.heart, label: 'Tekanan Darah', value: patient.vitals.tekananDarah, unit: 'mmHg', color: AppColors.red),
-                  VitalTile(icon: LucideIcons.activity, label: 'Nadi', value: patient.vitals.nadi, unit: 'bpm', color: AppColors.blue),
-                  VitalTile(icon: LucideIcons.thermometer, label: 'Suhu Tubuh', value: patient.vitals.suhu, unit: '°C', color: AppColors.yellow),
-                  VitalTile(icon: LucideIcons.activity, label: 'Frek. Napas', value: patient.vitals.frekuensiNapas, unit: 'x/mnt', color: AppColors.purple),
-                  VitalTile(icon: LucideIcons.droplet, label: 'SpO₂', value: patient.vitals.spo2, unit: '%', color: AppColors.green),
-                ],
+              const Text('Tanda Vital', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text)),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final w = constraints.maxWidth;
+                  final int crossAxisCount = w >= 700
+                      ? 5
+                      : (w >= 440 ? 3 : 2);
+                  final double childAspectRatio = w >= 700
+                      ? 2.1
+                      : (w >= 440 ? 2.6 : 2.5);
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: childAspectRatio,
+                    children: [
+                      VitalTile(icon: LucideIcons.heart, label: 'Tekanan Darah', value: patient.vitals.tekananDarah, unit: 'mmHg', color: AppColors.red),
+                      VitalTile(icon: LucideIcons.activity, label: 'Nadi', value: patient.vitals.nadi, unit: 'bpm', color: AppColors.blue),
+                      VitalTile(icon: LucideIcons.thermometer, label: 'Suhu Tubuh', value: patient.vitals.suhu, unit: '°C', color: AppColors.yellow),
+                      VitalTile(icon: LucideIcons.activity, label: 'Frek. Napas', value: patient.vitals.frekuensiNapas, unit: 'x/mnt', color: AppColors.purple),
+                      VitalTile(icon: LucideIcons.droplet, label: 'SpO₂', value: patient.vitals.spo2, unit: '%', color: AppColors.green),
+                    ],
+                  );
+                },
               ),
             ],
           ),

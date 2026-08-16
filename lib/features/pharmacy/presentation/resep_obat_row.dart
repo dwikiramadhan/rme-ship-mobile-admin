@@ -51,8 +51,8 @@ class _ResepObatRowState extends State<ResepObatRow> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    RichText(
-                      text: TextSpan(
+                    Text.rich(
+                      TextSpan(
                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text, fontFamily: 'PlusJakartaSans'),
                         children: [TextSpan(text: r.obat), TextSpan(text: ' · ${r.dosis}', style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.sub, fontSize: 12.5))],
                       ),
