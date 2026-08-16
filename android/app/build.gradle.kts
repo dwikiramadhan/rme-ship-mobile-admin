@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.bayanrme.bayan_rme"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

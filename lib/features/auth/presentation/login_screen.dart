@@ -186,6 +186,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               loadingLabel: 'Memeriksa...',
                               onPressed: isLoading ? null : _submit,
                             ),
+                            const SizedBox(height: 18),
+                            const Row(
+                              children: [
+                                Expanded(child: Divider(color: AppColors.border, height: 1)),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 8),
+                                  child: Text(
+                                    'PILIH AKUN DEMO',
+                                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: AppColors.sub, letterSpacing: 0.5),
+                                  ),
+                                ),
+                                Expanded(child: Divider(color: AppColors.border, height: 1)),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                _DemoAccountChip(
+                                  email: 'dr_lie@yopmail.com',
+                                  password: '123456',
+                                  onSelected: (email, pass) {
+                                    setState(() {
+                                      _emailController.text = email;
+                                      _passwordController.text = pass;
+                                    });
+                                  },
+                                ),
+                                _DemoAccountChip(
+                                  email: 'budi.prasetyo@rme.id',
+                                  password: '123456',
+                                  onSelected: (email, pass) {
+                                    setState(() {
+                                      _emailController.text = email;
+                                      _passwordController.text = pass;
+                                    });
+                                  },
+                                ),
+                                _DemoAccountChip(
+                                  email: 'bynp1@yopmail.com',
+                                  password: '123456',
+                                  onSelected: (email, pass) {
+                                    setState(() {
+                                      _emailController.text = email;
+                                      _passwordController.text = pass;
+                                    });
+                                  },
+                                ),
+                                _DemoAccountChip(
+                                  email: 'dewi@rme.id',
+                                  password: '123456',
+                                  onSelected: (email, pass) {
+                                    setState(() {
+                                      _emailController.text = email;
+                                      _passwordController.text = pass;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 16),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -270,3 +331,50 @@ class _LoginHero extends StatelessWidget {
     );
   }
 }
+
+class _DemoAccountChip extends StatelessWidget {
+  const _DemoAccountChip({
+    required this.email,
+    required this.password,
+    required this.onSelected,
+  });
+
+  final String email;
+  final String password;
+  final void Function(String email, String password) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onSelected(email, password),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.card2,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(LucideIcons.user, size: 13, color: AppColors.blue),
+              const SizedBox(width: 6),
+              Text(
+                email,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

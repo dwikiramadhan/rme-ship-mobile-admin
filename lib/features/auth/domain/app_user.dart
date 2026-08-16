@@ -22,7 +22,7 @@ class AppUser extends Equatable {
     }
     return AppUser(
       id: (json['id'] ?? json['user_id'] ?? '').toString(),
-      name: (json['name'] ?? json['nama'] ?? '').toString(),
+      name: (json['full_name'] ?? json['name'] ?? json['nama'] ?? json['username'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       role: role,
     );
@@ -46,8 +46,14 @@ class AuthSession extends Equatable {
   final AppUser user;
 
   factory AuthSession.fromLoginResponse(Map<String, dynamic> json) {
-    final token = json['token'] as String?;
-    final userJson = json['user'] as Map<String, dynamic>?;
+    final payload = (json['result'] is Map<String, dynamic>)
+        ? json['result'] as Map<String, dynamic>
+        : (json['data'] is Map<String, dynamic>)
+            ? json['data'] as Map<String, dynamic>
+            : json;
+
+    final token = (payload['token'] ?? payload['access_token'] ?? json['token']) as String?;
+    final userJson = (payload['user'] ?? json['user']) as Map<String, dynamic>?;
     if (token == null || token.isEmpty || userJson == null) {
       throw const FormatException('Login response missing token or user object.');
     }

@@ -16,9 +16,10 @@ import '../../shell/presentation/role_shell.dart';
 import 'tambah_pasien_form.dart';
 
 class PerawatHomeScreen extends ConsumerStatefulWidget {
-  const PerawatHomeScreen({super.key, required this.perawatName});
+  const PerawatHomeScreen({super.key, required this.perawatName, this.roleName = 'Perawat'});
 
   final String perawatName;
+  final String roleName;
 
   @override
   ConsumerState<PerawatHomeScreen> createState() => _PerawatHomeScreenState();
@@ -44,7 +45,7 @@ class _PerawatHomeScreenState extends ConsumerState<PerawatHomeScreen> {
         _tab = key;
         _showForm = false;
       }),
-      child: _tab == 'antrian' ? _buildAntrian(patients) : ProfileScreen(name: widget.perawatName, role: 'Perawat'),
+      child: _tab == 'antrian' ? _buildAntrian(patients) : ProfileScreen(name: widget.perawatName, role: widget.roleName),
     );
   }
 

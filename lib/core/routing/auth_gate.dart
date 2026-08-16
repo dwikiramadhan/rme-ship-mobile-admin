@@ -38,6 +38,7 @@ class AuthGate extends ConsumerWidget {
     final user = authState.session!.user;
     return switch (user.role) {
       UserRole.perawat => PerawatHomeScreen(perawatName: user.name),
+      UserRole.adminKapal => PerawatHomeScreen(perawatName: user.name, roleName: 'Admin Kapal'),
       UserRole.dokter => DokterHomeScreen(doctorId: resolveDoctorId(user.email), doctorName: user.name),
       UserRole.pharmacy => PharmacyHomeScreen(apotekerName: user.name),
       UserRole.lab => LabHomeScreen(analystName: user.name),
