@@ -12,8 +12,10 @@ import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/presentation/status_meta.dart';
 import '../../profile/presentation/profile_screen.dart';
+import '../../riwayat/presentation/riwayat_kunjungan_screen.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
+import '../../stok_obat/presentation/stok_obat_screen.dart';
 import 'dokter_patient_detail.dart';
 
 class DokterHomeScreen extends ConsumerStatefulWidget {
@@ -38,6 +40,8 @@ class _DokterHomeScreenState extends ConsumerState<DokterHomeScreen> {
     final tabs = [
       ShellNavItem(key: 'notifikasi', label: 'Notifikasi', icon: LucideIcons.bell, badgeCount: notifs.length),
       const ShellNavItem(key: 'pasien', label: 'Pasien Saya', icon: LucideIcons.users),
+      const ShellNavItem(key: 'riwayat', label: 'Riwayat', icon: LucideIcons.bookOpen),
+      const ShellNavItem(key: 'stok', label: 'Stok Obat', icon: LucideIcons.pill),
       const ShellNavItem(key: 'profil', label: 'Profil', icon: LucideIcons.user),
     ];
 
@@ -47,6 +51,10 @@ class _DokterHomeScreenState extends ConsumerState<DokterHomeScreen> {
         content = _buildNotifikasi(notifs);
       case 'pasien':
         content = _buildPasien(mine);
+      case 'riwayat':
+        content = RiwayatKunjunganScreen(canEdit: true, dokterNama: widget.doctorName);
+      case 'stok':
+        content = const StokObatScreen(canManage: false);
       default:
         content = ProfileScreen(name: widget.doctorName, role: 'Dokter');
     }

@@ -15,6 +15,7 @@ import '../../patients/presentation/status_meta.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
+import '../../stok_obat/presentation/stok_obat_screen.dart';
 import 'resep_detail.dart';
 
 class PharmacyHomeScreen extends ConsumerStatefulWidget {
@@ -38,6 +39,7 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
     final tabs = [
       ShellNavItem(key: 'notifikasi', label: 'Notifikasi', icon: LucideIcons.bell, badgeCount: notifs.length),
       const ShellNavItem(key: 'resep', label: 'Daftar Resep', icon: LucideIcons.fileText),
+      const ShellNavItem(key: 'stok', label: 'Stok Obat', icon: LucideIcons.pill),
       const ShellNavItem(key: 'profil', label: 'Profil', icon: LucideIcons.user),
     ];
 
@@ -47,6 +49,8 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
         content = _buildNotifikasi(notifs);
       case 'resep':
         content = _buildResep(withResep);
+      case 'stok':
+        content = const StokObatScreen(canManage: true);
       default:
         content = ProfileScreen(name: widget.apotekerName, role: 'Apoteker');
     }
@@ -140,8 +144,4 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
       emptySubtitle: 'Pilih resep untuk memproses & menyerahkan obat.',
     );
   }
-}
-
-extension _FirstOrNull<T> on Iterable<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

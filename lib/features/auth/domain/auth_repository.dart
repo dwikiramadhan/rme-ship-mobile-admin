@@ -12,4 +12,7 @@ abstract class AuthRepository {
 
   /// Clears the persisted session.
   Future<void> logout();
+
+  /// Changes the current user's password.
+  Future<void> changePassword({required String oldPassword, required String newPassword});
 }

@@ -16,8 +16,6 @@ class AuthController extends StateNotifier<AuthState> {
       final session = await _repository.restoreSession();
       state = session != null ? AuthState.authenticated(session) : const AuthState.unauthenticated();
     } catch (_) {
-      // Secure storage unavailable/corrupt (e.g. first launch, platform not
-      // ready) — fall back to a clean sign-in rather than getting stuck.
       state = const AuthState.unauthenticated();
     }
   }
@@ -32,11 +30,15 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
+  Future<void> changePassword({required String oldPassword, required String newPassword}) {
+    return _repository.changePassword(oldPassword: oldPassword, newPassword: newPassword);
+  }
+
   Future<void> logout() async {
     try {
       await _repository.logout();
     } catch (_) {
-      // Best-effort clear — still drop the in-memory session below.
+      // Best-effort clear.
     }
     state = const AuthState.unauthenticated();
   }
