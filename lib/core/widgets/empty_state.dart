@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
-
 /// Port of the prototype's `EmptyDetail` — shown in the detail pane before a
 /// list item is selected.
 class EmptyState extends StatelessWidget {
@@ -13,6 +11,7 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -21,11 +20,11 @@ class EmptyState extends StatelessWidget {
             width: 64,
             height: 64,
             alignment: Alignment.center,
-            decoration: BoxDecoration(color: AppColors.blueLt, borderRadius: BorderRadius.circular(18)),
-            child: Icon(icon, size: 28, color: AppColors.blue),
+            decoration: BoxDecoration(color: scheme.primaryContainer, borderRadius: BorderRadius.circular(18)),
+            child: Icon(icon, size: 28, color: scheme.primary),
           ),
           const SizedBox(height: 10),
-          Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text)),
+          Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: scheme.onSurface)),
           if (subtitle != null) ...[
             const SizedBox(height: 4),
             SizedBox(
@@ -33,7 +32,7 @@ class EmptyState extends StatelessWidget {
               child: Text(
                 subtitle!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: AppColors.sub),
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
               ),
             ),
           ],

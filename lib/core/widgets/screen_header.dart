@@ -23,8 +23,9 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = gradient ? Colors.white : AppColors.text;
-    final sfg = gradient ? Colors.white.withValues(alpha: 0.7) : AppColors.sub;
+    final scheme = Theme.of(context).colorScheme;
+    final fg = gradient ? Colors.white : scheme.onSurface;
+    final sfg = gradient ? Colors.white.withValues(alpha: 0.7) : scheme.onSurfaceVariant;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -36,8 +37,8 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
                 colors: [AppColors.blue, Color(0xFF1E40AF)],
               )
             : null,
-        color: gradient ? null : AppColors.card,
-        border: gradient ? null : const Border(bottom: BorderSide(color: AppColors.border)),
+        color: gradient ? null : scheme.surface,
+        border: gradient ? null : Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,

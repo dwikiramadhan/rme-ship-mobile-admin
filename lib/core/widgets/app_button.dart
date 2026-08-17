@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_theme.dart';
 
 enum AppButtonVariant { primary, danger, success, ghost }
 
@@ -30,24 +31,26 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final semantic = Theme.of(context).extension<AppSemanticColors>() ?? AppSemanticColors.light;
     final disabled = onPressed == null || loading;
     final Color bg = switch (variant) {
-      AppButtonVariant.primary => AppColors.blue,
-      AppButtonVariant.danger => AppColors.red,
-      AppButtonVariant.success => AppColors.green,
+      AppButtonVariant.primary => scheme.primary,
+      AppButtonVariant.danger => scheme.error,
+      AppButtonVariant.success => semantic.success,
       AppButtonVariant.ghost => AppColors.card2,
     };
-    final Color fg = variant == AppButtonVariant.ghost ? AppColors.text : Colors.white;
+    final Color fg = variant == AppButtonVariant.ghost ? scheme.onSurface : scheme.onPrimary;
 
     final button = ElevatedButton(
       onPressed: disabled ? null : onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: disabled ? AppColors.sub : bg,
-        disabledBackgroundColor: AppColors.sub.withValues(alpha: 0.6),
+        backgroundColor: disabled ? scheme.onSurfaceVariant : bg,
+        disabledBackgroundColor: scheme.onSurfaceVariant.withValues(alpha: 0.6),
         foregroundColor: fg,
         elevation: 0,
         side: variant == AppButtonVariant.ghost
-            ? const BorderSide(color: AppColors.border, width: 1.5)
+            ? BorderSide(color: scheme.outline, width: 1.5)
             : BorderSide.none,
         padding: EdgeInsets.symmetric(horizontal: small ? 14 : 20, vertical: small ? 9 : 13),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

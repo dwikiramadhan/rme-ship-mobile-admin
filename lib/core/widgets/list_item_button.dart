@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_colors.dart';
-
 /// Port of the prototype's `ListButton` — an avatar + title/subtitle row
 /// used in every master list (antrian, pasien saya, daftar resep, order lab).
 /// Selected state swaps the shadow for a thin blue border.
@@ -29,8 +27,9 @@ class ListItemButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: active ? AppColors.blueLt : AppColors.card,
+      color: active ? scheme.primaryContainer : scheme.surface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -39,12 +38,12 @@ class ListItemButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: active ? Border.all(color: AppColors.blue, width: 1.5) : null,
+            border: active ? Border.all(color: scheme.primary, width: 1.5) : null,
             boxShadow: active
                 ? null
                 : [
                     BoxShadow(
-                      color: AppColors.text.withValues(alpha: 0.08),
+                      color: scheme.onSurface.withValues(alpha: 0.08),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -65,9 +64,9 @@ class ListItemButton extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.text)),
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: scheme.onSurface)),
                     const SizedBox(height: 1),
-                    Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: AppColors.sub)),
+                    Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
                   ],
                 ),
               ),
