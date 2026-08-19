@@ -8,24 +8,27 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_select.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../../patients/data/mock_patient_repository.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/patient.dart';
-import '../../patients/domain/resep_item.dart';
+import '../../patients/domain/prescription_item.dart';
 import '../../patients/presentation/patient_info_card.dart';
 
-/// Port of the prototype's `DokterPatientDetail` — diagnosis + multi-drug
+/// Port of the prototype's `DoctorPatientDetail` — diagnosis + multi-drug
 /// prescription + optional lab referral. Read-only summary once diagnosed
 /// (matching the prototype: a doctor doesn't re-edit a submitted diagnosis).
-class DokterPatientDetail extends ConsumerStatefulWidget {
-  const DokterPatientDetail({super.key, required this.patientId});
+class DoctorPatientDetail extends ConsumerStatefulWidget {
+  const DoctorPatientDetail({super.key, required this.patientId});
 
   final String patientId;
 
   @override
-  ConsumerState<DokterPatientDetail> createState() => _DokterPatientDetailState();
+  ConsumerState<DoctorPatientDetail> createState() => _DoctorPatientDetailState();
 }
+
+typedef DokterPatientDetail = DoctorPatientDetail;
 
 class _ResepRow {
   String? obat;
@@ -33,13 +36,19 @@ class _ResepRow {
   String instruksi = '';
 }
 
-class _DokterPatientDetailState extends ConsumerState<DokterPatientDetail> {
+class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
   final _diagnosa = TextEditingController();
   final _catatanLab = TextEditingController();
   final List<_ResepRow> _resep = [_ResepRow()];
   bool? _needLab;
   String? _jenisLab;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() => ref.read(patientsProvider.notifier).fetchPatientDetail(widget.patientId));
+  }
 
   @override
   void dispose() {
@@ -53,8 +62,6 @@ class _DokterPatientDetailState extends ConsumerState<DokterPatientDetail> {
   Future<void> _submit(Patient patient) async {
     if (!_valid) return;
     setState(() => _saving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted) return;
 
     final resepItems = [
       for (final r in _resep)
@@ -62,16 +69,56 @@ class _DokterPatientDetailState extends ConsumerState<DokterPatientDetail> {
     ];
     LabOrder? labOrder = patient.labOrder;
     if (_needLab == true) {
-      labOrder = LabOrder(id: 'L${100 + resepItems.length + DateTime.now().millisecond}', jenis: _jenisLab!, catatan: _catatanLab.text.trim());
+      labOrder = LabOrder(
+        id: 'L${100 + resepItems.length + DateTime.now().millisecond}',
+        jenis: _jenisLab!,
+        catatan: _catatanLab.text.trim(),
+      );
     }
 
-    ref.read(patientsProvider.notifier).submitDiagnosaResep(
-          id: patient.id,
-          diagnosa: _diagnosa.text.trim(),
-          resep: resepItems,
-          labOrder: labOrder,
-        );
-    setState(() => _saving = false);
+    try {
+      final authState = ref.read(authControllerProvider);
+      final userEmail = authState.session?.user.email.toLowerCase() ?? '';
+
+      final doctorsList = ref.read(doctorsProvider).valueOrNull ?? kDoctors;
+      Doctor? matchedDoctor;
+      if (userEmail.isNotEmpty) {
+        matchedDoctor = doctorsList.where((d) => d.email != null && d.email!.toLowerCase() == userEmail).firstOrNull;
+      }
+      if (matchedDoctor == null && patient.assignedDokterId.isNotEmpty) {
+        matchedDoctor = doctorsList.where((d) => d.id == patient.assignedDokterId).firstOrNull;
+      }
+      matchedDoctor ??= doctorsList.isNotEmpty ? doctorsList.first : kDoctors.first;
+
+      final currentShipId = authState.session?.user.shipId;
+
+      await ref.read(patientsProvider.notifier).submitDiagnosaResep(
+            id: patient.id,
+            diagnosa: _diagnosa.text.trim(),
+            resep: resepItems,
+            labOrder: labOrder,
+            doctorId: matchedDoctor.id,
+            shipId: currentShipId,
+          );
+
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Diagnosa & resep berhasil disimpan ke rekam medis!'),
+          backgroundColor: AppColors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menyimpan diagnosa: $e'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
   }
 
   @override

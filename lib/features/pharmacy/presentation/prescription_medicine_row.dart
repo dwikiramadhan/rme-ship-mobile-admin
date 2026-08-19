@@ -4,22 +4,24 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_select.dart';
 import '../../patients/domain/doctor.dart';
-import '../../patients/domain/resep_item.dart';
+import '../../patients/domain/prescription_item.dart';
 
-/// Port of the prototype's `ResepObatRow` — one prescription line with an
+/// Port of the prototype's `PrescriptionMedicineRow` — one prescription line with an
 /// inline "Ganti Obat" (substitute drug) action for out-of-stock cases.
-class ResepObatRow extends StatefulWidget {
-  const ResepObatRow({super.key, required this.item, required this.onGanti, required this.disabled});
+class PrescriptionMedicineRow extends StatefulWidget {
+  const PrescriptionMedicineRow({super.key, required this.item, required this.onGanti, required this.disabled});
 
   final ResepItem item;
   final void Function(String obatBaru, String alasan) onGanti;
   final bool disabled;
 
   @override
-  State<ResepObatRow> createState() => _ResepObatRowState();
+  State<PrescriptionMedicineRow> createState() => _PrescriptionMedicineRowState();
 }
 
-class _ResepObatRowState extends State<ResepObatRow> {
+typedef ResepObatRow = PrescriptionMedicineRow;
+
+class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
   bool _editing = false;
   String? _obatBaru;
   String? _alasan;
@@ -53,7 +55,7 @@ class _ResepObatRowState extends State<ResepObatRow> {
                   children: [
                     Text.rich(
                       TextSpan(
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text, fontFamily: 'PlusJakartaSans'),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.text),
                         children: [TextSpan(text: r.obat), TextSpan(text: ' · ${r.dosis}', style: const TextStyle(fontWeight: FontWeight.w500, color: AppColors.sub, fontSize: 12.5))],
                       ),
                     ),

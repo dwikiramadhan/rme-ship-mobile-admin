@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../responsive/breakpoints.dart';
 import '../theme/app_colors.dart';
+import 'app_shimmer.dart';
 import 'circle_icon_button.dart';
 import 'empty_state.dart';
 import 'list_item_button.dart';
@@ -32,7 +33,7 @@ class MasterListEntry {
 }
 
 /// Shared list+detail pattern used by every role's main screen (Antrian,
-/// Pasien Saya, Daftar Resep, Daftar Order): a 380px list pane next to a
+/// Pasien, Daftar Resep, Daftar Order): a 380px list pane next to a
 /// detail pane on tablet (matching the prototype's master-detail layout),
 /// collapsing to a single scrollable list with push-navigation to a detail
 /// page on phones.
@@ -47,6 +48,12 @@ class ResponsiveMasterDetail extends StatefulWidget {
     required this.emptyIcon,
     required this.emptyTitle,
     this.emptySubtitle,
+    this.isLoading = false,
+    this.onLoadMore,
+    this.hasMore = false,
+    this.isLoadingMore = false,
+    this.onRefresh,
+    this.onEntrySelected,
   });
 
   final String title;
@@ -58,14 +65,44 @@ class ResponsiveMasterDetail extends StatefulWidget {
   final String emptyTitle;
   final String? emptySubtitle;
 
+  final bool isLoading;
+  final VoidCallback? onLoadMore;
+  final bool hasMore;
+  final bool isLoadingMore;
+  final Future<void> Function()? onRefresh;
+  final void Function(String id)? onEntrySelected;
+
   @override
   State<ResponsiveMasterDetail> createState() => _ResponsiveMasterDetailState();
 }
 
 class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
   String? _selectedId;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (widget.onLoadMore != null && widget.hasMore && !widget.isLoadingMore) {
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 150) {
+        widget.onLoadMore!();
+      }
+    }
+  }
 
   void _openPhoneDetail(BuildContext context, MasterListEntry entry) {
+    widget.onEntrySelected?.call(entry.id);
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
@@ -83,43 +120,81 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
   }
 
   Widget _list(BuildContext context, {required bool tablet}) {
+    final listWidget = widget.isLoading && widget.entries.isEmpty
+        ? const SkeletonList()
+        : widget.entries.isEmpty
+            ? LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text('Belum ada data', style: TextStyle(color: AppColors.sub, fontSize: 13)),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : ListView.separated(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(12),
+                itemCount: widget.entries.length + (widget.isLoadingMore ? 1 : 0),
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  if (index >= widget.entries.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 14),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.blue),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final entry = widget.entries[index];
+                  return ListItemButton(
+                    active: tablet && _selectedId == entry.id,
+                    avatarColor: entry.avatarColor,
+                    avatarBg: entry.avatarBg,
+                    initial: entry.initial,
+                    title: entry.title,
+                    subtitle: entry.subtitle,
+                    trailing: entry.badge,
+                    onTap: () {
+                      widget.onEntrySelected?.call(entry.id);
+                      if (tablet) {
+                        setState(() => _selectedId = entry.id);
+                      } else {
+                        _openPhoneDetail(context, entry);
+                      }
+                    },
+                  );
+                },
+              );
+
+    final content = widget.onRefresh != null
+        ? RefreshIndicator(
+            color: AppColors.blue,
+            onRefresh: widget.onRefresh!,
+            child: listWidget,
+          )
+        : listWidget;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ScreenHeader(title: widget.title, subtitle: widget.subtitle, trailing: widget.trailing),
-        Expanded(
-          child: widget.entries.isEmpty
-              ? const Center(
-                  child: Text('Belum ada data', style: TextStyle(color: AppColors.sub, fontSize: 13)),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: widget.entries.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final entry = widget.entries[index];
-                    return ListItemButton(
-                      active: tablet && _selectedId == entry.id,
-                      avatarColor: entry.avatarColor,
-                      avatarBg: entry.avatarBg,
-                      initial: entry.initial,
-                      title: entry.title,
-                      subtitle: entry.subtitle,
-                      trailing: entry.badge,
-                      onTap: () {
-                        if (tablet) {
-                          setState(() => _selectedId = entry.id);
-                        } else {
-                          _openPhoneDetail(context, entry);
-                        }
-                      },
-                    );
-                  },
-                ),
-        ),
+        Expanded(child: content),
       ],
     );
   }
+
 
   @override
   Widget build(BuildContext context) {

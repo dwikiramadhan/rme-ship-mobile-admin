@@ -8,12 +8,14 @@ class AppUser extends Equatable {
     required this.name,
     required this.email,
     required this.role,
+    this.shipId,
   });
 
   final String id;
   final String name;
   final String email;
   final UserRole role;
+  final String? shipId;
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     final role = userRoleFromApiValue(json['role'] as String?);
@@ -25,6 +27,7 @@ class AppUser extends Equatable {
       name: (json['full_name'] ?? json['name'] ?? json['nama'] ?? json['username'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       role: role,
+      shipId: json['ship_id']?.toString(),
     );
   }
 
@@ -33,10 +36,11 @@ class AppUser extends Equatable {
         'name': name,
         'email': email,
         'role': role.apiValue,
+        if (shipId != null) 'ship_id': shipId,
       };
 
   @override
-  List<Object?> get props => [id, name, email, role];
+  List<Object?> get props => [id, name, email, role, shipId];
 }
 
 class AuthSession extends Equatable {

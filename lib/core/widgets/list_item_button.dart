@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Port of the prototype's `ListButton` — an avatar + title/subtitle row
-/// used in every master list (antrian, pasien saya, daftar resep, order lab).
+/// used in every master list (antrian, pasien, daftar resep, order lab).
 /// Selected state swaps the shadow for a thin blue border.
 class ListItemButton extends StatelessWidget {
   const ListItemButton({

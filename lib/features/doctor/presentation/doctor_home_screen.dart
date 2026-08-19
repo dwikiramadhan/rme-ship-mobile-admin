@@ -7,39 +7,42 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/push_detail_page.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../../patients/data/mock_patient_repository.dart';
+import '../../history/presentation/visit_history_screen.dart';
+import '../../medicine_stock/presentation/medicine_stock_screen.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/presentation/status_meta.dart';
 import '../../profile/presentation/profile_screen.dart';
-import '../../riwayat/presentation/riwayat_kunjungan_screen.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
-import '../../stok_obat/presentation/stok_obat_screen.dart';
-import 'dokter_patient_detail.dart';
+import 'doctor_patient_detail.dart';
 
-class DokterHomeScreen extends ConsumerStatefulWidget {
-  const DokterHomeScreen({super.key, required this.doctorId, required this.doctorName});
+class DoctorHomeScreen extends ConsumerStatefulWidget {
+  const DoctorHomeScreen({super.key, required this.doctorId, required this.doctorName});
 
   final String doctorId;
   final String doctorName;
 
   @override
-  ConsumerState<DokterHomeScreen> createState() => _DokterHomeScreenState();
+  ConsumerState<DoctorHomeScreen> createState() => _DoctorHomeScreenState();
 }
 
-class _DokterHomeScreenState extends ConsumerState<DokterHomeScreen> {
+typedef DokterHomeScreen = DoctorHomeScreen;
+
+class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
   String _tab = 'notifikasi';
 
   @override
   Widget build(BuildContext context) {
     final patients = ref.watch(patientsProvider);
-    final mine = sortRecent(patients.where((p) => p.assignedDokterId == widget.doctorId).toList());
+    final assigned = patients.where((p) => p.assignedDokterId == widget.doctorId || p.assignedDokterId.isEmpty).toList();
+    final mine = sortRecent(assigned.isNotEmpty ? assigned : patients);
     final notifs = mine.where(_isUnreadNotif).toList();
 
     final tabs = [
       ShellNavItem(key: 'notifikasi', label: 'Notifikasi', icon: LucideIcons.bell, badgeCount: notifs.length),
-      const ShellNavItem(key: 'pasien', label: 'Pasien Saya', icon: LucideIcons.users),
+      const ShellNavItem(key: 'pasien', label: 'Pasien', icon: LucideIcons.users),
       const ShellNavItem(key: 'riwayat', label: 'Riwayat', icon: LucideIcons.bookOpen),
       const ShellNavItem(key: 'stok', label: 'Stok Obat', icon: LucideIcons.pill),
       const ShellNavItem(key: 'profil', label: 'Profil', icon: LucideIcons.user),
@@ -106,9 +109,16 @@ class _DokterHomeScreenState extends ConsumerState<DokterHomeScreen> {
   }
 
   Widget _buildPasien(List<Patient> mine) {
+    final notifier = ref.read(patientsProvider.notifier);
     return ResponsiveMasterDetail(
-      title: 'Pasien Saya',
-      subtitle: '${mine.length} pasien ditugaskan',
+      title: 'Daftar Pasien',
+      subtitle: '${mine.length} pasien',
+      isLoading: notifier.isLoading,
+      hasMore: notifier.hasMore,
+      isLoadingMore: notifier.isLoadingMore,
+      onLoadMore: () => notifier.loadMore(),
+      onRefresh: () => notifier.fetchPatients(refresh: true),
+      onEntrySelected: (id) => notifier.fetchPatientDetail(id),
       entries: [
         for (final p in mine)
           MasterListEntry(
@@ -117,7 +127,9 @@ class _DokterHomeScreenState extends ConsumerState<DokterHomeScreen> {
             avatarBg: AppColors.blueLt,
             initial: p.nama.isNotEmpty ? p.nama[0] : '?',
             title: p.nama,
-            subtitle: p.keluhanUtama,
+            subtitle: p.keluhanUtama.isNotEmpty && p.keluhanUtama != 'Pemeriksaan umum'
+                ? '${p.waktuMasuk} · ${p.keluhanUtama}'
+                : p.waktuMasuk,
             badge: AppBadge(label: statusMeta(p).label, color: statusMeta(p).color, background: statusMeta(p).background),
           ),
       ],
@@ -127,6 +139,7 @@ class _DokterHomeScreenState extends ConsumerState<DokterHomeScreen> {
       emptySubtitle: 'Pilih pasien untuk melihat data & input diagnosa.',
     );
   }
+
 }
 
 class _NotifTile extends StatelessWidget {

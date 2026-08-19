@@ -7,7 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
-import '../../patients/data/mock_patient_repository.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/presentation/patient_info_card.dart';

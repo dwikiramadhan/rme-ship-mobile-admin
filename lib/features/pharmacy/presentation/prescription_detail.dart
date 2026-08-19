@@ -6,17 +6,17 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../patients/data/mock_patient_repository.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
-import '../../patients/domain/resep_item.dart';
+import '../../patients/domain/prescription_item.dart';
 import '../../patients/presentation/patient_info_card.dart';
 import '../../patients/presentation/status_meta.dart';
-import 'resep_obat_row.dart';
+import 'prescription_medicine_row.dart';
 
-/// Port of the prototype's `ResepDetail` — process a prescription through
+/// Port of the prototype's `PrescriptionDetail` — process a prescription through
 /// baru -> diproses -> selesai, with per-drug substitution along the way.
-class ResepDetail extends ConsumerWidget {
-  const ResepDetail({super.key, required this.patientId});
+class PrescriptionDetail extends ConsumerWidget {
+  const PrescriptionDetail({super.key, required this.patientId});
 
   final String patientId;
 
@@ -51,7 +51,7 @@ class ResepDetail extends ConsumerWidget {
               const SizedBox(height: 10),
               Text.rich(
                 TextSpan(
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.sub, fontFamily: 'PlusJakartaSans'),
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.sub),
                   children: [
                     const TextSpan(text: 'Diagnosa: '),
                     TextSpan(text: patient.diagnosa ?? '', style: const TextStyle(color: AppColors.text, fontWeight: FontWeight.w600)),
@@ -97,6 +97,8 @@ class ResepDetail extends ConsumerWidget {
     );
   }
 }
+
+typedef ResepDetail = PrescriptionDetail;
 
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;

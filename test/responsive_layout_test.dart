@@ -12,7 +12,10 @@ import 'package:bayan_rme/features/auth/domain/auth_repository.dart';
 import 'package:bayan_rme/features/auth/domain/user_role.dart';
 import 'package:bayan_rme/features/auth/presentation/auth_controller.dart';
 
+import 'package:bayan_rme/features/patients/data/patient_repository.dart';
+
 class _FixedSessionAuthRepository implements AuthRepository {
+
   _FixedSessionAuthRepository(this.session);
   final AuthSession? session;
 
@@ -45,13 +48,17 @@ Future<void> _pumpRole(WidgetTester tester, UserRole? role, {String email = 'tes
   final session = role == null ? null : _sessionFor(role, email);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [authRepositoryProvider.overrideWithValue(_FixedSessionAuthRepository(session))],
+      overrides: [
+        authRepositoryProvider.overrideWithValue(_FixedSessionAuthRepository(session)),
+        patientsProvider.overrideWith((ref) => PatientsNotifier(autoFetch: false)),
+      ],
       child: const BayanRmeApp(),
     ),
   );
   await tester.pump();
   await tester.pump();
 }
+
 
 void main() {
   for (final size in [_phoneSize, _tabletSize]) {

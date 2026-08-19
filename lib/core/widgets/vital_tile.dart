@@ -57,7 +57,7 @@ class VitalTile extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text.rich(
                   TextSpan(
-                    style: const TextStyle(fontSize: 16, color: AppColors.text, fontWeight: FontWeight.w800, fontFamily: 'PlusJakartaSans'),
+                    style: const TextStyle(fontSize: 16, color: AppColors.text, fontWeight: FontWeight.w800),
                     children: [
                       TextSpan(text: value),
                       TextSpan(text: ' $unit', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.sub)),

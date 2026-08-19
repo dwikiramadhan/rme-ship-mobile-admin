@@ -7,16 +7,16 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/push_detail_page.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../../patients/data/mock_patient_repository.dart';
+import '../../medicine_stock/presentation/medicine_stock_screen.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
-import '../../patients/domain/resep_item.dart';
+import '../../patients/domain/prescription_item.dart';
 import '../../patients/presentation/status_meta.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
-import '../../stok_obat/presentation/stok_obat_screen.dart';
-import 'resep_detail.dart';
+import 'prescription_detail.dart';
 
 class PharmacyHomeScreen extends ConsumerStatefulWidget {
   const PharmacyHomeScreen({super.key, required this.apotekerName});
@@ -123,9 +123,16 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
   }
 
   Widget _buildResep(List<Patient> withResep) {
+    final notifier = ref.read(patientsProvider.notifier);
     return ResponsiveMasterDetail(
       title: 'Daftar Resep',
-      subtitle: '${withResep.length} resep',
+      subtitle: '${withResep.length} resep masuk',
+      isLoading: notifier.isLoading,
+      hasMore: notifier.hasMore,
+      isLoadingMore: notifier.isLoadingMore,
+      onLoadMore: () => notifier.loadMore(),
+      onRefresh: () => notifier.fetchPatients(refresh: true),
+      onEntrySelected: (id) => notifier.fetchPatientDetail(id),
       entries: [
         for (final p in withResep)
           MasterListEntry(

@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_config.dart';
-import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 
 /// POST /api/v1/auth/change-password: {oldPassword, newPassword}.

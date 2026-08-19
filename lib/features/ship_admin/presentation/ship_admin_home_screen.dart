@@ -6,9 +6,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../../jadwal/domain/jadwal_perjalanan.dart';
-import '../../patients/data/mock_patient_repository.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../profile/presentation/profile_screen.dart';
+import '../../schedule/domain/trip_schedule.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
 
@@ -16,16 +16,18 @@ import '../../shell/presentation/role_shell.dart';
 /// Dashboard (R), Jadwal Perjalanan (R), Ubah Kata Sandi (in Profil).
 /// No patient-data access: Data Pasien / Rekam Medis are Doctor & Perawat
 /// only, so this role no longer reuses PerawatHomeScreen.
-class AdminKapalHomeScreen extends ConsumerStatefulWidget {
-  const AdminKapalHomeScreen({super.key, required this.adminName});
+class ShipAdminHomeScreen extends ConsumerStatefulWidget {
+  const ShipAdminHomeScreen({super.key, required this.adminName});
 
   final String adminName;
 
   @override
-  ConsumerState<AdminKapalHomeScreen> createState() => _AdminKapalHomeScreenState();
+  ConsumerState<ShipAdminHomeScreen> createState() => _ShipAdminHomeScreenState();
 }
 
-class _AdminKapalHomeScreenState extends ConsumerState<AdminKapalHomeScreen> {
+typedef AdminKapalHomeScreen = ShipAdminHomeScreen;
+
+class _ShipAdminHomeScreenState extends ConsumerState<ShipAdminHomeScreen> {
   String _tab = 'dashboard';
 
   static const _tabs = [

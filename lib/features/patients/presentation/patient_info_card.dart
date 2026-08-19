@@ -1,23 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/vital_tile.dart';
+import '../data/patient_repository.dart';
 import '../domain/doctor.dart';
 import '../domain/patient.dart';
 
-/// Port of the prototype's `PatientInfoCard` — the read-only identity +
-/// keluhan + vitals summary shown in every role's detail pane.
-class PatientInfoCard extends StatelessWidget {
-  const PatientInfoCard({super.key, required this.patient});
+/// Port of the prototype's `PatientInfoCard` — the identity +
+/// keluhan + vitals summary shown in every role's detail pane,
+/// with optional [onEdit] action for Perawat / Admin.
+class PatientInfoCard extends ConsumerWidget {
+  const PatientInfoCard({
+    super.key,
+    required this.patient,
+    this.onEdit,
+  });
 
   final Patient patient;
+  final VoidCallback? onEdit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final doctorsList = ref.watch(doctorsProvider).valueOrNull ?? kDoctors;
     Doctor? doctor;
-    for (final d in kDoctors) {
+    for (final d in doctorsList) {
       if (d.id == patient.assignedDokterId) {
         doctor = d;
         break;
@@ -32,6 +42,7 @@ class PatientInfoCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
                     width: 48,
@@ -58,6 +69,14 @@ class PatientInfoCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onEdit != null)
+                    AppButton(
+                      label: 'Edit',
+                      icon: LucideIcons.pencil,
+                      small: true,
+                      variant: AppButtonVariant.ghost,
+                      onPressed: onEdit,
+                    ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -69,7 +88,7 @@ class PatientInfoCard extends StatelessWidget {
                   runSpacing: 4,
                   children: [
                     Text('NIK: ${patient.nik}', style: const TextStyle(fontSize: 11.5, color: AppColors.sub)),
-                    Text('Masuk: ${patient.waktuMasuk}', style: const TextStyle(fontSize: 11.5, color: AppColors.sub)),
+                    Text('Terdaftar: ${patient.waktuMasuk}', style: const TextStyle(fontSize: 11.5, color: AppColors.sub)),
                     if (doctor != null) Text('Dokter: ${doctor.nama}', style: const TextStyle(fontSize: 11.5, color: AppColors.sub)),
                   ],
                 ),
@@ -82,7 +101,7 @@ class PatientInfoCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Keluhan Awal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text)),
+              const Text('Keluhan Awal', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.text)),
               const SizedBox(height: 9),
               Text(patient.keluhanUtama, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text)),
               const SizedBox(height: 5),
@@ -114,6 +133,7 @@ class PatientInfoCard extends StatelessWidget {
                       ? 2.1
                       : (w >= 440 ? 2.6 : 2.5);
                   return GridView.count(
+                    padding: EdgeInsets.zero,
                     crossAxisCount: crossAxisCount,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),

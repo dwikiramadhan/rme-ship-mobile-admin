@@ -7,7 +7,7 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/push_detail_page.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../../patients/data/mock_patient_repository.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/patient.dart';
@@ -118,9 +118,16 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   }
 
   Widget _buildOrder(List<Patient> withLab) {
+    final notifier = ref.read(patientsProvider.notifier);
     return ResponsiveMasterDetail(
-      title: 'Daftar Order',
+      title: 'Daftar Order Lab',
       subtitle: '${withLab.length} order lab',
+      isLoading: notifier.isLoading,
+      hasMore: notifier.hasMore,
+      isLoadingMore: notifier.isLoadingMore,
+      onLoadMore: () => notifier.loadMore(),
+      onRefresh: () => notifier.fetchPatients(refresh: true),
+      onEntrySelected: (id) => notifier.fetchPatientDetail(id),
       entries: [
         for (final p in withLab)
           MasterListEntry(

@@ -1,9 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-/// Care-team directory used by Perawat to assign a patient to an on-duty
-/// doctor. This is demo/seed data — the same scope decision that keeps
-/// patient records mock while only auth talks to a real API (see
-/// mock_patient_repository.dart doc comment for the full rationale).
+/// Care-team directory used by Perawat to assign a patient to an on-duty doctor.
 class Doctor extends Equatable {
   const Doctor({
     required this.id,
@@ -23,14 +20,29 @@ class Doctor extends Equatable {
   /// AuthSession.doctorDirectoryId.
   final String? email;
 
+  factory Doctor.fromApiJson(Map<String, dynamic> json) {
+    final availability = json['availability']?.toString().toLowerCase() ?? '';
+    final isOnline = availability.isEmpty || availability == 'available' || availability == 'online';
+    return Doctor(
+      id: json['id']?.toString() ?? '',
+      nama: json['name']?.toString() ?? '',
+      spesialisasi: json['specialty']?.toString() ?? 'Dokter Umum',
+      online: isOnline,
+      email: json['email']?.toString(),
+    );
+  }
+
   @override
   List<Object?> get props => [id, nama, spesialisasi, online, email];
 }
 
+
 const List<Doctor> kDoctors = [
-  Doctor(id: 'D1', nama: 'dr. Ahmad Fauzi, Sp.PD', spesialisasi: 'Penyakit Dalam', online: true, email: 'dr.ahmad@bayan.id'),
-  Doctor(id: 'D2', nama: 'dr. Siti Rahma', spesialisasi: 'Dokter Umum', online: true, email: 'dr.siti@bayan.id'),
-  Doctor(id: 'D3', nama: 'dr. Bimo Prakoso', spesialisasi: 'Bedah', online: false, email: 'dr.bimo@bayan.id'),
+  Doctor(id: '8afc72cb-b1c5-4ea1-a438-b06c6ae4a99b', nama: 'Dr. Budi Santoso Soedibyo', spesialisasi: 'General Practitioner', online: true, email: 'budi.santoso@rme.id'),
+  Doctor(id: '7dde5814-0813-47c4-9802-367d2d38f511', nama: 'dr. Lie Dharmawan', spesialisasi: 'Emergency Medicine, Internal Medicine', online: true, email: 'dr_lie@yopmail.com'),
+  Doctor(id: '5bef5428-83d8-4743-996c-5b015e5da5ce', nama: 'Dr. Agus Wijaya', spesialisasi: 'Pediatrics', online: true, email: 'agus.wijaya@rme.id'),
+  Doctor(id: '3e33ee55-214a-4b72-9c27-bfaa324359a9', nama: 'Dr. Siti Rahayu Putri', spesialisasi: 'Cardiology', online: true, email: 'siti.rahayu@rme.id'),
+  Doctor(id: '9a44e863-01eb-4be2-b017-05bd72d43a13', nama: 'Dr. Dewi Kusuma Wardani', spesialisasi: 'Pulmonology', online: false, email: 'dewi.kusuma@rme.id'),
 ];
 
 const List<String> kObatList = [

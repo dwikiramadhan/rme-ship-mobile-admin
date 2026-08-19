@@ -39,3 +39,7 @@ class ResepItem extends Equatable {
 }
 
 enum ResepStatus { baru, diproses, selesai }
+
+typedef PrescriptionItem = ResepItem;
+typedef PrescriptionStatus = ResepStatus;
+typedef MedicineSubstitution = ObatPenggantian;

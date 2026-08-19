@@ -7,12 +7,12 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
-import '../domain/riwayat_kunjungan.dart';
+import '../domain/visit_history.dart';
 
 /// Riwayat Kunjungan (Rekam Medis) — RBAC: Doctor C/R/U ([canEdit] true),
 /// Perawat R only ([canEdit] false).
-class RiwayatKunjunganScreen extends ConsumerWidget {
-  const RiwayatKunjunganScreen({super.key, required this.canEdit, this.dokterNama = ''});
+class VisitHistoryScreen extends ConsumerWidget {
+  const VisitHistoryScreen({super.key, required this.canEdit, this.dokterNama = ''});
 
   final bool canEdit;
   final String dokterNama;
@@ -83,9 +83,10 @@ class RiwayatKunjunganScreen extends ConsumerWidget {
 }
 
 String _fmtDate(DateTime d) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  return '${d.day} ${months[d.month - 1]} ${d.year}';
+  return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 }
+
+typedef RiwayatKunjunganScreen = VisitHistoryScreen;
 
 class _RiwayatDetail extends StatelessWidget {
   const _RiwayatDetail({required this.item, required this.canEdit, required this.onEdit});

@@ -52,7 +52,7 @@ class AppSelect<T> extends StatelessWidget {
           initialValue: value,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.sub),
-          style: const TextStyle(fontSize: 14, color: AppColors.text, fontFamily: 'PlusJakartaSans'),
+          style: const TextStyle(fontSize: 14, color: AppColors.text),
           decoration: const InputDecoration(),
           hint: Text(hint, style: const TextStyle(fontSize: 14, color: AppColors.sub)),
           items: [

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../features/admin_kapal/presentation/admin_kapal_home_screen.dart';
 import '../../features/auth/domain/user_role.dart';
 import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/auth_state.dart';
 import '../../features/auth/presentation/login_screen.dart';
-import '../../features/dokter/presentation/dokter_home_screen.dart';
+import '../../features/doctor/presentation/doctor_home_screen.dart';
 import '../../features/lab/presentation/lab_home_screen.dart';
+import '../../features/nurse/presentation/nurse_home_screen.dart';
 import '../../features/patients/domain/doctor.dart';
-import '../../features/perawat/presentation/perawat_home_screen.dart';
 import '../../features/pharmacy/presentation/pharmacy_home_screen.dart';
+import '../../features/ship_admin/presentation/ship_admin_home_screen.dart';
 import '../theme/app_colors.dart';
 
 /// Top-level router: shows a splash while restoring a persisted session,

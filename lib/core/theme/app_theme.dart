@@ -69,7 +69,7 @@ class AppSemanticColors extends ThemeExtension<AppSemanticColors> {
   }
 }
 
-const String appFontFamily = 'PlusJakartaSans';
+const String appFontFamily = 'Roboto';
 
 /// App-wide [ThemeData] following Material 3 (https://m3.material.io):
 /// tonal color scheme seeded from the brand blue, M3 component themes, and

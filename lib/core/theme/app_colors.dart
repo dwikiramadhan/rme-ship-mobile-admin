@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// Color tokens ported 1:1 from the Bayan RME HTML prototype's `getTheme()`.
+/// Color tokens with Orange primary brand palette.
 class AppColors {
   AppColors._();
 
-  static const Color blue = Color(0xFF1D4ED8);
-  static const Color blueMid = Color(0xFF3B82F6);
-  static const Color blueLt = Color(0xFFEFF6FF);
+  // Primary Brand: Vibrant Orange
+  static const Color orange = Color(0xFFEA580C);
+  static const Color orangeMid = Color(0xFFF97316);
+  static const Color orangeLt = Color(0xFFFFF7ED);
+
+  // Aliases for seamless backward compatibility across all widgets
+  static const Color blue = orange;
+  static const Color blueMid = orangeMid;
+  static const Color blueLt = orangeLt;
 
   static const Color red = Color(0xFFDC2626);
   static const Color redLt = Color(0xFFFEF2F2);
@@ -29,6 +35,6 @@ class AppColors {
   static const Color border = Color(0xFFE2E8F0);
   static const Color inputBg = Color(0xFFFAFAFA);
 
-  static const Color loginBg = Color(0xFFEEF2FF);
+  static const Color loginBg = Color(0xFFFFF7ED);
   static const Color shellBg = Color(0xFF0B1120);
 }

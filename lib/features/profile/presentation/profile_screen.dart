@@ -4,7 +4,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../auth/presentation/auth_controller.dart';
-import '../../auth/presentation/auth_state.dart';
 
 /// Profile screen with change-password support for all ship-based roles.
 /// RBAC: Ubah Kata Sandi — all roles (Perawat, Dokter, Pharmacist, Admin Kapal, Lab).
@@ -159,8 +158,6 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
     _confirmPw.dispose();
     super.dispose();
   }
-
-  String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;

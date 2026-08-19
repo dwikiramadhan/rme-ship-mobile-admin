@@ -7,13 +7,13 @@ import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../domain/stok_obat.dart';
+import '../domain/medicine_stock.dart';
 
 /// Stok Obat Kapal — per the RBAC matrix (Ship Web Admin):
 /// Pharmacist gets full C/R/U/D ([canManage] true); Doctor & Perawat get
 /// read-only ([canManage] false).
-class StokObatScreen extends ConsumerWidget {
-  const StokObatScreen({super.key, required this.canManage});
+class MedicineStockScreen extends ConsumerWidget {
+  const MedicineStockScreen({super.key, required this.canManage});
 
   final bool canManage;
 
@@ -262,3 +262,5 @@ class _StokFormState extends State<_StokForm> {
     );
   }
 }
+
+typedef StokObatScreen = MedicineStockScreen;

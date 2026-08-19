@@ -35,16 +35,14 @@ If `--dart-define=API_BASE_URL` is omitted, it defaults to
   whether this happens). `role` must be one of `perawat` / `dokter` /
   `pharmacy` / `lab` — that's the only input that decides which app the user
   sees; there is no manual role picker anywhere in this build.
-- **Patient records are still mock/in-memory**, seeded with the same 3 demo
-  patients as the HTML prototype (`lib/features/patients/data/
-  mock_patient_repository.dart`). This was a scope decision for this pass —
-  only auth talks to a real backend right now. Swapping in a real patients
-  API later means implementing `PatientsNotifier`'s methods against HTTP
-  calls instead of local list mutation; the UI layer doesn't need to change.
+- **Patient records are connected directly to the API**: `GET /api/v1/patients`,
+  `POST /api/v1/patients`, and `POST /api/v1/patients/{id}/medical-records`
+  (`lib/features/patients/data/patient_repository.dart`) with pagination
+  and infinite load-more scroll support.
 - **The on-duty doctor directory** (`lib/features/patients/domain/
   doctor.dart`) used for Perawat's "assign dokter" dropdown is also seed
   data with placeholder emails. A signed-in Dokter account is matched to
-  this directory by email (`resolveDoctorId`) so "Pasien Saya" shows the
+  this directory by email (`resolveDoctorId`) so "Pasien" shows the
   right patients; update those emails (or wire this to a real staff
   directory) to match your actual doctor accounts.
 

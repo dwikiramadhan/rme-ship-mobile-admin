@@ -2,35 +2,37 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
-import '../../../core/widgets/screen_header.dart';
-import '../../patients/data/mock_patient_repository.dart';
-import '../../patients/domain/doctor.dart';
+import '../../history/presentation/visit_history_screen.dart';
+import '../../medicine_stock/presentation/medicine_stock_screen.dart';
+import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/presentation/patient_info_card.dart';
 import '../../patients/presentation/status_meta.dart';
 import '../../profile/presentation/profile_screen.dart';
-import '../../riwayat/presentation/riwayat_kunjungan_screen.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
-import '../../stok_obat/presentation/stok_obat_screen.dart';
-import 'tambah_pasien_form.dart';
+import 'patient_form.dart';
 
-class PerawatHomeScreen extends ConsumerStatefulWidget {
-  const PerawatHomeScreen({super.key, required this.perawatName, this.roleName = 'Perawat'});
+class NurseHomeScreen extends ConsumerStatefulWidget {
+  const NurseHomeScreen({super.key, required this.perawatName, this.roleName = 'Perawat'});
 
   final String perawatName;
   final String roleName;
 
   @override
-  ConsumerState<PerawatHomeScreen> createState() => _PerawatHomeScreenState();
+  ConsumerState<NurseHomeScreen> createState() => _NurseHomeScreenState();
 }
 
-class _PerawatHomeScreenState extends ConsumerState<PerawatHomeScreen> {
+typedef PerawatHomeScreen = NurseHomeScreen;
+
+class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
   String _tab = 'antrian';
   bool _showForm = false;
+  Patient? _editingPatient;
 
   static const _tabs = [
     ShellNavItem(key: 'antrian', label: 'Antrian', icon: LucideIcons.clipboardList),
@@ -38,6 +40,30 @@ class _PerawatHomeScreenState extends ConsumerState<PerawatHomeScreen> {
     ShellNavItem(key: 'stok', label: 'Stok Obat', icon: LucideIcons.pill),
     ShellNavItem(key: 'profil', label: 'Profil', icon: LucideIcons.user),
   ];
+
+  void _openEdit(BuildContext context, Patient patient) {
+    if (isTabletLayout(context)) {
+      setState(() {
+        _editingPatient = patient;
+        _showForm = true;
+      });
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (ctx) => Scaffold(
+            backgroundColor: AppColors.bg,
+            body: SafeArea(
+              child: TambahPasienForm(
+                initialPatient: patient,
+                onBack: () => Navigator.of(ctx).pop(),
+                onSaved: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,12 +75,20 @@ class _PerawatHomeScreenState extends ConsumerState<PerawatHomeScreen> {
       onChange: (key) => setState(() {
         _tab = key;
         _showForm = false;
+        _editingPatient = null;
       }),
       child: switch (_tab) {
         'antrian' => _showForm
             ? TambahPasienForm(
-                onBack: () => setState(() => _showForm = false),
-                onSaved: () => setState(() => _showForm = false),
+                initialPatient: _editingPatient,
+                onBack: () => setState(() {
+                  _showForm = false;
+                  _editingPatient = null;
+                }),
+                onSaved: () => setState(() {
+                  _showForm = false;
+                  _editingPatient = null;
+                }),
               )
             : _buildAntrian(patients),
         'riwayat' => const RiwayatKunjunganScreen(canEdit: false),
@@ -65,11 +99,24 @@ class _PerawatHomeScreenState extends ConsumerState<PerawatHomeScreen> {
   }
 
   Widget _buildAntrian(List<Patient> patients) {
+    final notifier = ref.read(patientsProvider.notifier);
     final sorted = sortRecent(patients);
     return ResponsiveMasterDetail(
       title: 'Antrian Pasien',
-      subtitle: '${patients.length} pasien hari ini',
-      trailing: HeaderActionButton(icon: LucideIcons.plus, onPressed: () => setState(() => _showForm = true)),
+      subtitle: '${sorted.length} pasien terdaftar',
+      isLoading: notifier.isLoading,
+      hasMore: notifier.hasMore,
+      isLoadingMore: notifier.isLoadingMore,
+      onLoadMore: () => notifier.loadMore(),
+      onRefresh: () => notifier.fetchPatients(refresh: true),
+      onEntrySelected: (id) => notifier.fetchPatientDetail(id),
+      trailing: HeaderActionButton(
+        icon: LucideIcons.plus,
+        onPressed: () => setState(() {
+          _editingPatient = null;
+          _showForm = true;
+        }),
+      ),
       entries: [
         for (final p in sorted)
           MasterListEntry(
@@ -78,25 +125,27 @@ class _PerawatHomeScreenState extends ConsumerState<PerawatHomeScreen> {
             avatarBg: AppColors.blueLt,
             initial: p.nama.isNotEmpty ? p.nama[0] : '?',
             title: p.nama,
-            subtitle: '${_doctorName(p.assignedDokterId)} · ${p.waktuMasuk}',
+            subtitle: p.keluhanUtama.isNotEmpty && p.keluhanUtama != 'Pemeriksaan umum'
+                ? '${p.waktuMasuk} · ${p.keluhanUtama}'
+                : p.waktuMasuk,
             badge: _statusBadge(p),
           ),
       ],
       detailBuilder: (context, id) {
-        final patient = patients.firstWhere((p) => p.id == id);
-        return PatientInfoCard(patient: patient);
+        final currentPatients = ref.watch(patientsProvider);
+        final patient = currentPatients.firstWhere(
+          (p) => p.id == id,
+          orElse: () => patients.firstWhere((p) => p.id == id),
+        );
+        return PatientInfoCard(
+          patient: patient,
+          onEdit: () => _openEdit(context, patient),
+        );
       },
       emptyIcon: LucideIcons.clipboardList,
       emptyTitle: 'Pilih pasien',
       emptySubtitle: 'Pilih pasien di antrian untuk melihat data yang sudah diinput.',
     );
-  }
-
-  String _doctorName(String id) {
-    for (final d in kDoctors) {
-      if (d.id == id) return d.nama;
-    }
-    return '—';
   }
 
   Widget _statusBadge(Patient p) {
