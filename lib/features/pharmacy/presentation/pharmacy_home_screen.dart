@@ -60,7 +60,11 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
                       color: AppColors.yellowLt,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(LucideIcons.bellRing, size: 16, color: AppColors.yellow),
+                    child: const Icon(
+                      LucideIcons.bellRing,
+                      size: 16,
+                      color: AppColors.yellow,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -70,11 +74,18 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
                       children: [
                         const Text(
                           'Resep Baru Masuk!',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
                         ),
                         Text(
                           'Dokter telah menyelesaikan $count resep obat untuk $patientName',
-                          style: const TextStyle(fontSize: 11.5, color: AppColors.sub),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.sub,
+                          ),
                         ),
                       ],
                     ),
@@ -99,14 +110,46 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
   Widget build(BuildContext context) {
     final patients = ref.watch(patientsProvider);
     final allNotifs = ref.watch(notificationsProvider);
-    final withResep = sortRecent(patients.where((p) => p.statusPenanganan == 'Menunggu Obat' || p.resepStatus != null || p.resep.isNotEmpty).toList());
-    final notifs = allNotifs.where((p) => p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru).toList();
+    final withResep = sortRecent(
+      patients
+          .where(
+            (p) =>
+                p.statusPenanganan == 'Menunggu Obat' ||
+                p.resepStatus != null ||
+                p.resep.isNotEmpty,
+          )
+          .toList(),
+    );
+    final notifs = allNotifs
+        .where(
+          (p) =>
+              p.statusPenanganan == 'Menunggu Obat' ||
+              p.resepStatus == ResepStatus.baru,
+        )
+        .toList();
 
     final tabs = [
-      ShellNavItem(key: 'notifikasi', label: 'Notifikasi', icon: LucideIcons.bell, badgeCount: notifs.length),
-      const ShellNavItem(key: 'resep', label: 'Daftar Resep', icon: LucideIcons.fileText),
-      const ShellNavItem(key: 'stok', label: 'Stok Obat', icon: LucideIcons.pill),
-      const ShellNavItem(key: 'profil', label: 'Profil', icon: LucideIcons.user),
+      ShellNavItem(
+        key: 'notifikasi',
+        label: 'Notifikasi',
+        icon: LucideIcons.bell,
+        badgeCount: notifs.length,
+      ),
+      const ShellNavItem(
+        key: 'resep',
+        label: 'Daftar Resep',
+        icon: LucideIcons.fileText,
+      ),
+      const ShellNavItem(
+        key: 'stok',
+        label: 'Stok Obat',
+        icon: LucideIcons.pill,
+      ),
+      const ShellNavItem(
+        key: 'profil',
+        label: 'Profil',
+        icon: LucideIcons.user,
+      ),
     ];
 
     late final Widget content;
@@ -121,39 +164,71 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
         content = ProfileScreen(name: widget.apotekerName, role: 'Apoteker');
     }
 
-    return RoleShell(items: tabs, activeKey: _tab, onChange: (key) => setState(() => _tab = key), child: content);
+    return RoleShell(
+      items: tabs,
+      activeKey: _tab,
+      onChange: (key) => setState(() => _tab = key),
+      child: content,
+    );
   }
 
   Widget _buildNotifikasi(List<Patient> notifs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ScreenHeader(title: 'Notifikasi', subtitle: '${notifs.length} resep baru'),
+        ScreenHeader(
+          title: 'Notifikasi',
+          subtitle: '${notifs.length} resep baru',
+        ),
         Expanded(
           child: notifs.isEmpty
-              ? const Center(child: Text('Tidak ada notifikasi baru', style: TextStyle(color: AppColors.sub, fontSize: 13)))
+              ? const Center(
+                  child: Text(
+                    'Tidak ada notifikasi baru',
+                    style: TextStyle(color: AppColors.sub, fontSize: 13),
+                  ),
+                )
               : ListView.separated(
                   padding: const EdgeInsets.all(12),
                   itemCount: notifs.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final p = notifs[index];
-                    final doctorName = kDoctors.where((d) => d.id == p.assignedDokterId).map((d) => d.nama).firstOrNull ?? '—';
+                    final doctorName =
+                        kDoctors
+                            .where((d) => d.id == p.assignedDokterId)
+                            .map((d) => d.nama)
+                            .firstOrNull ??
+                        '—';
                     return Material(
                       color: AppColors.card,
                       borderRadius: BorderRadius.circular(14),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () {
-                          ref.read(notificationsProvider.notifier).markPharmacySeen(p.id);
-                          ref.read(patientsProvider.notifier).markDilihatPharmacy(p.id);
-                          pushDetailPage(context, title: p.nama, child: ResepDetail(patientId: p.id));
+                          ref
+                              .read(notificationsProvider.notifier)
+                              .markPharmacySeen(p.id);
+                          ref
+                              .read(patientsProvider.notifier)
+                              .markDilihatPharmacy(p.id);
+                          pushDetailPage(
+                            context,
+                            title: p.nama,
+                            child: ResepDetail(patientId: p.id),
+                          );
                         },
                         child: Container(
                           padding: const EdgeInsets.all(13),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            boxShadow: [BoxShadow(color: AppColors.text.withValues(alpha: 0.08), blurRadius: 16, offset: const Offset(0, 4))],
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.text.withValues(alpha: 0.08),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
                           child: Row(
                             children: [
@@ -161,8 +236,15 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
                                 width: 40,
                                 height: 40,
                                 alignment: Alignment.center,
-                                decoration: BoxDecoration(color: AppColors.yellowLt, borderRadius: BorderRadius.circular(11)),
-                                child: const Icon(LucideIcons.fileText, size: 19, color: AppColors.yellow),
+                                decoration: BoxDecoration(
+                                  color: AppColors.yellowLt,
+                                  borderRadius: BorderRadius.circular(11),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.fileText,
+                                  size: 19,
+                                  color: AppColors.yellow,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -170,13 +252,30 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('Resep baru: ${p.nama}', style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: AppColors.text)),
+                                    Text(
+                                      'Resep baru: ${p.nama}',
+                                      style: const TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
                                     const SizedBox(height: 1),
-                                    Text('Dari $doctorName · ${p.resep.length} obat', style: const TextStyle(fontSize: 11.5, color: AppColors.sub)),
+                                    Text(
+                                      '$doctorName · ${p.nik.isNotEmpty ? p.nik : '—'}',
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        color: AppColors.sub,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.sub),
+                              const Icon(
+                                LucideIcons.chevronRight,
+                                size: 16,
+                                color: AppColors.sub,
+                              ),
                             ],
                           ),
                         ),
@@ -193,7 +292,6 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
     final notifier = ref.read(patientsProvider.notifier);
     return ResponsiveMasterDetail(
       title: 'Daftar Resep',
-      subtitle: '${withResep.length} resep masuk',
       isLoading: notifier.isLoading,
       hasMore: notifier.hasMore,
       isLoadingMore: notifier.isLoadingMore,
@@ -208,8 +306,12 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
             avatarBg: AppColors.yellowLt,
             initial: p.nama.isNotEmpty ? p.nama[0] : '?',
             title: p.nama,
-            subtitle: '${p.resep.length} obat',
-            badge: AppBadge(label: statusMeta(p).label, color: statusMeta(p).color, background: statusMeta(p).background),
+            subtitle: p.nik.isNotEmpty ? p.nik : '—',
+            badge: AppBadge(
+              label: statusMeta(p).label,
+              color: statusMeta(p).color,
+              background: statusMeta(p).background,
+            ),
           ),
       ],
       detailBuilder: (context, id) => ResepDetail(patientId: id),

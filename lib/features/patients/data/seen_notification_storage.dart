@@ -70,4 +70,24 @@ class SeenNotificationStorage {
     _labSeen.add(id);
     await _storage.write(key: _kLabKey, value: jsonEncode(_labSeen.toList()));
   }
+
+  Future<void> unmarkPharmacySeen(String id) async {
+    _pharmacySeen.remove(id);
+    await _storage.write(key: _kPharmacyKey, value: jsonEncode(_pharmacySeen.toList()));
+  }
+
+  Future<void> unmarkDoctorSeen(String id) async {
+    _doctorSeen.remove(id);
+    await _storage.write(key: _kDoctorKey, value: jsonEncode(_doctorSeen.toList()));
+  }
+
+  Future<void> unmarkDoctorLabSeen(String id) async {
+    _doctorLabSeen.remove(id);
+    await _storage.write(key: _kDoctorLabKey, value: jsonEncode(_doctorLabSeen.toList()));
+  }
+
+  Future<void> unmarkLabSeen(String id) async {
+    _labSeen.remove(id);
+    await _storage.write(key: _kLabKey, value: jsonEncode(_labSeen.toList()));
+  }
 }

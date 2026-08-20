@@ -57,6 +57,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       final type = event['type'] ?? event['event'];
       if (type == 'ping' || type == 'pong') return;
       debugPrint('⚡ [PatientsNotifier] Real-time WS push received: $type');
+      final patientId = event['patient_id']?.toString();
+      final statusPenanganan = event['status_penanganan']?.toString();
+      if (patientId != null && statusPenanganan != null) {
+        _update(patientId, (p) => p.copyWith(
+          statusPenanganan: statusPenanganan,
+          resepStatus: statusPenanganan == 'Menunggu Obat' ? (p.resepStatus ?? ResepStatus.baru) : p.resepStatus,
+        ));
+      }
       _silentPoll();
     });
 
@@ -620,7 +628,36 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     });
   }
 
-  void setResepStatus(String id, ResepStatus status) => _update(id, (p) => p.copyWith(resepStatus: status));
+  Future<void> setResepStatus(String id, ResepStatus status) async {
+    final newStatusPenanganan = status == ResepStatus.selesai ? 'Selesai' : null;
+    _update(
+      id,
+      (p) => p.copyWith(
+        resepStatus: status,
+        statusPenanganan: newStatusPenanganan ?? p.statusPenanganan,
+      ),
+    );
+
+    if (status == ResepStatus.selesai) {
+      _seenStorage.markPharmacySeen(id);
+      try {
+        await _api.updatePatient(id, {
+          'status_penanganan': 'Selesai',
+        });
+        debugPrint('✅ [setResepStatus] Successfully updated status_penanganan to Selesai on API for patient $id');
+      } catch (e) {
+        debugPrint('❌ [setResepStatus] Failed to sync status_penanganan Selesai to API: $e');
+        rethrow;
+      }
+
+      _wsService.send({
+        'type': 'prescription_completed',
+        'patient_id': id,
+        'status_penanganan': 'Selesai',
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+    }
+  }
 
   void submitLabHasil({required String id, required String catatanHasil, String? fileName}) {
     _update(id, (p) {
@@ -670,20 +707,42 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   StreamSubscription? _wsSubscription;
 
   void _initWebSocket() {
-    _wsSubscription = _wsService.onEvent.listen((event) {
+    _wsSubscription = _wsService.onEvent.listen((event) async {
       final type = event['type'] ?? event['event'];
       if (type == 'ping' || type == 'pong') return;
       debugPrint('⚡ [NotificationsNotifier] Event received: $type');
-      fetchRecentNotifications();
+
+      final patientId = event['patient_id']?.toString();
+      if (type == 'prescription_created' && patientId != null) {
+        await _seenStorage.unmarkPharmacySeen(patientId);
+      } else if (type == 'patient_assigned' && patientId != null) {
+        await _seenStorage.unmarkDoctorSeen(patientId);
+      } else if (type == 'lab_result_ready' && patientId != null) {
+        await _seenStorage.unmarkDoctorLabSeen(patientId);
+      } else if (type == 'lab_order_created' && patientId != null) {
+        await _seenStorage.unmarkLabSeen(patientId);
+      }
+
+      await fetchRecentNotifications(targetPatientId: patientId);
     });
   }
 
-  Future<void> fetchRecentNotifications() async {
+  Future<void> fetchRecentNotifications({String? targetPatientId}) async {
     try {
       await _seenStorage.load();
-      // Fetch recent triage/intake patients (page 1 only) to check for pending tasks
-      final paginated = await _api.getPatientsPaginated(page: 1, limit: 10);
-      final unread = paginated.data.where((p) {
+      // Fetch recent triage/intake patients (page 1 with limit 50)
+      final paginated = await _api.getPatientsPaginated(page: 1, limit: 50);
+      var patientList = paginated.data;
+
+      // If a specific target patient was notified but not on page 1, fetch it individually
+      if (targetPatientId != null && !patientList.any((p) => p.id == targetPatientId)) {
+        try {
+          final target = await _api.getPatient(targetPatientId);
+          patientList = [target, ...patientList];
+        } catch (_) {}
+      }
+
+      final unread = patientList.where((p) {
         final isUnreadDoc = (p.status == PatientStatus.menungguDokter) && !_seenStorage.isDoctorSeen(p.id);
         final isUnreadDocLab = (p.labOrder?.status == LabOrderStatus.selesai) && !_seenStorage.isDoctorLabSeen(p.id);
         final isUnreadPharm = (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)) && !_seenStorage.isPharmacySeen(p.id);
@@ -707,7 +766,7 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 
   void markPharmacySeen(String id) {
     _seenStorage.markPharmacySeen(id);
-    state = state.where((p) => !(p.id == id && p.resepStatus == ResepStatus.baru)).toList();
+    state = state.where((p) => p.id != id).toList();
   }
 
   void markLabSeen(String id) {
