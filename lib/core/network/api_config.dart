@@ -27,6 +27,16 @@ class ApiConfig {
     return 'http://localhost:8080';
   }
 
+  static String get wsUrl {
+    final httpUrl = baseUrl;
+    if (httpUrl.startsWith('https://')) {
+      return 'wss://${httpUrl.substring(8)}/api/v1/ws';
+    } else if (httpUrl.startsWith('http://')) {
+      return 'ws://${httpUrl.substring(7)}/api/v1/ws';
+    }
+    return 'ws://$httpUrl/api/v1/ws';
+  }
+
   static const String loginPath = '/api/v1/auth/login';
   static const String changePasswordPath = '/api/v1/auth/change-password';
   static const String patientsPath = '/api/v1/patients';

@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_shimmer.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/prescription_item.dart';
@@ -15,15 +16,48 @@ import 'prescription_medicine_row.dart';
 
 /// Port of the prototype's `PrescriptionDetail` — process a prescription through
 /// baru -> diproses -> selesai, with per-drug substitution along the way.
-class PrescriptionDetail extends ConsumerWidget {
+class PrescriptionDetail extends ConsumerStatefulWidget {
   const PrescriptionDetail({super.key, required this.patientId});
 
   final String patientId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PrescriptionDetail> createState() => _PrescriptionDetailState();
+}
+
+class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant PrescriptionDetail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patientId != widget.patientId) {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    await Future.wait([
+      ref.read(patientsProvider.notifier).fetchPatientDetail(widget.patientId),
+      Future.delayed(const Duration(milliseconds: 250)),
+    ]);
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final patients = ref.watch(patientsProvider);
-    final patient = patients.firstWhere((p) => p.id == patientId);
+    final patient = patients.where((p) => p.id == widget.patientId).firstOrNull;
+    if (_loading || patient == null) {
+      return const SkeletonPatientDetail();
+    }
     final doctor = kDoctors.where((d) => d.id == patient.assignedDokterId).firstOrNull;
     final meta = statusMeta(patient);
 

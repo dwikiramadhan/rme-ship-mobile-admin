@@ -25,18 +25,21 @@ class RoleShell extends StatelessWidget {
   Widget build(BuildContext context) {
     if (isTabletLayout(context)) {
       return Scaffold(
-        body: Row(
-          children: [
-            SideNavRail(items: items, activeKey: activeKey, onChange: onChange),
-            Expanded(child: child),
-          ],
+        resizeToAvoidBottomInset: false,
+        body: SafeArea(
+          child: Row(
+            children: [
+              SideNavRail(items: items, activeKey: activeKey, onChange: onChange),
+              Expanded(child: child),
+            ],
+          ),
         ),
       );
     }
 
     final activeIndex = items.indexWhere((i) => i.key == activeKey).clamp(0, items.length - 1);
     return Scaffold(
-      body: child,
+      body: SafeArea(child: child),
       bottomNavigationBar: NavigationBar(
         selectedIndex: activeIndex,
         onDestinationSelected: (index) => onChange(items[index].key),

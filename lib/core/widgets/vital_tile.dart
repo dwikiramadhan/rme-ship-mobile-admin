@@ -22,12 +22,15 @@ class VitalTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final displayValue = value.trim().isNotEmpty ? value.trim() : '—';
+    final hasValue = displayValue != '—';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: AppColors.card2,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -49,22 +52,46 @@ class VitalTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  label,
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.sub, fontWeight: FontWeight.w600),
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                    color: AppColors.sub,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 1),
-                Text.rich(
-                  TextSpan(
-                    style: const TextStyle(fontSize: 16, color: AppColors.text, fontWeight: FontWeight.w800),
-                    children: [
-                      TextSpan(text: value),
-                      TextSpan(text: ' $unit', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.sub)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        displayValue,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: hasValue ? AppColors.text : AppColors.sub,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (unit.isNotEmpty && hasValue) ...[
+                      const SizedBox(width: 3),
+                      Text(
+                        unit,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.sub,
+                        ),
+                      ),
                     ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  ],
                 ),
               ],
             ),

@@ -5,6 +5,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_badge.dart';
+import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../history/presentation/visit_history_screen.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
@@ -30,12 +31,12 @@ class NurseHomeScreen extends ConsumerStatefulWidget {
 typedef PerawatHomeScreen = NurseHomeScreen;
 
 class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
-  String _tab = 'antrian';
+  String _tab = 'pasien';
   bool _showForm = false;
   Patient? _editingPatient;
 
   static const _tabs = [
-    ShellNavItem(key: 'antrian', label: 'Antrian', icon: LucideIcons.clipboardList),
+    ShellNavItem(key: 'pasien', label: 'Pasien', icon: LucideIcons.clipboardList),
     ShellNavItem(key: 'riwayat', label: 'Riwayat', icon: LucideIcons.bookOpen),
     ShellNavItem(key: 'stok', label: 'Stok Obat', icon: LucideIcons.pill),
     ShellNavItem(key: 'profil', label: 'Profil', icon: LucideIcons.user),
@@ -78,7 +79,7 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
         _editingPatient = null;
       }),
       child: switch (_tab) {
-        'antrian' => _showForm
+        'pasien' => _showForm
             ? TambahPasienForm(
                 initialPatient: _editingPatient,
                 onBack: () => setState(() {
@@ -90,7 +91,7 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
                   _editingPatient = null;
                 }),
               )
-            : _buildAntrian(patients),
+            : _buildPasien(patients),
         'riwayat' => const RiwayatKunjunganScreen(canEdit: false),
         'stok' => const StokObatScreen(canManage: false),
         _ => ProfileScreen(name: widget.perawatName, role: widget.roleName),
@@ -98,18 +99,19 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
     );
   }
 
-  Widget _buildAntrian(List<Patient> patients) {
+  Widget _buildPasien(List<Patient> patients) {
     final notifier = ref.read(patientsProvider.notifier);
     final sorted = sortRecent(patients);
     return ResponsiveMasterDetail(
-      title: 'Antrian Pasien',
-      subtitle: '${sorted.length} pasien terdaftar',
+      title: 'Data Pasien',
       isLoading: notifier.isLoading,
       hasMore: notifier.hasMore,
       isLoadingMore: notifier.isLoadingMore,
       onLoadMore: () => notifier.loadMore(),
       onRefresh: () => notifier.fetchPatients(refresh: true),
       onEntrySelected: (id) => notifier.fetchPatientDetail(id),
+      onSearchChanged: (q) => notifier.searchPatients(q),
+      searchPlaceholder: 'Cari nama atau NIK pasien...',
       trailing: HeaderActionButton(
         icon: LucideIcons.plus,
         onPressed: () => setState(() {
@@ -125,18 +127,17 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
             avatarBg: AppColors.blueLt,
             initial: p.nama.isNotEmpty ? p.nama[0] : '?',
             title: p.nama,
-            subtitle: p.keluhanUtama.isNotEmpty && p.keluhanUtama != 'Pemeriksaan umum'
-                ? '${p.waktuMasuk} · ${p.keluhanUtama}'
-                : p.waktuMasuk,
+            subtitle: p.waktuMasuk,
             badge: _statusBadge(p),
           ),
       ],
       detailBuilder: (context, id) {
         final currentPatients = ref.watch(patientsProvider);
-        final patient = currentPatients.firstWhere(
-          (p) => p.id == id,
-          orElse: () => patients.firstWhere((p) => p.id == id),
-        );
+        final patient = currentPatients.where((p) => p.id == id).firstOrNull ??
+            patients.where((p) => p.id == id).firstOrNull;
+        if (patient == null) {
+          return const SkeletonPatientDetail();
+        }
         return PatientInfoCard(
           patient: patient,
           onEdit: () => _openEdit(context, patient),

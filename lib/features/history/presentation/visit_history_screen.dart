@@ -39,7 +39,16 @@ class VisitHistoryScreen extends ConsumerWidget {
           ),
       ],
       detailBuilder: (context, id) {
-        final r = ref.watch(riwayatKunjunganProvider).firstWhere((e) => e.id == id);
+        final list = ref.watch(riwayatKunjunganProvider);
+        final r = list.where((e) => e.id == id).firstOrNull;
+        if (r == null) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Text('Detail kunjungan tidak ditemukan.', style: TextStyle(color: AppColors.sub)),
+            ),
+          );
+        }
         return _RiwayatDetail(
           item: r,
           canEdit: canEdit,
@@ -139,7 +148,7 @@ class _Field extends StatelessWidget {
       children: [
         Text(label, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: AppColors.sub)),
         const SizedBox(height: 2),
-        Text(value, style: const TextStyle(fontSize: 13.5, color: AppColors.text, height: 1.4)),
+        Text(value, style: const TextStyle(fontSize: 13.5, color: AppColors.text)),
       ],
     );
   }

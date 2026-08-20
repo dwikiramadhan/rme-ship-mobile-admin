@@ -70,11 +70,16 @@ const List<String> kJenisLab = [
 /// signed-in doctor sees the patients assigned to them. Matches by email;
 /// falls back to the first directory entry if this account isn't seeded
 /// there yet (demo data limitation — see mock_patient_repository.dart).
-String resolveDoctorId(String email) {
+String resolveDoctorId(String email, {String? userId}) {
+  if (userId != null && userId.isNotEmpty) {
+    for (final d in kDoctors) {
+      if (d.id.toLowerCase() == userId.toLowerCase()) return d.id;
+    }
+  }
   for (final d in kDoctors) {
     if (d.email != null && d.email!.toLowerCase() == email.toLowerCase()) return d.id;
   }
-  return kDoctors.first.id;
+  return (userId != null && userId.isNotEmpty) ? userId : kDoctors.first.id;
 }
 
 const List<String> kAlasanGantiObat = [

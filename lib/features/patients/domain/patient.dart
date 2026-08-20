@@ -13,9 +13,7 @@ extension GenderLabel on Gender {
 enum PatientStatus { menungguDokter, diperiksa }
 
 /// One patient's clinical record as it moves through the Perawat -> Dokter
-/// -> Apotek / Lab flow. Field names mirror the prototype's mock data 1:1
-/// (`nik`, `jk`, `keluhanUtama`, `waktuMasuk`, `dilihatDokter`, ...) so the
-/// behaviour ported from `Bayan RME - Alur Klinis.html` stays traceable.
+/// -> Apotek / Lab flow.
 class Patient extends Equatable {
   const Patient({
     required this.id,
@@ -33,6 +31,13 @@ class Patient extends Equatable {
     required this.updatedAt,
     this.status = PatientStatus.menungguDokter,
     this.dbStatus = 'Monitoring',
+    this.statusPenanganan,
+    this.dob,
+    this.namaWali,
+    this.hubunganWali,
+    this.keterangan,
+    this.kodeKelurahan,
+    this.kodePos,
     this.diagnosa,
     this.resep = const [],
     this.resepStatus,
@@ -61,6 +66,15 @@ class Patient extends Equatable {
 
   final PatientStatus status;
   final String dbStatus;
+  final String? statusPenanganan;
+
+  final String? dob;
+  final String? namaWali;
+  final String? hubunganWali;
+  final String? keterangan;
+  final String? kodeKelurahan;
+  final int? kodePos;
+
   final String? diagnosa;
   final List<ResepItem> resep;
   final ResepStatus? resepStatus;
@@ -86,6 +100,13 @@ class Patient extends Equatable {
     DateTime? updatedAt,
     PatientStatus? status,
     String? dbStatus,
+    String? statusPenanganan,
+    String? dob,
+    String? namaWali,
+    String? hubunganWali,
+    String? keterangan,
+    String? kodeKelurahan,
+    int? kodePos,
     Object? diagnosa = _unset,
     List<ResepItem>? resep,
     Object? resepStatus = _unset,
@@ -111,6 +132,13 @@ class Patient extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
       dbStatus: dbStatus ?? this.dbStatus,
+      statusPenanganan: statusPenanganan ?? this.statusPenanganan,
+      dob: dob ?? this.dob,
+      namaWali: namaWali ?? this.namaWali,
+      hubunganWali: hubunganWali ?? this.hubunganWali,
+      keterangan: keterangan ?? this.keterangan,
+      kodeKelurahan: kodeKelurahan ?? this.kodeKelurahan,
+      kodePos: kodePos ?? this.kodePos,
       diagnosa: identical(diagnosa, _unset) ? this.diagnosa : diagnosa as String?,
       resep: resep ?? this.resep,
       resepStatus: identical(resepStatus, _unset) ? this.resepStatus : resepStatus as ResepStatus?,
@@ -131,6 +159,12 @@ class Patient extends Equatable {
     final String dobStr = json['dob']?.toString() ?? '';
     final String address = json['address']?.toString() ?? '';
     final String dbStatus = json['status']?.toString() ?? 'Monitoring';
+
+    final String? namaWali = json['nama_wali']?.toString();
+    final String? hubunganWali = json['hubungan_wali']?.toString();
+    final String? keterangan = json['keterangan']?.toString();
+    final String? kodeKelurahan = json['kode_kelurahan']?.toString();
+    final int? kodePos = (json['kode_pos'] as num?)?.toInt();
 
     int umur = 0;
     if (dobStr.isNotEmpty) {
@@ -160,29 +194,104 @@ class Patient extends Equatable {
     ResepStatus? resepStatus;
     PatientStatus status = PatientStatus.menungguDokter;
 
+    String durasi = '-';
+    String lokasi = '-';
+    Vitals parsedVitals = const Vitals();
+
+    LabOrder? labOrder;
     if (medRecords is List && medRecords.isNotEmpty) {
-      final latest = medRecords.last as Map<String, dynamic>;
-      keluhan = latest['complaint']?.toString() ?? '';
-      diagnosa = latest['diagnosis']?.toString();
-      assignedDoctorId = latest['doctor_id']?.toString() ?? '';
-      final treatment = latest['treatment']?.toString() ?? '';
-      if (treatment.isNotEmpty) {
-        resep = [
-          ResepItem(obat: treatment, dosis: '1x1', instruksi: latest['notes']?.toString() ?? ''),
-        ];
-        resepStatus = ResepStatus.diproses;
-      }
-      if (diagnosa != null && diagnosa.isNotEmpty) {
-        status = PatientStatus.diperiksa;
+      for (final raw in medRecords) {
+        if (raw is! Map<String, dynamic>) continue;
+        final recComplaint = raw['complaint']?.toString() ?? '';
+        final recDiag = raw['diagnosis']?.toString();
+        final recTreatment = raw['treatment']?.toString() ?? '';
+        final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
+        final recNotes = raw['notes']?.toString() ?? '';
+
+        if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
+          keluhan = recComplaint;
+        } else if (keluhan.isEmpty && recComplaint.isNotEmpty) {
+          keluhan = recComplaint;
+        }
+
+        if (recDocId != null && recDocId.isNotEmpty && assignedDoctorId.isEmpty) {
+          assignedDoctorId = recDocId;
+        }
+
+        if (recDiag != null && recDiag.isNotEmpty && recDiag != 'Pemeriksaan Umum') {
+          diagnosa = recDiag;
+          status = PatientStatus.diperiksa;
+        }
+
+        if (recNotes.contains('[Triage]') || recNotes.contains('Durasi:') || recNotes.contains('TD:')) {
+          final parts = recNotes.split('|');
+          String td = '';
+          String hr = '';
+          String temp = '';
+          String rr = '';
+          String spo2 = '';
+          for (final rawPart in parts) {
+            final part = rawPart.replaceFirst('[Triage]', '').trim();
+            if (part.startsWith('Durasi:')) {
+              durasi = part.substring('Durasi:'.length).trim();
+            } else if (part.startsWith('Lokasi:')) {
+              lokasi = part.substring('Lokasi:'.length).trim();
+            } else if (part.startsWith('TD:')) {
+              td = part.substring('TD:'.length).trim();
+            } else if (part.startsWith('Nadi:') || part.startsWith('HR:')) {
+              hr = part.replaceFirst('Nadi:', '').replaceFirst('HR:', '').trim();
+            } else if (part.startsWith('Suhu:') || part.startsWith('Temp:')) {
+              temp = part.replaceFirst('Suhu:', '').replaceFirst('Temp:', '').trim();
+            } else if (part.startsWith('RR:')) {
+              rr = part.substring('RR:'.length).trim();
+            } else if (part.startsWith('SpO2:')) {
+              spo2 = part.substring('SpO2:'.length).trim();
+            }
+          }
+          parsedVitals = Vitals(
+            tekananDarah: td,
+            nadi: hr,
+            suhu: temp,
+            frekuensiNapas: rr,
+            spo2: spo2,
+          );
+        }
+
+        if (recNotes.startsWith('Order Lab:')) {
+          final rawText = recNotes.replaceFirst('Order Lab:', '').trim();
+          final openParen = rawText.indexOf('(');
+          final closeParen = rawText.lastIndexOf(')');
+          String jenis = rawText;
+          String catatan = '';
+          if (openParen != -1 && closeParen != -1 && closeParen > openParen) {
+            jenis = rawText.substring(0, openParen).trim();
+            catatan = rawText.substring(openParen + 1, closeParen).trim();
+          }
+          labOrder = LabOrder(
+            id: raw['id']?.toString() ?? id,
+            jenis: jenis.isNotEmpty ? jenis : 'Pemeriksaan Lab',
+            catatan: catatan,
+            status: LabOrderStatus.baru,
+          );
+        }
+
+        if (recTreatment.isNotEmpty &&
+            recTreatment != 'Pemeriksaan awal' &&
+            recTreatment != 'Menunggu Pemeriksaan Dokter' &&
+            recTreatment != 'Pemeriksaan Dokter') {
+          resep = [
+            ResepItem(obat: recTreatment, dosis: '1x1', instruksi: recNotes.startsWith('Order Lab:') ? '' : recNotes),
+          ];
+          resepStatus = ResepStatus.baru;
+        }
       }
     }
 
     if (keluhan.isEmpty) {
-      final generalStatus = json['status']?.toString();
-      keluhan = generalStatus != null && generalStatus.isNotEmpty
-          ? 'Kondisi: $generalStatus'
-          : 'Pemeriksaan umum';
+      keluhan = 'Pemeriksaan umum';
     }
+
+    final String? statusPenanganan = json['status_penanganan']?.toString();
 
     return Patient(
       id: id,
@@ -192,27 +301,43 @@ class Patient extends Equatable {
       umur: umur,
       alamat: address,
       keluhanUtama: keluhan,
-      durasiKeluhan: '-',
-      lokasiKeluhan: '-',
-      vitals: const Vitals(),
+      durasiKeluhan: durasi,
+      lokasiKeluhan: lokasi,
+      vitals: parsedVitals,
       assignedDokterId: assignedDoctorId,
       waktuMasuk: waktuMasuk,
       updatedAt: updatedAt,
       status: status,
       dbStatus: dbStatus,
+      statusPenanganan: statusPenanganan,
+      dob: dobStr,
+      namaWali: namaWali,
+      hubunganWali: hubunganWali,
+      keterangan: keterangan,
+      kodeKelurahan: kodeKelurahan,
+      kodePos: kodePos,
       diagnosa: diagnosa,
       resep: resep,
       resepStatus: resepStatus,
+      labOrder: labOrder,
     );
   }
 
-  Map<String, dynamic> toCreatePatientJson({String? dob, String? phone, String? bloodType, String? statusStr}) {
+  Map<String, dynamic> toCreatePatientJson({
+    String? dob,
+    String? phone,
+    String? bloodType,
+    String? statusStr,
+    String? namaWali,
+    String? hubunganWali,
+    String? keterangan,
+    String? kodeKelurahan,
+  }) {
     final effectiveNik = nik.trim().isNotEmpty
         ? nik.trim()
         : '3171${DateTime.now().millisecondsSinceEpoch.toString().padRight(12, '0').substring(0, 12)}';
 
-    final birthYear = umur > 0 ? (DateTime.now().year - umur) : 1995;
-    final effectiveDob = dob ?? '${birthYear.toString().padLeft(4, '0')}-01-01';
+    final effectiveDob = dob ?? this.dob ?? '1995-01-01';
 
     return {
       'nik': effectiveNik,
@@ -223,6 +348,11 @@ class Patient extends Equatable {
       'address': alamat.trim().isNotEmpty ? alamat.trim() : 'Kalimantan Timur',
       'phone': phone ?? '',
       'status': statusStr ?? dbStatus,
+      if (statusPenanganan != null && statusPenanganan!.isNotEmpty) 'status_penanganan': statusPenanganan,
+      if (kodeKelurahan != null && kodeKelurahan.isNotEmpty) 'kode_kelurahan': kodeKelurahan,
+      if (namaWali != null && namaWali.isNotEmpty) 'nama_wali': namaWali,
+      if (hubunganWali != null && hubunganWali.isNotEmpty) 'hubungan_wali': hubunganWali,
+      if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
     };
   }
 
@@ -243,6 +373,13 @@ class Patient extends Equatable {
         updatedAt,
         status,
         dbStatus,
+        statusPenanganan,
+        dob,
+        namaWali,
+        hubunganWali,
+        keterangan,
+        kodeKelurahan,
+        kodePos,
         diagnosa,
         resep,
         resepStatus,
@@ -254,9 +391,6 @@ class Patient extends Equatable {
       ];
 }
 
-
-/// Sentinel used so `copyWith` can distinguish "leave unchanged" from
-/// "explicitly set to null" for nullable fields (diagnosa, resepStatus, labOrder).
 const Object _unset = Object();
 
 List<Patient> sortRecent(List<Patient> patients) {

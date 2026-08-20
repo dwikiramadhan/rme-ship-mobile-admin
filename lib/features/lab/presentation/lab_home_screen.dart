@@ -31,8 +31,9 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final patients = ref.watch(patientsProvider);
+    final allNotifs = ref.watch(notificationsProvider);
     final withLab = sortRecent(patients.where((p) => p.labOrder != null).toList());
-    final notifs = withLab.where((p) => p.labOrder!.status == LabOrderStatus.baru && !p.dilihatLab).toList();
+    final notifs = allNotifs.where((p) => p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru).toList();
 
     final tabs = [
       ShellNavItem(key: 'notifikasi', label: 'Notifikasi', icon: LucideIcons.bell, badgeCount: notifs.length),
@@ -74,6 +75,7 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () {
+                          ref.read(notificationsProvider.notifier).markLabSeen(p.id);
                           ref.read(patientsProvider.notifier).markDilihatLab(p.id);
                           pushDetailPage(context, title: p.nama, child: LabOrderDetail(patientId: p.id));
                         },

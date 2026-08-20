@@ -97,7 +97,7 @@ class _ShipAdminHomeScreenState extends ConsumerState<ShipAdminHomeScreen> {
                     Text(
                       'Akses Admin Kapal terbatas pada pemantauan dashboard dan jadwal perjalanan kapal penugasan. '
                       'Data pasien dan rekam medis hanya dapat diakses oleh tenaga medis (Dokter & Perawat).',
-                      style: TextStyle(fontSize: 12.5, color: AppColors.sub, height: 1.5),
+                      style: const TextStyle(fontSize: 12.5, color: AppColors.sub),
                     ),
                   ],
                 ),

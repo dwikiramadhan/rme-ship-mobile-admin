@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
+import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
@@ -27,6 +28,27 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   final _catatanHasil = TextEditingController();
   String? _fileName;
   bool _saving = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant LabOrderDetail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.patientId != widget.patientId) {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    if (mounted) setState(() => _loading = false);
+  }
 
   @override
   void dispose() {
@@ -53,7 +75,10 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   @override
   Widget build(BuildContext context) {
     final patients = ref.watch(patientsProvider);
-    final patient = patients.firstWhere((p) => p.id == widget.patientId);
+    final patient = patients.where((p) => p.id == widget.patientId).firstOrNull;
+    if (_loading || patient == null) {
+      return const SkeletonPatientDetail();
+    }
     final order = patient.labOrder;
     if (order == null) return const SizedBox.shrink();
 

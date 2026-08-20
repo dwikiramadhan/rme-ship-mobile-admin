@@ -26,11 +26,16 @@ UserRole? userRoleFromApiValue(String? value) {
   switch (normalized) {
     case 'perawat':
     case 'nurse':
+    case 'nursing':
       return UserRole.perawat;
     case 'dokter':
     case 'doctor':
     case 'dr':
+    case 'physician':
+    case 'general practitioner':
+    case 'gp':
       return UserRole.dokter;
+    case 'pharmacist':
     case 'pharmacy':
     case 'apoteker':
     case 'apotek':
@@ -38,15 +43,35 @@ UserRole? userRoleFromApiValue(String? value) {
       return UserRole.pharmacy;
     case 'lab':
     case 'laboratorium':
+    case 'laboratory':
     case 'analyst':
+    case 'lab analyst':
+    case 'laboran':
       return UserRole.lab;
     case 'admin kapal':
     case 'adminkapal':
     case 'admin':
     case 'ship admin':
+    case 'shipadmin':
     case 'administrator':
+    case 'superadmin':
       return UserRole.adminKapal;
     default:
+      if (normalized.contains('pharm') || normalized.contains('apotek') || normalized.contains('farmasi')) {
+        return UserRole.pharmacy;
+      }
+      if (normalized.contains('dok') || normalized.contains('doc')) {
+        return UserRole.dokter;
+      }
+      if (normalized.contains('perawat') || normalized.contains('nurs')) {
+        return UserRole.perawat;
+      }
+      if (normalized.contains('lab')) {
+        return UserRole.lab;
+      }
+      if (normalized.contains('admin')) {
+        return UserRole.adminKapal;
+      }
       for (final role in UserRole.values) {
         if (role.name.toLowerCase() == normalized ||
             role.apiValue.toLowerCase() == normalized ||

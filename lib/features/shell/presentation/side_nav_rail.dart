@@ -16,25 +16,62 @@ class SideNavRail extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 100,
-      decoration: const BoxDecoration(color: AppColors.card, border: Border(right: BorderSide(color: AppColors.border))),
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Column(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            alignment: Alignment.center,
-            margin: const EdgeInsets.only(bottom: 22),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(13),
-              border: Border.all(color: AppColors.border),
-              boxShadow: [BoxShadow(color: AppColors.text.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2))],
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        border: Border(right: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            Container(
+              width: 48,
+              height: 48,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(color: AppColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.text.withValues(alpha: 0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/images/bayan_logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Icon(
+                  Icons.local_hospital_rounded,
+                  color: AppColors.blue,
+                  size: 26,
+                ),
+              ),
             ),
-            child: Image.asset('assets/images/bayan_logo.png', width: 30, height: 30, fit: BoxFit.contain),
-          ),
-          for (final item in items) _RailButton(item: item, active: item.key == activeKey, onTap: () => onChange(item.key)),
-        ],
+            const SizedBox(height: 14),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final item in items)
+                      _RailButton(
+                        item: item,
+                        active: item.key == activeKey,
+                        onTap: () => onChange(item.key),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -49,55 +86,53 @@ class _RailButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: SizedBox(
-            width: 84,
-            child: Column(
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 34,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: active ? AppColors.blueLt : Colors.transparent,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(item.icon, size: 20, color: active ? AppColors.blue : AppColors.sub),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: SizedBox(
+          width: 84,
+          child: Column(
+            children: [
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 46,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: active ? AppColors.blueLt : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    if (item.badgeCount > 0)
-                      Positioned(
-                        top: -2,
-                        right: 6,
-                        child: Container(
-                          constraints: const BoxConstraints(minWidth: 16),
-                          height: 16,
-                          padding: const EdgeInsets.symmetric(horizontal: 3),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(color: AppColors.red, borderRadius: BorderRadius.circular(8)),
-                          child: Text(
-                            '${item.badgeCount}',
-                            style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800),
-                          ),
+                    child: Icon(item.icon, size: 20, color: active ? AppColors.blue : AppColors.sub),
+                  ),
+                  if (item.badgeCount > 0)
+                    Positioned(
+                      top: -2,
+                      right: 6,
+                      child: Container(
+                        constraints: const BoxConstraints(minWidth: 16),
+                        height: 16,
+                        padding: const EdgeInsets.symmetric(horizontal: 3),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(color: AppColors.red, borderRadius: BorderRadius.circular(8)),
+                        child: Text(
+                          '${item.badgeCount}',
+                          style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800),
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11.5, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: active ? AppColors.blue : AppColors.sub),
-                ),
-              ],
-            ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                item.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.5, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: active ? AppColors.blue : AppColors.sub),
+              ),
+            ],
           ),
         ),
       ),

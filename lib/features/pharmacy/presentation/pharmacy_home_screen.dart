@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -29,12 +30,77 @@ class PharmacyHomeScreen extends ConsumerStatefulWidget {
 
 class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
   String _tab = 'notifikasi';
+  StreamSubscription? _wsSub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ws = ref.read(webSocketServiceProvider);
+      _wsSub = ws.onEvent.listen((event) {
+        final type = event['type'] ?? event['event'];
+        if (type == 'prescription_created') {
+          if (!mounted) return;
+          final patientName = event['patient_name'] ?? 'Pasien';
+          final count = event['resep_count'] ?? 1;
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppColors.card,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: AppColors.yellow, width: 1.5),
+              ),
+              content: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: AppColors.yellowLt,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(LucideIcons.bellRing, size: 16, color: AppColors.yellow),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Resep Baru Masuk!',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.text),
+                        ),
+                        Text(
+                          'Dokter telah menyelesaikan $count resep obat untuk $patientName',
+                          style: const TextStyle(fontSize: 11.5, color: AppColors.sub),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _wsSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final patients = ref.watch(patientsProvider);
-    final withResep = sortRecent(patients.where((p) => p.resepStatus != null).toList());
-    final notifs = withResep.where((p) => p.resepStatus == ResepStatus.baru && !p.dilihatPharmacy).toList();
+    final allNotifs = ref.watch(notificationsProvider);
+    final withResep = sortRecent(patients.where((p) => p.statusPenanganan == 'Menunggu Obat' || p.resepStatus != null || p.resep.isNotEmpty).toList());
+    final notifs = allNotifs.where((p) => p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru).toList();
 
     final tabs = [
       ShellNavItem(key: 'notifikasi', label: 'Notifikasi', icon: LucideIcons.bell, badgeCount: notifs.length),
@@ -79,6 +145,7 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(14),
                         onTap: () {
+                          ref.read(notificationsProvider.notifier).markPharmacySeen(p.id);
                           ref.read(patientsProvider.notifier).markDilihatPharmacy(p.id);
                           pushDetailPage(context, title: p.nama, child: ResepDetail(patientId: p.id));
                         },

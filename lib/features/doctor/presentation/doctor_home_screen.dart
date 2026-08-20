@@ -36,9 +36,15 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final patients = ref.watch(patientsProvider);
-    final assigned = patients.where((p) => p.assignedDokterId == widget.doctorId || p.assignedDokterId.isEmpty).toList();
-    final mine = sortRecent(assigned.isNotEmpty ? assigned : patients);
-    final notifs = mine.where(_isUnreadNotif).toList();
+    final allNotifs = ref.watch(notificationsProvider);
+    final allPatients = sortRecent(patients);
+
+    final notifs = allNotifs.where((p) {
+      final isMine = p.assignedDokterId == widget.doctorId || p.assignedDokterId.isEmpty;
+      final isNewPatient = p.status == PatientStatus.menungguDokter;
+      final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
+      return isMine && (isNewPatient || isLabReady);
+    }).toList();
 
     final tabs = [
       ShellNavItem(key: 'notifikasi', label: 'Notifikasi', icon: LucideIcons.bell, badgeCount: notifs.length),
@@ -53,7 +59,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
       case 'notifikasi':
         content = _buildNotifikasi(notifs);
       case 'pasien':
-        content = _buildPasien(mine);
+        content = _buildPasien(allPatients);
       case 'riwayat':
         content = RiwayatKunjunganScreen(canEdit: true, dokterNama: widget.doctorName);
       case 'stok':
@@ -63,12 +69,6 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     }
 
     return RoleShell(items: tabs, activeKey: _tab, onChange: (key) => setState(() => _tab = key), child: content);
-  }
-
-  bool _isUnreadNotif(Patient p) {
-    final labReady = p.labOrder?.status == LabOrderStatus.selesai && !p.dilihatDokterLab;
-    final newPatient = p.status == PatientStatus.menungguDokter && !p.dilihatDokter;
-    return newPatient || labReady;
   }
 
   Widget _buildNotifikasi(List<Patient> notifs) {
@@ -85,7 +85,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final p = notifs[index];
-                    final isLab = p.labOrder?.status == LabOrderStatus.selesai && !p.dilihatDokterLab;
+                    final isLab = p.labOrder?.status == LabOrderStatus.selesai;
                     return _NotifTile(
                       icon: isLab ? LucideIcons.flaskConical : LucideIcons.users,
                       iconColor: isLab ? AppColors.purple : AppColors.yellow,
@@ -94,8 +94,10 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                       subtitle: isLab ? (p.labOrder?.jenis ?? '') : p.keluhanUtama,
                       onTap: () {
                         if (isLab) {
+                          ref.read(notificationsProvider.notifier).markDoctorLabSeen(p.id);
                           ref.read(patientsProvider.notifier).markDilihatDokterLab(p.id);
                         } else {
+                          ref.read(notificationsProvider.notifier).markDoctorSeen(p.id);
                           ref.read(patientsProvider.notifier).markDilihatDokter(p.id);
                         }
                         pushDetailPage(context, title: p.nama, child: DokterPatientDetail(patientId: p.id));
@@ -108,28 +110,27 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     );
   }
 
-  Widget _buildPasien(List<Patient> mine) {
+  Widget _buildPasien(List<Patient> list) {
     final notifier = ref.read(patientsProvider.notifier);
     return ResponsiveMasterDetail(
       title: 'Daftar Pasien',
-      subtitle: '${mine.length} pasien',
       isLoading: notifier.isLoading,
       hasMore: notifier.hasMore,
       isLoadingMore: notifier.isLoadingMore,
       onLoadMore: () => notifier.loadMore(),
       onRefresh: () => notifier.fetchPatients(refresh: true),
       onEntrySelected: (id) => notifier.fetchPatientDetail(id),
+      onSearchChanged: (q) => notifier.searchPatients(q),
+      searchPlaceholder: 'Cari nama atau NIK pasien...',
       entries: [
-        for (final p in mine)
+        for (final p in list)
           MasterListEntry(
             id: p.id,
             avatarColor: AppColors.blue,
             avatarBg: AppColors.blueLt,
             initial: p.nama.isNotEmpty ? p.nama[0] : '?',
             title: p.nama,
-            subtitle: p.keluhanUtama.isNotEmpty && p.keluhanUtama != 'Pemeriksaan umum'
-                ? '${p.waktuMasuk} · ${p.keluhanUtama}'
-                : p.waktuMasuk,
+            subtitle: p.waktuMasuk,
             badge: AppBadge(label: statusMeta(p).label, color: statusMeta(p).color, background: statusMeta(p).background),
           ),
       ],

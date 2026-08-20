@@ -45,12 +45,13 @@ class AppButton extends StatelessWidget {
     final button = ElevatedButton(
       onPressed: disabled ? null : onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: disabled ? scheme.onSurfaceVariant : bg,
-        disabledBackgroundColor: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+        backgroundColor: bg,
+        disabledBackgroundColor: const Color(0xFFE2E8F0),
+        disabledForegroundColor: const Color(0xFF94A3B8),
         foregroundColor: fg,
         elevation: 0,
         side: variant == AppButtonVariant.ghost
-            ? BorderSide(color: scheme.outline, width: 1.5)
+            ? BorderSide(color: scheme.outline, width: 1.0)
             : BorderSide.none,
         padding: EdgeInsets.symmetric(horizontal: small ? 14 : 20, vertical: small ? 9 : 13),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -188,14 +188,14 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.inputBg,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -203,13 +203,13 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.red, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.red, width: 1.0),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.red, width: 1.5),
         ),
-        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 14),
+        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 13.5),
       ),
 
       // -- Chips (M3 assist/filter chip shape) ------------------------------
