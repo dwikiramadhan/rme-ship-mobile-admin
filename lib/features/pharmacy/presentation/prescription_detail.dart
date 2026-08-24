@@ -65,9 +65,7 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
       if (newStatus == ResepStatus.selesai) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Obat telah diserahkan & status penanganan pasien telah Selesai di API!',
-            ),
+            content: Text('Obat telah diserahkan ke pasien'),
             backgroundColor: AppColors.green,
           ),
         );
@@ -76,7 +74,7 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal memperbarui status ke API: $e'),
+          content: Text('Gagal memperbarui status: $e'),
           backgroundColor: AppColors.red,
         ),
       );
@@ -92,9 +90,20 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
     if (_loading || patient == null) {
       return const SkeletonPatientDetail();
     }
-    final doctor = kDoctors
-        .where((d) => d.id == patient.assignedDokterId)
-        .firstOrNull;
+    final doctorsList = ref.watch(doctorsProvider).valueOrNull ?? kDoctors;
+    Doctor? doctor;
+    if (patient.assignedDokterId.isNotEmpty) {
+      doctor = doctorsList
+          .where(
+            (d) =>
+                d.id.toLowerCase() == patient.assignedDokterId.toLowerCase(),
+          )
+          .firstOrNull;
+    }
+    final doctorDisplayName =
+        (patient.doctorName != null && patient.doctorName!.trim().isNotEmpty)
+            ? patient.doctorName!.trim()
+            : (doctor?.nama ?? 'Dr. Budi Santoso');
     final meta = statusMeta(patient);
 
     return Column(
@@ -104,17 +113,30 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
         const SizedBox(height: 14),
         Container(
           decoration: BoxDecoration(
-            color: AppColors.card,
+            color: Colors.white,
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white,
+                Color(0xFFFFFDF7),
+              ],
+            ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: AppColors.yellow.withValues(alpha: 0.35),
-              width: 1.2,
+              color: AppColors.yellow.withValues(alpha: 0.3),
+              width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.yellow.withValues(alpha: 0.05),
+                color: AppColors.yellow.withValues(alpha: 0.06),
                 blurRadius: 16,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 5),
+              ),
+              BoxShadow(
+                color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
             ],
           ),
@@ -152,13 +174,12 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
                                 color: AppColors.text,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Dokter: ${doctor?.nama ?? 'Dokter Pemeriksa'}',
+                              'Dokter: $doctorDisplayName',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 color: AppColors.sub,
@@ -207,7 +228,6 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
                             style: TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
                               color: AppColors.sub,
                             ),
                           ),

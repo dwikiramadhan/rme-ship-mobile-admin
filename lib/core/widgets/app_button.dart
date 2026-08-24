@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import '../theme/app_theme.dart';
 
 enum AppButtonVariant { primary, danger, success, ghost }
 
@@ -31,58 +30,127 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final semantic = Theme.of(context).extension<AppSemanticColors>() ?? AppSemanticColors.light;
     final disabled = onPressed == null || loading;
-    final Color bg = switch (variant) {
-      AppButtonVariant.primary => scheme.primary,
-      AppButtonVariant.danger => scheme.error,
-      AppButtonVariant.success => semantic.success,
-      AppButtonVariant.ghost => AppColors.card2,
-    };
-    final Color fg = variant == AppButtonVariant.ghost ? scheme.onSurface : scheme.onPrimary;
 
-    final button = ElevatedButton(
-      onPressed: disabled ? null : onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: bg,
-        disabledBackgroundColor: const Color(0xFFE2E8F0),
-        disabledForegroundColor: const Color(0xFF94A3B8),
-        foregroundColor: fg,
-        elevation: 0,
-        side: variant == AppButtonVariant.ghost
-            ? BorderSide(color: scheme.outline, width: 1.0)
-            : BorderSide.none,
-        padding: EdgeInsets.symmetric(horizontal: small ? 14 : 20, vertical: small ? 9 : 13),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: full ? const Size.fromHeight(0) : null,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (loading) ...[
-            SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+    Gradient? gradient;
+    Color? flatBg;
+    List<BoxShadow>? shadows;
+    Border? border;
+
+    if (disabled) {
+      flatBg = const Color(0xFFE2E8F0);
+    } else {
+      switch (variant) {
+        case AppButtonVariant.primary:
+          gradient = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFFB923C), Color(0xFFEA580C)],
+          );
+          shadows = [
+            BoxShadow(
+              color: const Color(0xFFEA580C).withValues(alpha: 0.28),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
-            const SizedBox(width: 8),
-          ] else if (icon != null) ...[
-            Icon(icon, size: small ? 14 : 16, color: fg),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            loading ? loadingLabel : label,
-            style: TextStyle(
-              fontSize: small ? 13 : 14.5,
-              fontWeight: FontWeight.w700,
+          ];
+          break;
+        case AppButtonVariant.success:
+          gradient = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF34D399), Color(0xFF059669)],
+          );
+          shadows = [
+            BoxShadow(
+              color: const Color(0xFF059669).withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
+          ];
+          break;
+        case AppButtonVariant.danger:
+          gradient = const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFF87171), Color(0xFFDC2626)],
+          );
+          shadows = [
+            BoxShadow(
+              color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ];
+          break;
+        case AppButtonVariant.ghost:
+          flatBg = Colors.white.withValues(alpha: 0.85);
+          border = Border.all(color: const Color(0xFFCBD5E1), width: 1.0);
+          shadows = [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ];
+          break;
+      }
+    }
+
+    final Color fg = disabled
+        ? const Color(0xFF94A3B8)
+        : (variant == AppButtonVariant.ghost ? AppColors.text : Colors.white);
+
+    final content = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: disabled ? null : onPressed,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: small ? 14 : 20,
+            vertical: small ? 9 : 12,
           ),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (loading) ...[
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                ),
+                const SizedBox(width: 8),
+              ] else if (icon != null) ...[
+                Icon(icon, size: small ? 14 : 16, color: fg),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                loading ? loadingLabel : label,
+                style: TextStyle(
+                  fontSize: small ? 12 : 13,
+                  fontWeight: FontWeight.w700,
+                  color: fg,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
 
-    return full ? SizedBox(width: double.infinity, child: button) : button;
+    final decorated = Container(
+      decoration: BoxDecoration(
+        color: flatBg,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(20),
+        border: border,
+        boxShadow: shadows,
+      ),
+      child: content,
+    );
+
+    return full ? SizedBox(width: double.infinity, child: decorated) : decorated;
   }
 }

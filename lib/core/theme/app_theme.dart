@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'smooth_page_transitions.dart';
 
 /// Material 3 semantic color roles that ColorScheme doesn't cover
 /// (success / warning / info-purple), exposed as a [ThemeExtension] so
@@ -128,6 +129,16 @@ class AppTheme {
     return base.copyWith(
       textTheme: textTheme,
       extensions: const [AppSemanticColors.light],
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: SmoothPageTransitionsBuilder(),
+          TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
+          TargetPlatform.macOS: SmoothPageTransitionsBuilder(),
+          TargetPlatform.windows: SmoothPageTransitionsBuilder(),
+          TargetPlatform.linux: SmoothPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: SmoothPageTransitionsBuilder(),
+        },
+      ),
 
       // -- App bar (M3 small top app bar: flat, surface, no tint shift) ----
       appBarTheme: const AppBarTheme(

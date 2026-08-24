@@ -42,5 +42,10 @@ class ApiConfig {
   static const String patientsPath = '/api/v1/patients';
   static const String doctorsPath = '/api/v1/doctors';
   static const String medicalHistoryPath = '/api/v1/medical-history';
+  static const String schedulesPath = '/api/v1/schedules';
+  static String schedulesByShipPath(String shipId) => '/api/v1/schedules/ship/$shipId';
+  static const String icd10Path = '/api/v1/icd10';
 }
+
+
 

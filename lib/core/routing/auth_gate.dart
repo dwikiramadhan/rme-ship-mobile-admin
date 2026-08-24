@@ -24,15 +24,23 @@ class AuthGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
 
-    switch (authState.status) {
-      case AuthStatus.unknown:
-        return const _SplashScreen();
-      case AuthStatus.unauthenticated:
-      case AuthStatus.authenticating:
-        return const LoginScreen();
-      case AuthStatus.authenticated:
-        return _roleHome(authState);
-    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      switchInCurve: Curves.easeInOutCubic,
+      switchOutCurve: Curves.easeInOutCubic,
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: child,
+      ),
+      child: KeyedSubtree(
+        key: ValueKey(authState.status),
+        child: switch (authState.status) {
+          AuthStatus.unknown => const _SplashScreen(),
+          AuthStatus.unauthenticated || AuthStatus.authenticating => const LoginScreen(),
+          AuthStatus.authenticated => _roleHome(authState),
+        },
+      ),
+    );
   }
 
   Widget _roleHome(AuthState authState) {

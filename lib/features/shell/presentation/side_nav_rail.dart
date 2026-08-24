@@ -17,8 +17,18 @@ class SideNavRail extends StatelessWidget {
     return Container(
       width: 100,
       decoration: const BoxDecoration(
-        color: AppColors.card,
-        border: Border(right: BorderSide(color: AppColors.border)),
+        color: Colors.white,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white,
+            Color(0xFFF8FAFC),
+          ],
+        ),
+        border: Border(
+          right: BorderSide(color: Color(0xFFE2E8F0), width: 0.9),
+        ),
       ),
       child: SafeArea(
         bottom: false,
@@ -30,13 +40,23 @@ class SideNavRail extends StatelessWidget {
               height: 48,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: AppColors.border),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white,
+                    Color(0xFFFFF7ED),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: AppColors.orange.withValues(alpha: 0.22),
+                  width: 1.0,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.text.withValues(alpha: 0.06),
-                    blurRadius: 6,
+                    color: AppColors.orange.withValues(alpha: 0.1),
+                    blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
@@ -99,14 +119,43 @@ class _RailButton extends StatelessWidget {
                 clipBehavior: Clip.none,
                 children: [
                   Container(
-                    width: 46,
-                    height: 34,
+                    width: 48,
+                    height: 36,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: active ? AppColors.blueLt : Colors.transparent,
+                      color: active ? null : Colors.transparent,
+                      gradient: active
+                          ? const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFFFFEDD5),
+                                Color(0xFFFED7AA),
+                              ],
+                            )
+                          : null,
                       borderRadius: BorderRadius.circular(12),
+                      border: active
+                          ? Border.all(
+                              color: AppColors.orange.withValues(alpha: 0.3),
+                              width: 1.0,
+                            )
+                          : null,
+                      boxShadow: active
+                          ? [
+                              BoxShadow(
+                                color: AppColors.orange.withValues(alpha: 0.15),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
                     ),
-                    child: Icon(item.icon, size: 20, color: active ? AppColors.blue : AppColors.sub),
+                    child: Icon(
+                      item.icon,
+                      size: 20,
+                      color: active ? AppColors.orange : AppColors.sub,
+                    ),
                   ),
                   if (item.badgeCount > 0)
                     Positioned(

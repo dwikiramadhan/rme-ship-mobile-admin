@@ -42,6 +42,7 @@ class Patient extends Equatable {
     this.resep = const [],
     this.resepStatus,
     this.labOrder,
+    this.doctorName,
     this.dilihatDokter = false,
     this.dilihatPharmacy = false,
     this.dilihatLab = false,
@@ -61,6 +62,7 @@ class Patient extends Equatable {
   final Vitals vitals;
 
   final String assignedDokterId;
+  final String? doctorName;
   final String waktuMasuk;
   final DateTime updatedAt;
 
@@ -96,6 +98,7 @@ class Patient extends Equatable {
     String? lokasiKeluhan,
     Vitals? vitals,
     String? assignedDokterId,
+    String? doctorName,
     String? waktuMasuk,
     DateTime? updatedAt,
     PatientStatus? status,
@@ -128,6 +131,7 @@ class Patient extends Equatable {
       lokasiKeluhan: lokasiKeluhan ?? this.lokasiKeluhan,
       vitals: vitals ?? this.vitals,
       assignedDokterId: assignedDokterId ?? this.assignedDokterId,
+      doctorName: doctorName ?? this.doctorName,
       waktuMasuk: waktuMasuk ?? this.waktuMasuk,
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
@@ -190,6 +194,9 @@ class Patient extends Equatable {
     String keluhan = '';
     String? diagnosa;
     String assignedDoctorId = '';
+    String? doctorName = json['assigned_doctor']?['name']?.toString() ??
+        json['doctor']?['name']?.toString() ??
+        json['doctor_name']?.toString();
     List<ResepItem> resep = const [];
     ResepStatus? resepStatus;
     PatientStatus status = PatientStatus.menungguDokter;
@@ -206,6 +213,7 @@ class Patient extends Equatable {
         final recDiag = raw['diagnosis']?.toString();
         final recTreatment = raw['treatment']?.toString() ?? '';
         final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
+        final recDocName = raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
         final recNotes = raw['notes']?.toString() ?? '';
 
         if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
@@ -216,6 +224,10 @@ class Patient extends Equatable {
 
         if (recDocId != null && recDocId.isNotEmpty && assignedDoctorId.isEmpty) {
           assignedDoctorId = recDocId;
+        }
+
+        if (recDocName != null && recDocName.isNotEmpty && (doctorName == null || doctorName.isEmpty)) {
+          doctorName = recDocName;
         }
 
         if (recDiag != null && recDiag.isNotEmpty && recDiag != 'Pemeriksaan Umum') {
@@ -320,6 +332,7 @@ class Patient extends Equatable {
       resep: resep,
       resepStatus: resepStatus,
       labOrder: labOrder,
+      doctorName: doctorName,
     );
   }
 
@@ -337,22 +350,20 @@ class Patient extends Equatable {
         ? nik.trim()
         : '3171${DateTime.now().millisecondsSinceEpoch.toString().padRight(12, '0').substring(0, 12)}';
 
-    final effectiveDob = dob ?? this.dob ?? '1995-01-01';
-
     return {
       'nik': effectiveNik,
-      'name': nama.trim(),
-      'dob': effectiveDob,
-      'gender': jk == Gender.p ? 'Perempuan' : 'Laki-laki',
-      'blood_type': bloodType ?? 'O+',
-      'address': alamat.trim().isNotEmpty ? alamat.trim() : 'Kalimantan Timur',
-      'phone': phone ?? '',
-      'status': statusStr ?? dbStatus,
-      if (statusPenanganan != null && statusPenanganan!.isNotEmpty) 'status_penanganan': statusPenanganan,
-      if (kodeKelurahan != null && kodeKelurahan.isNotEmpty) 'kode_kelurahan': kodeKelurahan,
+      'name': nama,
+      'gender': jk == Gender.l ? 'Laki-laki' : 'Perempuan',
+      'dob': (dob != null && dob.isNotEmpty) ? dob : (this.dob ?? '1990-01-01'),
+      'address': alamat,
+      'phone': phone ?? '08123456789',
+      'blood_type': bloodType ?? 'O',
+      'status': statusStr ?? 'Monitoring',
       if (namaWali != null && namaWali.isNotEmpty) 'nama_wali': namaWali,
       if (hubunganWali != null && hubunganWali.isNotEmpty) 'hubungan_wali': hubunganWali,
       if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
+      if (kodeKelurahan != null && kodeKelurahan.isNotEmpty) 'kode_kelurahan': kodeKelurahan,
+      if (kodePos != null) 'kode_pos': kodePos,
     };
   }
 
@@ -369,6 +380,7 @@ class Patient extends Equatable {
         lokasiKeluhan,
         vitals,
         assignedDokterId,
+        doctorName,
         waktuMasuk,
         updatedAt,
         status,

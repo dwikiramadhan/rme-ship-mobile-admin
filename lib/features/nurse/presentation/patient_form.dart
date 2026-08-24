@@ -989,7 +989,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
                   color: AppColors.green,
                 ),
               ),
@@ -1087,7 +1086,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
             color: iconColor,
           ),
         ),

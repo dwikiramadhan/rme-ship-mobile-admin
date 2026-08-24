@@ -11,17 +11,36 @@ class AppCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final isCustomColor = color != null;
     return Container(
       padding: padding ?? const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color ?? scheme.surface,
+        color: isCustomColor ? color : Colors.white.withValues(alpha: 0.95),
+        gradient: isCustomColor
+            ? null
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white,
+                  Color(0xFFFBFDFF),
+                ],
+              ),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+          width: 0.9,
+        ),
         boxShadow: [
           BoxShadow(
-            color: scheme.onSurface.withValues(alpha: 0.08),
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
             blurRadius: 16,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),

@@ -73,7 +73,7 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                           child: Text(
                             r.obat,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w400,
                               color: AppColors.text,
                             ),

@@ -34,7 +34,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   final SeenNotificationStorage _seenStorage;
   final WebSocketService _wsService;
   StreamSubscription? _wsSubscription;
-  Timer? _fallbackSyncTimer;
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -66,14 +65,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         ));
       }
       _silentPoll();
-    });
-
-    // Fallback slow sync (30s) only if WS is disconnected, saving server load
-    _fallbackSyncTimer?.cancel();
-    _fallbackSyncTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (!_wsService.isConnected && !_isLoading && !_isLoadingMore) {
-        _silentPoll();
-      }
     });
   }
 
@@ -119,7 +110,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
   @override
   void dispose() {
-    _fallbackSyncTimer?.cancel();
     _wsSubscription?.cancel();
     _wsService.dispose();
     super.dispose();
@@ -222,6 +212,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         String? diag;
         String? complaint;
         String? docId;
+        String? docName;
         String? durasi;
         String? lokasi;
         Vitals? parsedVitals;
@@ -232,6 +223,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           final recTreatment = raw['treatment']?.toString() ?? '';
           final recComplaint = raw['complaint']?.toString();
           final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
+          final recDocName = raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
           final notes = raw['notes']?.toString() ?? '';
 
           if (recComplaint != null && recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
@@ -242,6 +234,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
           if (recDocId != null && recDocId.isNotEmpty) {
             docId = recDocId;
+          }
+          if (recDocName != null && recDocName.isNotEmpty) {
+            docName = recDocName;
           }
 
           if (recDiag != null && recDiag.isNotEmpty && recDiag != 'Pemeriksaan Umum') {
@@ -304,6 +299,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           lokasiKeluhan: lokasi ?? p.lokasiKeluhan,
           vitals: parsedVitals ?? p.vitals,
           assignedDokterId: (docId != null && docId.isNotEmpty) ? docId : p.assignedDokterId,
+          doctorName: (docName != null && docName.isNotEmpty) ? docName : p.doctorName,
         ));
       }
     } catch (e) {
@@ -532,6 +528,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     String? shipId,
     String? portId,
   }) async {
+    final matchedDoc = kDoctors.where((d) => d.id == doctorId).firstOrNull;
     _update(
       id,
       (p) => p.copyWith(
@@ -542,6 +539,8 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         resepStatus: ResepStatus.baru,
         labOrder: labOrder ?? p.labOrder,
         dilihatDokter: true,
+        assignedDokterId: (doctorId != null && doctorId.isNotEmpty) ? doctorId : p.assignedDokterId,
+        doctorName: matchedDoc?.nama ?? (p.doctorName?.isNotEmpty == true ? p.doctorName : 'Dr. Budi Santoso'),
       ),
     );
 

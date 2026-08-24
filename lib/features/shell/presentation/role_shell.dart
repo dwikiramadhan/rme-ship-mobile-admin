@@ -23,6 +23,28 @@ class RoleShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final animatedContent = AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.015, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey(activeKey),
+        child: child,
+      ),
+    );
+
     if (isTabletLayout(context)) {
       return Scaffold(
         resizeToAvoidBottomInset: false,
@@ -30,7 +52,7 @@ class RoleShell extends StatelessWidget {
           child: Row(
             children: [
               SideNavRail(items: items, activeKey: activeKey, onChange: onChange),
-              Expanded(child: child),
+              Expanded(child: animatedContent),
             ],
           ),
         ),
@@ -39,7 +61,7 @@ class RoleShell extends StatelessWidget {
 
     final activeIndex = items.indexWhere((i) => i.key == activeKey).clamp(0, items.length - 1);
     return Scaffold(
-      body: SafeArea(child: child),
+      body: SafeArea(child: animatedContent),
       bottomNavigationBar: NavigationBar(
         selectedIndex: activeIndex,
         onDestinationSelected: (index) => onChange(items[index].key),
