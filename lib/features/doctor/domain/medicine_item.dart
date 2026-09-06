@@ -22,11 +22,11 @@ class MedicineItem extends Equatable {
 
   factory MedicineItem.fromJson(Map<String, dynamic> json) {
     return MedicineItem(
-      id: json['id']?.toString() ?? '',
-      sku: json['sku']?.toString() ?? '',
-      name: json['name']?.toString() ?? '',
-      category: json['category']?.toString() ?? '',
-      unitOfMeasurement: json['unit_of_measurement']?.toString() ?? '',
+      id: (json['medicine_id'] ?? json['id'])?.toString() ?? '',
+      sku: (json['medicine_sku'] ?? json['sku'])?.toString() ?? '',
+      name: (json['medicine_name'] ?? json['name'])?.toString() ?? '',
+      category: (json['category'] ?? json['tipe'] ?? json['type'])?.toString() ?? '',
+      unitOfMeasurement: (json['unit_of_measurement'] ?? json['unit'] ?? json['satuan'])?.toString() ?? '',
       stock: (json['stock'] as num?)?.toInt() ?? 0,
       expiry: json['expiry']?.toString(),
     );

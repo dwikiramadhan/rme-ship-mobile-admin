@@ -11,15 +11,27 @@ class MedicinesApi {
 
   final Dio _dio;
 
-  /// Fetches paginated medicines via GET /api/v1/medicines?page=1&limit=10&search=...
+  /// Fetches paginated medicines.
+  /// If [shipCode] is provided, uses:
+  /// GET /api/v1/ship-medicines/stocks/:ship_code?page=1&limit=10&search=...
+  /// Otherwise falls back to /api/v1/medicines.
   Future<PaginatedMedicines> fetchMedicines({
+    String? shipCode,
     String query = '',
     int page = 1,
     int limit = 10,
   }) async {
     try {
+      final String path;
+      if (shipCode != null && shipCode.trim().isNotEmpty) {
+        final cleanCode = Uri.encodeComponent(shipCode.trim());
+        path = '/api/v1/ship-medicines/stocks/$cleanCode';
+      } else {
+        path = ApiConfig.medicinesPath;
+      }
+
       final response = await _dio.get(
-        ApiConfig.medicinesPath,
+        path,
         queryParameters: {
           'page': page,
           'limit': limit,

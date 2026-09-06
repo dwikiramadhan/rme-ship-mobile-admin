@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -47,11 +48,16 @@ const List<String> _kStatusKondisiList = [
 
 class _ResepRowData {
   String? obat;
-  int jumlah = 1;
+  String? sku;
+  int? stock;
+  String? category;
   String satuan = 'Tablet';
   String dosis = '3x1';
   String aturanPakai = 'Sesudah makan';
+  final TextEditingController jumlahCtrl = TextEditingController(text: '1');
   final TextEditingController customInstruksiCtrl = TextEditingController();
+
+  int get jumlah => int.tryParse(jumlahCtrl.text.trim()) ?? 1;
 
   String get instruksi {
     final base = aturanPakai == 'Input manual'
@@ -63,9 +69,11 @@ class _ResepRowData {
   }
 
   void dispose() {
+    jumlahCtrl.dispose();
     customInstruksiCtrl.dispose();
   }
 }
+
 
 /// Helper to show the Examination Input Modal
 Future<bool?> showExaminationInputModal(
@@ -129,14 +137,33 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   }
 
   void _showMedicineSearch(int index) {
+    final effectiveShipCode = widget.patient.serviceShipCode?.isNotEmpty == true
+        ? widget.patient.serviceShipCode!
+        : (widget.history.shipCode?.isNotEmpty == true
+            ? widget.history.shipCode!
+            : (ref.read(authControllerProvider).session?.user.shipId ?? ''));
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => MedicineSearchModal(
+        shipCode: effectiveShipCode,
         selectedName: _resep[index].obat,
         onSelect: (medName) {
           setState(() => _resep[index].obat = medName);
+          Navigator.of(ctx).pop();
+        },
+        onSelectMedicine: (med) {
+          setState(() {
+            _resep[index].obat = med.name;
+            _resep[index].sku = med.sku;
+            _resep[index].stock = med.stock;
+            _resep[index].category = med.category;
+            if (med.unitOfMeasurement.isNotEmpty) {
+              _resep[index].satuan = med.unitOfMeasurement;
+            }
+          });
           Navigator.of(ctx).pop();
         },
       ),
@@ -165,6 +192,26 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       return;
     }
 
+    final patientId = widget.patient.id.isNotEmpty
+        ? widget.patient.id
+        : (widget.history.patientId.isNotEmpty
+            ? widget.history.patientId
+            : widget.history.rawJson['patient_id']?.toString() ?? '');
+
+    final recordId = widget.history.id.isNotEmpty
+        ? widget.history.id
+        : (widget.history.rawJson['id']?.toString() ?? '');
+
+    if (patientId.isEmpty || recordId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('ID Pasien atau ID Rekam Medis tidak valid!'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
+
     if (_needLab == true && _jenisLab == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -178,24 +225,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     setState(() => _saving = true);
 
     try {
-      final authState = ref.read(authControllerProvider);
-      final userEmail = authState.session?.user.email.toLowerCase() ?? '';
-      final currentShipId = authState.session?.user.shipId;
-
-      final doctorsList = ref.read(doctorsProvider).valueOrNull ?? kDoctors;
-      Doctor? matchedDoctor;
-      if (userEmail.isNotEmpty) {
-        matchedDoctor = doctorsList
-            .where((d) => d.email != null && d.email!.toLowerCase() == userEmail)
-            .firstOrNull;
-      }
-      if (matchedDoctor == null && widget.patient.assignedDokterId.isNotEmpty) {
-        matchedDoctor = doctorsList
-            .where((d) => d.id == widget.patient.assignedDokterId)
-            .firstOrNull;
-      }
-      matchedDoctor ??= doctorsList.isNotEmpty ? doctorsList.first : kDoctors.first;
-
       final resepItems = [
         for (final r in validResep)
           ResepItem(
@@ -224,25 +253,40 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         final val = d.code.isNotEmpty ? d.code : d.display;
         if (val.isNotEmpty) allTindakan.add(val);
       }
-      final freeText = _tindakanFreetext.text.trim();
-      if (freeText.isNotEmpty) allTindakan.add(freeText);
       final tindakanFormatted = allTindakan.join(', ');
 
-      final patientId = widget.patient.id.isNotEmpty
-          ? widget.patient.id
-          : (widget.history.patientId.isNotEmpty
-              ? widget.history.patientId
-              : widget.history.id);
+      final noteText = _tindakanFreetext.text.trim();
+      final statusPenanganan = (_needLab == true) ? 'Menunggu Lab' : 'Menunggu Obat';
 
-      await ref.read(patientsProvider.notifier).submitDiagnosaResep(
-            id: patientId,
-            diagnosa: diagnosaFormatted,
-            tindakan: tindakanFormatted.isNotEmpty ? tindakanFormatted : null,
+      final prescriptionsPayload = [
+        for (final r in validResep)
+          {
+            'sku': (r.sku != null && r.sku!.isNotEmpty) ? r.sku! : (r.obat ?? ''),
+            'quantity': r.jumlah,
+            'dosage': r.dosis,
+            'instructions': r.aturanPakai == 'Input manual'
+                ? (r.customInstruksiCtrl.text.trim().isNotEmpty
+                    ? r.customInstruksiCtrl.text.trim()
+                    : 'Sesuai anjuran')
+                : r.aturanPakai,
+          },
+      ];
+
+      final body = <String, dynamic>{
+        'diagnosis': diagnosaFormatted,
+        'treatment': tindakanFormatted,
+        'note': noteText,
+        'status': _statusKondisi,
+        'status_penanganan': statusPenanganan,
+        'prescriptions': prescriptionsPayload,
+      };
+
+      await ref.read(patientsProvider.notifier).patchMedicalRecord(
+            patientId: patientId,
+            recordId: recordId,
+            body: body,
             resep: resepItems,
             labOrder: labOrder,
-            doctorId: matchedDoctor.id,
-            shipId: currentShipId,
-            statusKondisi: _statusKondisi,
           );
 
       if (!mounted) return;
@@ -677,39 +721,29 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                       // List of Resep Cards
                       for (int i = 0; i < _resep.length; i++) _buildResepCard(i),
 
-                      // Button: + Tambah Obat Lain
-                      InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: () => setState(() => _resep.add(_ResepRowData())),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.orangeLt.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppColors.orange.withValues(alpha: 0.4),
-                              width: 1.0,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(
-                                LucideIcons.plus,
-                                size: 13,
-                                color: AppColors.orange,
-                              ),
-                              SizedBox(width: 5),
-                              Text(
-                                'Tambah Obat Lain',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.orange,
+                      // Button: + Tambah Obat Lainnya (Simple inline link)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: InkWell(
+                          onTap: () => setState(() => _resep.add(_ResepRowData())),
+                          borderRadius: BorderRadius.circular(4),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(LucideIcons.plus, size: 11, color: AppColors.orange),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Tambah obat lainnya',
+                                  style: TextStyle(
+                                    fontSize: 10.0,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.orange,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -933,8 +967,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     final hasMedicine = row.obat != null && row.obat!.isNotEmpty;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.card2,
         borderRadius: BorderRadius.circular(10),
@@ -947,17 +981,39 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: #1 Obat Utama
+          // Header: #1 Obat Utama + Hapus
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                index == 0 ? '#1 Obat Utama' : '#${index + 1} Obat Tambahan',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.orange,
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 18,
+                    height: 18,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: AppColors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    index == 0 ? 'Obat Utama' : 'Obat Tambahan #${index + 1}',
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ],
               ),
               if (_resep.length > 1)
                 InkWell(
@@ -965,10 +1021,10 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                     final removed = _resep.removeAt(index);
                     removed.dispose();
                   }),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Row(
-                      children: const [
+                      children: [
                         Icon(LucideIcons.trash2, size: 12, color: AppColors.red),
                         SizedBox(width: 4),
                         Text(
@@ -985,9 +1041,30 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
-          // Row 1: Pilih Nama Obat
+          // Field 1: Nama Obat
+          const Row(
+            children: [
+              Text(
+                'Nama Obat',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              Text(
+                ' *',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.red,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
           GestureDetector(
             onTap: () => _showMedicineSearch(index),
             child: Container(
@@ -1011,7 +1088,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      row.obat ?? 'Pilih nama obat...',
+                      row.obat ?? 'Cari & pilih obat dari stok kapal...',
                       style: TextStyle(
                         fontSize: 11.5,
                         color: hasMedicine ? AppColors.text : AppColors.sub,
@@ -1030,170 +1107,275 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-
-          // Row 2: Stepper Jumlah (Tablet) + Dosis + Aturan Pakai
-          Row(
-            children: [
-              // Stepper: 1 [▲▼] [Tablet]
-              Expanded(
-                flex: 5,
-                child: Container(
-                  height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Number
-                      Text(
-                        '${row.jumlah}',
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
-                        ),
+          if (hasMedicine && (row.stock != null || (row.category != null && row.category!.isNotEmpty))) ...[
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                if (row.stock != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: (row.stock! > 0) ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(
+                        color: (row.stock! > 0) ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
                       ),
-                      // Stepper buttons
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          InkWell(
-                            onTap: () => setState(() => row.jumlah++),
-                            child: const Icon(
-                              LucideIcons.chevronUp,
-                              size: 11,
-                              color: AppColors.sub,
-                            ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          LucideIcons.package,
+                          size: 10,
+                          color: (row.stock! > 0) ? const Color(0xFF059669) : AppColors.red,
+                        ),
+                        const SizedBox(width: 3.5),
+                        Text(
+                          'Stok: ${row.stock} ${row.satuan}',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: (row.stock! > 0) ? const Color(0xFF059669) : AppColors.red,
                           ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (row.category != null && row.category!.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    child: Text(
+                      row.category!,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.sub,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+
+          // Fields 2, 3, 4: Qty, Dosis, Aturan Pakai in one row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Kolom 1: Qty
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Qty (${row.satuan.isNotEmpty ? row.satuan : 'Pcs'})',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    SizedBox(
+                      height: 36,
+                      child: Row(
+                        children: [
+                          // Minus button (-)
                           InkWell(
+                            borderRadius: BorderRadius.circular(4),
                             onTap: () {
-                              if (row.jumlah > 1) {
-                                setState(() => row.jumlah--);
+                              final cur = int.tryParse(row.jumlahCtrl.text.trim()) ?? 1;
+                              if (cur > 1) {
+                                row.jumlahCtrl.text = (cur - 1).toString();
+                                setState(() {});
                               }
                             },
-                            child: const Icon(
-                              LucideIcons.chevronDown,
-                              size: 11,
-                              color: AppColors.sub,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+                              child: Icon(
+                                LucideIcons.minus,
+                                size: 12,
+                                color: AppColors.sub,
+                              ),
+                            ),
+                          ),
+                          // Input Angka (tanpa border radius, border color, dan background)
+                          Expanded(
+                            child: TextField(
+                              controller: row.jumlahCtrl,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              textAlign: TextAlign.center,
+                              cursorColor: AppColors.orange,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                              ),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                hintText: '1',
+                                hintStyle: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.sub,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Plus button (+)
+                          InkWell(
+                            borderRadius: BorderRadius.circular(4),
+                            onTap: () {
+                              final cur = int.tryParse(row.jumlahCtrl.text.trim()) ?? 1;
+                              row.jumlahCtrl.text = (cur + 1).toString();
+                              setState(() {});
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+                              child: Icon(
+                                LucideIcons.plus,
+                                size: 12,
+                                color: AppColors.orange,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      // Badge Tablet
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: AppColors.orangeLt,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: AppColors.orange.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          row.satuan,
-                          style: const TextStyle(
-                            fontSize: 9.0,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.orange,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
 
-              // Dropdown Dosis: 3x1
+              // Kolom 2: Dosis
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Dosis',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Container(
+                      height: 36,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: row.dosis,
+                          dropdownColor: Colors.white,
+                          icon: const Icon(
+                            LucideIcons.chevronDown,
+                            size: 12,
+                            color: AppColors.sub,
+                          ),
+                          items: [
+                            for (final d in _kDosisList)
+                              DropdownMenuItem(
+                                value: d,
+                                child: Text(
+                                  d,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.text,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => row.dosis = v);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Kolom 3: Aturan Pakai
               Expanded(
                 flex: 4,
-                child: Container(
-                  height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: row.dosis,
-                      dropdownColor: Colors.white,
-                      icon: const Icon(
-                        LucideIcons.chevronDown,
-                        size: 12,
-                        color: AppColors.sub,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Aturan Pakai',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
                       ),
-                      items: [
-                        for (final d in _kDosisList)
-                          DropdownMenuItem(
-                            value: d,
-                            child: Text(
-                              d,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.text,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setState(() => row.dosis = v);
-                      },
                     ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-
-              // Dropdown Aturan Pakai: Sesudah makan
-              Expanded(
-                flex: 5,
-                child: Container(
-                  height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: row.aturanPakai,
-                      dropdownColor: Colors.white,
-                      icon: const Icon(
-                        LucideIcons.chevronDown,
-                        size: 12,
-                        color: AppColors.sub,
+                    const SizedBox(height: 5),
+                    Container(
+                      height: 36,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border),
                       ),
-                      items: [
-                        for (final a in _kAturanPakaiList)
-                          DropdownMenuItem(
-                            value: a,
-                            child: Text(
-                              a,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.text,
-                                fontWeight: FontWeight.w600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: row.aturanPakai,
+                          dropdownColor: Colors.white,
+                          icon: const Icon(
+                            LucideIcons.chevronDown,
+                            size: 12,
+                            color: AppColors.sub,
                           ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) setState(() => row.aturanPakai = v);
-                      },
+                          items: [
+                            for (final a in _kAturanPakaiList)
+                              DropdownMenuItem(
+                                value: a,
+                                child: Text(
+                                  a,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.text,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => row.aturanPakai = v);
+                          },
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -1201,22 +1383,31 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
 
           // Optional Input Manual jika memilih Input manual
           if (row.aturanPakai == 'Input manual') ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
+            const Text(
+              'Aturan Pakai Khusus',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 4),
             TextField(
               controller: row.customInstruksiCtrl,
               style: const TextStyle(fontSize: 11, color: AppColors.text),
               decoration: InputDecoration(
                 hintText: 'Tuliskan aturan pakai khusus obat...',
-                hintStyle: const TextStyle(fontSize: 9.5, color: AppColors.sub),
+                hintStyle: const TextStyle(fontSize: 10, color: AppColors.sub),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.orange),
                 ),
               ),

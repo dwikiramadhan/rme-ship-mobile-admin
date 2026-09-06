@@ -737,6 +737,69 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
   }
 
+  /// Patches a patient's medical record via PATCH /api/v1/patients/:id/medical-records/:recordId
+  Future<void> patchMedicalRecord({
+    required String patientId,
+    required String recordId,
+    required Map<String, dynamic> body,
+    List<ResepItem>? resep,
+    LabOrder? labOrder,
+  }) async {
+    final statusPenanganan = body['status_penanganan']?.toString() ?? 'Menunggu Obat';
+
+    _update(
+      patientId,
+      (p) => p.copyWith(
+        status: PatientStatus.diperiksa,
+        statusPenanganan: statusPenanganan,
+        diagnosa: body['diagnosis']?.toString() ?? p.diagnosa,
+        tindakan: body['treatment']?.toString() ?? p.tindakan,
+        resep: resep ?? p.resep,
+        resepStatus: ResepStatus.baru,
+        labOrder: labOrder ?? p.labOrder,
+        dilihatDokter: true,
+      ),
+    );
+
+    try {
+      await _api.patchMedicalRecord(patientId, recordId, body);
+
+      // Sync status_penanganan to patient endpoint
+      try {
+        await _api.updatePatient(patientId, {
+          'status_penanganan': statusPenanganan,
+        });
+      } catch (e) {
+        debugPrint('Failed to sync status_penanganan to patient: $e');
+      }
+
+      final patient = state.where((p) => p.id == patientId).firstOrNull;
+      _wsService.send({
+        'type': 'prescription_created',
+        'target_role': 'pharmacy',
+        'patient_id': patientId,
+        'patient_name': patient?.nama ?? '',
+        'status_penanganan': statusPenanganan,
+        'resep_count': resep?.length ?? 0,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+
+      if (labOrder != null) {
+        _wsService.send({
+          'type': 'lab_order_created',
+          'target_role': 'lab',
+          'patient_id': patientId,
+          'patient_name': patient?.nama ?? '',
+          'status_penanganan': 'Menunggu Lab',
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to patch medical record: $e');
+      rethrow;
+    }
+  }
+
   void gantiObat(String id, int index, String obatBaru, String alasan) {
     _update(id, (p) {
       final resep = [...p.resep];

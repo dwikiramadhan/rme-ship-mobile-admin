@@ -220,6 +220,27 @@ class PatientApi {
     }
   }
 
+  /// Updates a patient's medical record via PATCH /api/v1/patients/{id}/medical-records/{recordId}
+  Future<Map<String, dynamic>> patchMedicalRecord(
+    String patientId,
+    String recordId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await _dio.patch(
+        '${ApiConfig.patientsPath}/$patientId/medical-records/$recordId',
+        data: body,
+      );
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+      return {};
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
   /// Fetches doctor list from GET /api/v1/medical-personnel?type=Doctor
   Future<List<Doctor>> getDoctors({
     int page = 1,

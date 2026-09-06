@@ -13,12 +13,16 @@ import '../../domain/medicine_item.dart';
 class MedicineSearchModal extends ConsumerStatefulWidget {
   const MedicineSearchModal({
     super.key,
+    this.shipCode,
     required this.selectedName,
     required this.onSelect,
+    this.onSelectMedicine,
   });
 
+  final String? shipCode;
   final String? selectedName;
   final ValueChanged<String> onSelect;
+  final ValueChanged<MedicineItem>? onSelectMedicine;
 
   @override
   ConsumerState<MedicineSearchModal> createState() =>
@@ -70,6 +74,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
     try {
       final api = ref.read(medicinesApiProvider);
       final res = await api.fetchMedicines(
+        shipCode: widget.shipCode,
         query: query,
         page: page,
         limit: 10,
@@ -80,9 +85,13 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
         if (reset) {
           _medicines = res.data;
         } else {
-          final existingIds = _medicines.map((m) => m.id).toSet();
-          final newItems =
-              res.data.where((m) => !existingIds.contains(m.id)).toList();
+          final existingKeys = _medicines
+              .map((m) => m.id.isNotEmpty ? m.id : m.sku)
+              .toSet();
+          final newItems = res.data
+              .where((m) =>
+                  !existingKeys.contains(m.id.isNotEmpty ? m.id : m.sku))
+              .toList();
           _medicines = [..._medicines, ...newItems];
         }
         _currentPage = res.page;
@@ -300,98 +309,175 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
 
                           final med = _medicines[i];
                           final isSelected = med.name == widget.selectedName;
+                          final hasStock = med.stock > 0;
 
                           return InkWell(
-                            onTap: () => widget.onSelect(med.name),
+                            onTap: () {
+                              if (widget.onSelectMedicine != null) {
+                                widget.onSelectMedicine!(med);
+                              } else {
+                                widget.onSelect(med.name);
+                              }
+                            },
                             borderRadius: BorderRadius.circular(10),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
-                                vertical: 11,
+                                vertical: 9,
                               ),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? AppColors.blueLt
+                                    ? AppColors.orangeLt.withValues(alpha: 0.5)
                                     : AppColors.card2,
                                 borderRadius: BorderRadius.circular(10),
                                 border: Border.all(
                                   color: isSelected
-                                      ? AppColors.blue.withValues(alpha: 0.5)
+                                      ? AppColors.orange.withValues(alpha: 0.5)
                                       : AppColors.border,
                                 ),
                               ),
                               child: Row(
                                 children: [
-                                  if (med.sku.isNotEmpty) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5,
-                                        vertical: 1.5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? AppColors.card
-                                            : AppColors.inputBg,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? AppColors.blue
-                                                  .withValues(alpha: 0.3)
-                                              : AppColors.border,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        med.sku,
-                                        style: TextStyle(
-                                          fontSize: 9.0,
-                                          fontWeight: FontWeight.w700,
-                                          color: isSelected
-                                              ? AppColors.blue
-                                              : AppColors.sub,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                  ],
                                   Expanded(
-                                    child: Text(
-                                      med.name,
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: isSelected
-                                            ? AppColors.blue
-                                            : AppColors.text,
-                                      ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Name and SKU
+                                        Row(
+                                          children: [
+                                            if (med.sku.isNotEmpty) ...[
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 5,
+                                                  vertical: 1.5,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: isSelected
+                                                      ? AppColors.card
+                                                      : AppColors.inputBg,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: isSelected
+                                                        ? AppColors.orange
+                                                            .withValues(
+                                                                alpha: 0.3)
+                                                        : AppColors.border,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  med.sku,
+                                                  style: TextStyle(
+                                                    fontSize: 9.0,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: isSelected
+                                                        ? AppColors.orange
+                                                        : AppColors.sub,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 6),
+                                            ],
+                                            Expanded(
+                                              child: Text(
+                                                med.name,
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w600,
+                                                  color: isSelected
+                                                      ? AppColors.orange
+                                                      : AppColors.text,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 5),
+
+                                        // Badges: Tipe & Stok
+                                        Wrap(
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          children: [
+                                            // Tipe / Kategori badge
+                                            if (med.category.isNotEmpty)
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 6,
+                                                  vertical: 1.5,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: AppColors.border,
+                                                    width: 0.8,
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  'Tipe: ${med.category}',
+                                                  style: const TextStyle(
+                                                    fontSize: 9.0,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AppColors.sub,
+                                                  ),
+                                                ),
+                                              ),
+
+                                            // Stock badge
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 1.5,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: hasStock
+                                                    ? const Color(0xFFECFDF5)
+                                                    : const Color(0xFFFEF2F2),
+                                                borderRadius:
+                                                    BorderRadius.circular(4),
+                                                border: Border.all(
+                                                  color: hasStock
+                                                      ? const Color(0xFFA7F3D0)
+                                                      : const Color(0xFFFECACA),
+                                                  width: 0.8,
+                                                ),
+                                              ),
+                                              child: Text(
+                                                hasStock
+                                                    ? 'Stok: ${med.stock} ${med.unitOfMeasurement.isNotEmpty ? med.unitOfMeasurement : "Unit"}'
+                                                    : 'Stok: Habis (0)',
+                                                style: TextStyle(
+                                                  fontSize: 9.0,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: hasStock
+                                                      ? const Color(0xFF059669)
+                                                      : const Color(0xFFDC2626),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                  if (med.unitOfMeasurement.isNotEmpty ||
-                                      med.category.isNotEmpty) ...[
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      med.unitOfMeasurement.isNotEmpty &&
-                                              med.category.isNotEmpty
-                                          ? '${med.category} • ${med.unitOfMeasurement}'
-                                          : (med.category.isNotEmpty
-                                              ? med.category
-                                              : med.unitOfMeasurement),
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        color: isSelected
-                                            ? AppColors.blue.withValues(alpha: 0.7)
-                                            : AppColors.sub,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
                                   if (isSelected) ...[
                                     const SizedBox(width: 8),
                                     const Icon(
                                       LucideIcons.check,
                                       size: 16,
-                                      color: AppColors.blue,
+                                      color: AppColors.orange,
                                     ),
                                   ],
                                 ],
