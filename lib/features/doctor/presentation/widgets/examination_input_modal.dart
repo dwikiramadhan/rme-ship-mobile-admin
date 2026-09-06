@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/app_select.dart';
-import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/circle_icon_button.dart';
 import '../../../auth/presentation/auth_controller.dart';
 import '../../../patients/data/patient_repository.dart';
@@ -458,7 +456,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           Icon(
                             LucideIcons.flaskConical,
                             size: 14,
-                            color: AppColors.purple,
+                            color: Color(0xFF0284C7),
                           ),
                           SizedBox(width: 7),
                           Text(
@@ -497,32 +495,124 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.purpleLt.withValues(alpha: 0.4),
+                            color: const Color(0xFFF0F9FF),
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                              color: AppColors.purple.withValues(alpha: 0.3),
+                              color: const Color(0xFF0284C7).withValues(alpha: 0.3),
                             ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              AppSelect<String>(
-                                label: 'Jenis Pemeriksaan Laboratorium',
-                                required: true,
-                                value: _jenisLab,
-                                options: [
-                                  for (final j in kJenisLab)
-                                    AppSelectOption(value: j, label: j),
+                              // Label: Jenis Pemeriksaan Laboratorium
+                              Row(
+                                children: const [
+                                  Text(
+                                    'Jenis Pemeriksaan Laboratorium',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.text,
+                                    ),
+                                  ),
+                                  Text(
+                                    ' *',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.red,
+                                    ),
+                                  ),
                                 ],
-                                onChanged: (v) => setState(() => _jenisLab = v),
                               ),
-                              const SizedBox(height: 8),
-                              AppTextField(
-                                label: 'Catatan Khusus untuk Analis Lab',
+                              const SizedBox(height: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.border),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    isExpanded: true,
+                                    value: _jenisLab,
+                                    hint: const Text(
+                                      'Pilih jenis pemeriksaan lab...',
+                                      style: TextStyle(
+                                        fontSize: 11.0,
+                                        color: AppColors.sub,
+                                      ),
+                                    ),
+                                    dropdownColor: Colors.white,
+                                    icon: const Icon(
+                                      LucideIcons.chevronDown,
+                                      size: 14,
+                                      color: AppColors.sub,
+                                    ),
+                                    items: [
+                                      for (final j in kJenisLab)
+                                        DropdownMenuItem(
+                                          value: j,
+                                          child: Text(
+                                            j,
+                                            style: const TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.text,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                    onChanged: (v) => setState(() => _jenisLab = v),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+
+                              // Label: Catatan Khusus untuk Analis Lab
+                              const Text(
+                                'Catatan Khusus untuk Analis Lab',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              TextField(
                                 controller: _catatanLab,
                                 maxLines: 2,
-                                placeholder:
-                                    'cth: Cek Hemoglobin, Trombosit & Leukosit cito',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.text,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText:
+                                      'cth: Cek Hemoglobin, Trombosit & Leukosit cito',
+                                  hintStyle: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: AppColors.sub,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.border,
+                                    ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFF0284C7),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -788,10 +878,14 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     required IconData icon,
   }) {
     final active = _needLab == value;
-    final color = value ? AppColors.purple : AppColors.sub;
-    final activeBg = value
-        ? AppColors.purpleLt
-        : AppColors.inputBg;
+    final activeColor = value ? const Color(0xFF0284C7) : const Color(0xFF059669);
+    final activeBg = value ? const Color(0xFFF0F9FF) : const Color(0xFFECFDF5);
+    final activeBorder = value ? const Color(0xFF0284C7) : const Color(0xFF059669);
+
+    final color = active ? activeColor : AppColors.text;
+    final iconColor = active ? activeColor : AppColors.sub;
+    final bg = active ? activeBg : Colors.white;
+    final border = active ? activeBorder : AppColors.border;
 
     return InkWell(
       borderRadius: BorderRadius.circular(8),
@@ -799,23 +893,32 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
         decoration: BoxDecoration(
-          color: active ? activeBg : AppColors.inputBg,
+          color: bg,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active ? color : AppColors.border,
+            color: border,
             width: active ? 1.2 : 1.0,
           ),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 13.5, color: color),
+            Icon(icon, size: 13.5, color: iconColor),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 color: color,
               ),
             ),
