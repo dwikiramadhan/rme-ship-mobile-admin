@@ -226,6 +226,41 @@ void main() {
     expect(find.text('Cholera (A00), Cholera unspecified (A00.9)'), findsOneWidget);
     // Verify Tindakan box shows full name and not just code
     expect(find.text('Therapeutic ultrasound (00.0)'), findsOneWidget);
+
+    // Verify 'Ubah Pemeriksaan' is removed
+    expect(find.text('Ubah Pemeriksaan / Diagnosa Dokter'), findsNothing);
+    // Verify Selesai banner is rendered
+    expect(find.textContaining('Status Pelayanan Selesai'), findsOneWidget);
+  });
+
+  testWidgets('MedicalHistoryDetailView renders Menunggu Lab banner', (tester) async {
+    final history = MedicalHistory(
+      id: '2',
+      code: 'RJ002',
+      patientId: 'p2',
+      patientName: 'Max Verstappen',
+      diagnosis: 'A00',
+      diagnosisDetail: 'Cholera (A00)',
+      statusPenanganan: 'Menunggu Lab',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MedicalHistoryDetailView(
+                history: history,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Ubah Pemeriksaan / Diagnosa Dokter'), findsNothing);
+    expect(find.textContaining('hasil laboratorium selesai diproses'), findsOneWidget);
   });
 
   testWidgets('HeaderActionButton renders with Tambah Kunjungan tooltip and triggers onPressed', (tester) async {

@@ -24,7 +24,7 @@ StatusMeta statusMetaFromPenanganan(String? statusPenanganan) {
     } else if (lower.contains('obat') || lower == 'farmasi' || lower.contains('resep')) {
       return StatusMeta(label: sp, color: AppColors.yellow, background: AppColors.yellowLt);
     } else if (lower.contains('lab')) {
-      return StatusMeta(label: sp, color: AppColors.purple, background: AppColors.purpleLt);
+      return StatusMeta(label: sp, color: const Color(0xFF0284C7), background: const Color(0xFFF0F9FF));
     } else if (lower.contains('selesai') || lower == 'completed' || lower == 'done') {
       return StatusMeta(label: sp, color: AppColors.green, background: AppColors.greenLt);
     } else if (lower.contains('batal') || lower.contains('cancel')) {
@@ -46,9 +46,9 @@ StatusMeta statusMeta(Patient p) {
   // 2. Lab order status fallback
   if (p.labOrder != null) {
     if (p.labOrder!.status == LabOrderStatus.selesai) {
-      return const StatusMeta(label: 'Hasil Lab Ada', color: AppColors.purple, background: AppColors.purpleLt);
+      return const StatusMeta(label: 'Hasil Lab Ada', color: Color(0xFF0284C7), background: Color(0xFFF0F9FF));
     }
-    return const StatusMeta(label: 'Tunggu Lab', color: AppColors.purple, background: AppColors.purpleLt);
+    return const StatusMeta(label: 'Tunggu Lab', color: Color(0xFF0284C7), background: Color(0xFFF0F9FF));
   }
 
   // 3. Prescription / Pharmacy workflow status fallback

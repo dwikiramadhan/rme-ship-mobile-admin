@@ -40,9 +40,12 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final userRole = authState.session?.user.role;
     final isDoctor = canExamine ?? (userRole == UserRole.dokter);
-    final isMenungguDokter =
-        (history.statusPenanganan ?? '').trim().toLowerCase() ==
-        'menunggu dokter';
+    final statusPenanganan =
+        (history.statusPenanganan ?? patientObj.statusPenanganan ?? '').trim();
+    final lowerStatus = statusPenanganan.toLowerCase();
+    final isMenungguDokter = lowerStatus == 'menunggu dokter' ||
+        lowerStatus == 'antrian' ||
+        lowerStatus == 'waiting';
     final hasDiagnosis = (history.diagnosis != null &&
             history.diagnosis!.trim().isNotEmpty &&
             history.diagnosis != '—' &&
@@ -52,6 +55,14 @@ class MedicalHistoryDetailView extends ConsumerWidget {
             history.diagnosisDetail != '—' &&
             history.diagnosisDetail != '-');
     final isDiagnosed = !isMenungguDokter && hasDiagnosis;
+
+    final isMenungguLab = lowerStatus.contains('lab');
+    final isSelesai = lowerStatus.contains('selesai') ||
+        lowerStatus == 'completed' ||
+        lowerStatus == 'done';
+    final isMenungguObat = lowerStatus.contains('obat') ||
+        lowerStatus.contains('farmasi') ||
+        lowerStatus.contains('resep');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,7 +227,8 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                 ),
               ],
 
-              if (isDoctor && !isDiagnosed) ...[
+              // Status Penanganan Info Banner
+              if (!isDiagnosed) ...[
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -228,21 +240,122 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFFDE68A)),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         LucideIcons.alertCircle,
                         size: 17,
                         color: Color(0xFFD97706),
                       ),
-                      SizedBox(width: 9),
+                      const SizedBox(width: 9),
                       Expanded(
                         child: Text(
-                          'Pasien belum memiliki diagnosa klinis. Klik tombol di bawah untuk memeriksa dan mengisi rekam medis.',
-                          style: TextStyle(
+                          isDoctor
+                              ? 'Pasien belum memiliki diagnosa klinis. Klik tombol di bawah untuk memeriksa dan mengisi rekam medis.'
+                              : 'Pasien dalam status Menunggu Dokter untuk pemeriksaan klinis.',
+                          style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF92400E),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (isMenungguLab) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0F9FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBAE6FD)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        LucideIcons.flaskConical,
+                        size: 17,
+                        color: Color(0xFF0284C7),
+                      ),
+                      SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'Pasien dalam status Menunggu Lab. Menunggu pemeriksaan atau hasil laboratorium selesai diproses.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0369A1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (isMenungguObat) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF9C3),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFEF08A)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        LucideIcons.pill,
+                        size: 17,
+                        color: Color(0xFFCA8A04),
+                      ),
+                      SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'Pasien dalam status Menunggu Obat. Resep obat sedang diproses oleh bagian farmasi.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF854D0E),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (isSelesai) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFBBF7D0)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        LucideIcons.checkCircle2,
+                        size: 17,
+                        color: Color(0xFF16A34A),
+                      ),
+                      SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'Status Pelayanan Selesai. Seluruh tahapan pemeriksaan dan pelayanan pasien telah selesai.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF166534),
                           ),
                         ),
                       ),
@@ -253,8 +366,8 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
               const SizedBox(height: 16),
 
-              // Button 1: Doctor Examination / Medical Record Form
-              if (isDoctor) ...[
+              // Button 1: Doctor Examination / Medical Record Form (Hanya jika belum didiagnosa)
+              if (isDoctor && !isDiagnosed) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -265,9 +378,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       patientObj,
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isDiagnosed
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFF0284C7),
+                      backgroundColor: const Color(0xFF0284C7),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(
@@ -275,18 +386,14 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       ),
                       elevation: 1,
                     ),
-                    icon: Icon(
-                      isDiagnosed
-                          ? LucideIcons.fileEdit
-                          : LucideIcons.stethoscope,
+                    icon: const Icon(
+                      LucideIcons.stethoscope,
                       size: 17,
                       color: Colors.white,
                     ),
-                    label: Text(
-                      isDiagnosed
-                          ? 'Ubah Pemeriksaan / Diagnosa Dokter'
-                          : 'Periksa Pasien / Input Rekam Medis',
-                      style: const TextStyle(
+                    label: const Text(
+                      'Periksa Pasien / Input Rekam Medis',
+                      style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                       ),
