@@ -57,7 +57,10 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   }
 
   Future<void> _pickFile() async {
-    final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png']);
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
     if (file != null) {
       setState(() => _fileName = file.name);
     }
@@ -68,7 +71,13 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     setState(() => _saving = true);
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    ref.read(patientsProvider.notifier).submitLabHasil(id: patientId, catatanHasil: _catatanHasil.text.trim(), fileName: _fileName);
+    ref
+        .read(patientsProvider.notifier)
+        .submitLabHasil(
+          id: patientId,
+          catatanHasil: _catatanHasil.text.trim(),
+          fileName: _fileName,
+        );
     setState(() => _saving = false);
   }
 
@@ -82,7 +91,13 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     final order = patient.labOrder;
     if (order == null) return const SizedBox.shrink();
 
-    final doctor = kDoctors.where((d) => d.id == patient.assignedDokterId).map((d) => d.nama).firstOrNull ?? '—';
+    final doctor = (patient.doctorName != null && patient.doctorName!.isNotEmpty)
+        ? patient.doctorName!
+        : (kDoctors
+            .where((d) => d.id == patient.assignedDokterId)
+            .map((d) => d.nama)
+            .firstOrNull ??
+        '—');
     final done = order.status == LabOrderStatus.selesai;
 
     return Column(
@@ -94,18 +109,47 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('ORDER PEMERIKSAAN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.blue)),
-              const SizedBox(height: 10),
-              Text(order.jenis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppColors.text)),
-              const SizedBox(height: 6),
-              Text('Diminta oleh $doctor', style: const TextStyle(fontSize: 12.5, color: AppColors.sub)),
+              const Text(
+                'ORDER PEMERIKSAAN',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.blue,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                order.jenis,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.text,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Diminta oleh $doctor',
+                style: const TextStyle(fontSize: 11.5, color: AppColors.sub),
+              ),
               if (order.catatan.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-                  decoration: BoxDecoration(color: AppColors.card2, borderRadius: BorderRadius.circular(10)),
-                  child: Text(order.catatan, style: const TextStyle(fontSize: 12.5, color: AppColors.text)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.card2,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    order.catatan,
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.text,
+                    ),
+                  ),
                 ),
               ],
             ],
@@ -116,27 +160,55 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('HASIL PEMERIKSAAN', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.blue)),
+              const Text(
+                'HASIL PEMERIKSAAN',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.blue,
+                ),
+              ),
               const SizedBox(height: 10),
               if (done) ...[
-                Text(order.hasil?.catatanHasil ?? '', style: const TextStyle(fontSize: 13, color: AppColors.text)),
+                Text(
+                  order.hasil?.catatanHasil ?? '',
+                  style: const TextStyle(fontSize: 12, color: AppColors.text),
+                ),
                 if (order.hasil?.fileName != null) ...[
                   const SizedBox(height: 8),
-                  Text('📎 ${order.hasil!.fileName}', style: const TextStyle(fontSize: 12, color: AppColors.sub)),
+                  Text(
+                    '📎 ${order.hasil!.fileName}',
+                    style: const TextStyle(fontSize: 11, color: AppColors.sub),
+                  ),
                 ],
                 const SizedBox(height: 10),
-                const Text('✓ Hasil telah dikirim ke dokter', style: TextStyle(color: AppColors.green, fontWeight: FontWeight.w700, fontSize: 13)),
+                const Text(
+                  '✓ Hasil telah dikirim ke dokter',
+                  style: TextStyle(
+                    color: AppColors.green,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
               ] else ...[
                 AppTextField(
                   label: 'Catatan / Nilai Hasil',
                   required: true,
                   controller: _catatanHasil,
                   maxLines: 4,
-                  placeholder: 'cth: Hb 11.2 g/dL, Leukosit 9.800/µL, Trombosit 260.000/µL',
+                  placeholder:
+                      'cth: Hb 11.2 g/dL, Leukosit 9.800/µL, Trombosit 260.000/µL',
                   onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 11),
-                const Text('Lampiran File (opsional)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
+                const Text(
+                  'Lampiran File (opsional)',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Material(
                   color: AppColors.inputBg,
@@ -145,17 +217,33 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                     borderRadius: BorderRadius.circular(10),
                     onTap: _pickFile,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border, width: 1.5)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border, width: 1.5),
+                      ),
                       child: Row(
                         children: [
-                          const Icon(LucideIcons.upload, size: 16, color: AppColors.blue),
-                          const SizedBox(width: 9),
+                          const Icon(
+                            LucideIcons.upload,
+                            size: 15,
+                            color: AppColors.blue,
+                          ),
+                          const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _fileName ?? 'Unggah hasil scan / PDF',
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _fileName != null ? AppColors.text : AppColors.sub),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: _fileName != null
+                                    ? AppColors.text
+                                    : AppColors.sub,
+                              ),
                             ),
                           ),
                         ],
@@ -170,7 +258,9 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                   full: true,
                   loading: _saving,
                   loadingLabel: 'Mengirim...',
-                  onPressed: (_catatanHasil.text.trim().isNotEmpty && !_saving) ? () => _submit(patient.id) : null,
+                  onPressed: (_catatanHasil.text.trim().isNotEmpty && !_saving)
+                      ? () => _submit(patient.id)
+                      : null,
                 ),
               ],
             ],

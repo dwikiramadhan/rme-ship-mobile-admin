@@ -40,11 +40,15 @@ class ApiConfig {
   static const String loginPath = '/api/v1/auth/login';
   static const String changePasswordPath = '/api/v1/auth/change-password';
   static const String patientsPath = '/api/v1/patients';
-  static const String doctorsPath = '/api/v1/doctors';
+  static const String medicalPersonnelPath = '/api/v1/medical-personnel';
+  static const String doctorsPath = medicalPersonnelPath;
   static const String medicalHistoryPath = '/api/v1/medical-history';
   static const String schedulesPath = '/api/v1/schedules';
   static String schedulesByShipPath(String shipId) => '/api/v1/schedules/ship/$shipId';
   static const String icd10Path = '/api/v1/icd10';
+  static const String icd9Path = '/api/v1/icd9cm';
+  static const String medicinesPath = '/api/v1/medicines';
+  static const String environmentsPath = '/api/v1/environments';
 }
 
 

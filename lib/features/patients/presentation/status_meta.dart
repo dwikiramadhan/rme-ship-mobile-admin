@@ -12,25 +12,35 @@ class StatusMeta {
   final Color background;
 }
 
+/// Returns StatusMeta directly from backend status_penanganan string.
+StatusMeta statusMetaFromPenanganan(String? statusPenanganan) {
+  if (statusPenanganan != null && statusPenanganan.trim().isNotEmpty) {
+    final sp = statusPenanganan.trim();
+    final lower = sp.toLowerCase();
+    if (lower.contains('menunggu dokter') || lower == 'antrian' || lower == 'waiting') {
+      return StatusMeta(label: sp, color: AppColors.orange, background: AppColors.orangeLt);
+    } else if (lower.contains('periksa') || lower == 'diperiksa' || lower == 'sedang diperiksa' || lower == 'examining') {
+      return StatusMeta(label: sp, color: AppColors.blue, background: AppColors.blueLt);
+    } else if (lower.contains('obat') || lower == 'farmasi' || lower.contains('resep')) {
+      return StatusMeta(label: sp, color: AppColors.yellow, background: AppColors.yellowLt);
+    } else if (lower.contains('lab')) {
+      return StatusMeta(label: sp, color: AppColors.purple, background: AppColors.purpleLt);
+    } else if (lower.contains('selesai') || lower == 'completed' || lower == 'done') {
+      return StatusMeta(label: sp, color: AppColors.green, background: AppColors.greenLt);
+    } else if (lower.contains('batal') || lower.contains('cancel')) {
+      return StatusMeta(label: sp, color: AppColors.red, background: AppColors.redLt);
+    } else {
+      return StatusMeta(label: sp, color: AppColors.blue, background: AppColors.blueLt);
+    }
+  }
+  return const StatusMeta(label: 'Menunggu Dokter', color: AppColors.orange, background: AppColors.orangeLt);
+}
+
 /// Returns a single badge summarising patient clinical workflow status.
 StatusMeta statusMeta(Patient p) {
   // 1. Direct mapping from backend status_penanganan if available
   if (p.statusPenanganan != null && p.statusPenanganan!.trim().isNotEmpty) {
-    final sp = p.statusPenanganan!.trim();
-    switch (sp) {
-      case 'Menunggu Dokter':
-        return const StatusMeta(label: 'Menunggu Dokter', color: AppColors.orange, background: AppColors.orangeLt);
-      case 'Diperiksa':
-        return const StatusMeta(label: 'Diperiksa', color: AppColors.blue, background: AppColors.blueLt);
-      case 'Menunggu Obat':
-        return const StatusMeta(label: 'Menunggu Obat', color: AppColors.yellow, background: AppColors.yellowLt);
-      case 'Menunggu Lab':
-        return const StatusMeta(label: 'Menunggu Lab', color: AppColors.purple, background: AppColors.purpleLt);
-      case 'Selesai':
-        return const StatusMeta(label: 'Selesai', color: AppColors.green, background: AppColors.greenLt);
-      default:
-        return StatusMeta(label: sp, color: AppColors.blue, background: AppColors.blueLt);
-    }
+    return statusMetaFromPenanganan(p.statusPenanganan);
   }
 
   // 2. Lab order status fallback
@@ -60,3 +70,4 @@ StatusMeta statusMeta(Patient p) {
   // 5. Default: Menunggu Dokter
   return const StatusMeta(label: 'Menunggu Dokter', color: AppColors.orange, background: AppColors.orangeLt);
 }
+

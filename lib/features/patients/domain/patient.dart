@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/utils/diagnosis_helper.dart';
 import 'lab_order.dart';
 import 'prescription_item.dart';
 import 'vitals.dart';
@@ -33,12 +34,14 @@ class Patient extends Equatable {
     this.dbStatus = 'Monitoring',
     this.statusPenanganan,
     this.dob,
+    this.bloodType,
     this.namaWali,
     this.hubunganWali,
     this.keterangan,
     this.kodeKelurahan,
     this.kodePos,
     this.diagnosa,
+    this.tindakan,
     this.resep = const [],
     this.resepStatus,
     this.labOrder,
@@ -47,6 +50,13 @@ class Patient extends Equatable {
     this.dilihatPharmacy = false,
     this.dilihatLab = false,
     this.dilihatDokterLab = false,
+    this.registerNo = '',
+    this.phone,
+    this.poliCode,
+    this.poliName,
+    this.serviceShipCode,
+    this.serviceShipName,
+    this.lastVisit,
   });
 
   final String id;
@@ -55,6 +65,14 @@ class Patient extends Equatable {
   final Gender jk;
   final int umur;
   final String alamat;
+
+  final String registerNo;
+  final String? phone;
+  final String? poliCode;
+  final String? poliName;
+  final String? serviceShipCode;
+  final String? serviceShipName;
+  final String? lastVisit;
 
   final String keluhanUtama;
   final String durasiKeluhan;
@@ -71,6 +89,7 @@ class Patient extends Equatable {
   final String? statusPenanganan;
 
   final String? dob;
+  final String? bloodType;
   final String? namaWali;
   final String? hubunganWali;
   final String? keterangan;
@@ -78,6 +97,7 @@ class Patient extends Equatable {
   final int? kodePos;
 
   final String? diagnosa;
+  final String? tindakan;
   final List<ResepItem> resep;
   final ResepStatus? resepStatus;
   final LabOrder? labOrder;
@@ -105,12 +125,14 @@ class Patient extends Equatable {
     String? dbStatus,
     String? statusPenanganan,
     String? dob,
+    String? bloodType,
     String? namaWali,
     String? hubunganWali,
     String? keterangan,
     String? kodeKelurahan,
     int? kodePos,
     Object? diagnosa = _unset,
+    Object? tindakan = _unset,
     List<ResepItem>? resep,
     Object? resepStatus = _unset,
     Object? labOrder = _unset,
@@ -118,6 +140,13 @@ class Patient extends Equatable {
     bool? dilihatPharmacy,
     bool? dilihatLab,
     bool? dilihatDokterLab,
+    String? registerNo,
+    String? phone,
+    String? poliCode,
+    String? poliName,
+    String? serviceShipCode,
+    String? serviceShipName,
+    String? lastVisit,
   }) {
     return Patient(
       id: id,
@@ -138,12 +167,14 @@ class Patient extends Equatable {
       dbStatus: dbStatus ?? this.dbStatus,
       statusPenanganan: statusPenanganan ?? this.statusPenanganan,
       dob: dob ?? this.dob,
+      bloodType: bloodType ?? this.bloodType,
       namaWali: namaWali ?? this.namaWali,
       hubunganWali: hubunganWali ?? this.hubunganWali,
       keterangan: keterangan ?? this.keterangan,
       kodeKelurahan: kodeKelurahan ?? this.kodeKelurahan,
       kodePos: kodePos ?? this.kodePos,
       diagnosa: identical(diagnosa, _unset) ? this.diagnosa : diagnosa as String?,
+      tindakan: identical(tindakan, _unset) ? this.tindakan : tindakan as String?,
       resep: resep ?? this.resep,
       resepStatus: identical(resepStatus, _unset) ? this.resepStatus : resepStatus as ResepStatus?,
       labOrder: identical(labOrder, _unset) ? this.labOrder : labOrder as LabOrder?,
@@ -151,6 +182,13 @@ class Patient extends Equatable {
       dilihatPharmacy: dilihatPharmacy ?? this.dilihatPharmacy,
       dilihatLab: dilihatLab ?? this.dilihatLab,
       dilihatDokterLab: dilihatDokterLab ?? this.dilihatDokterLab,
+      registerNo: registerNo ?? this.registerNo,
+      phone: phone ?? this.phone,
+      poliCode: poliCode ?? this.poliCode,
+      poliName: poliName ?? this.poliName,
+      serviceShipCode: serviceShipCode ?? this.serviceShipCode,
+      serviceShipName: serviceShipName ?? this.serviceShipName,
+      lastVisit: lastVisit ?? this.lastVisit,
     );
   }
 
@@ -161,6 +199,7 @@ class Patient extends Equatable {
     final String genderStr = json['gender']?.toString().toLowerCase() ?? '';
     final Gender jk = genderStr.contains('perempuan') ? Gender.p : Gender.l;
     final String dobStr = json['dob']?.toString() ?? '';
+    final String? bloodType = json['blood_type']?.toString();
     final String address = json['address']?.toString() ?? '';
     final String dbStatus = json['status']?.toString() ?? 'Monitoring';
 
@@ -206,15 +245,27 @@ class Patient extends Equatable {
     Vitals parsedVitals = const Vitals();
 
     LabOrder? labOrder;
+    String? tindakan;
     if (medRecords is List && medRecords.isNotEmpty) {
       for (final raw in medRecords) {
         if (raw is! Map<String, dynamic>) continue;
         final recComplaint = raw['complaint']?.toString() ?? '';
         final recDiag = raw['diagnosis']?.toString();
         final recTreatment = raw['treatment']?.toString() ?? '';
+        final recProcedure = raw['procedure']?.toString() ??
+            raw['tindakan']?.toString() ??
+            raw['icd9']?.toString();
         final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
         final recDocName = raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
         final recNotes = raw['notes']?.toString() ?? '';
+
+        if (recProcedure != null && recProcedure.isNotEmpty) {
+          tindakan = recProcedure;
+        } else if (recTreatment.isNotEmpty &&
+            recTreatment != '—' &&
+            recTreatment != '-') {
+          tindakan = recTreatment;
+        }
 
         if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
           keluhan = recComplaint;
@@ -230,8 +281,14 @@ class Patient extends Equatable {
           doctorName = recDocName;
         }
 
-        if (recDiag != null && recDiag.isNotEmpty && recDiag != 'Pemeriksaan Umum') {
-          diagnosa = recDiag;
+        final formattedDiag = formatDiagnoses(
+          raw['diagnoses'],
+          fallback: recDiag,
+        );
+        if (formattedDiag != '—' &&
+            formattedDiag.isNotEmpty &&
+            formattedDiag != 'Pemeriksaan Umum') {
+          diagnosa = formattedDiag;
           status = PatientStatus.diperiksa;
         }
 
@@ -287,16 +344,48 @@ class Patient extends Equatable {
           );
         }
 
-        if (recTreatment.isNotEmpty &&
+        final rawPrescription = raw['prescription'] ??
+            raw['prescriptions'] ??
+            raw['medicines'] ??
+            raw['resep'];
+        if (rawPrescription is List && rawPrescription.isNotEmpty) {
+          resep = rawPrescription
+              .whereType<Map<String, dynamic>>()
+              .map((j) => ResepItem.fromJson(j))
+              .where((r) => r.obat.isNotEmpty)
+              .toList();
+          if (resep.isNotEmpty) resepStatus = ResepStatus.baru;
+        } else if (rawPrescription is String && rawPrescription.isNotEmpty) {
+          final parsed = parseResepString(rawPrescription);
+          if (parsed.isNotEmpty) {
+            resep = parsed;
+            resepStatus = ResepStatus.baru;
+          }
+        } else if (recTreatment.isNotEmpty &&
+            !RegExp(r'^[\d.,\s-]+$').hasMatch(recTreatment) &&
             recTreatment != 'Pemeriksaan awal' &&
             recTreatment != 'Menunggu Pemeriksaan Dokter' &&
             recTreatment != 'Pemeriksaan Dokter') {
-          resep = [
-            ResepItem(obat: recTreatment, dosis: '1x1', instruksi: recNotes.startsWith('Order Lab:') ? '' : recNotes),
-          ];
-          resepStatus = ResepStatus.baru;
+          final parsed = parseResepString(recTreatment);
+          if (parsed.isNotEmpty) {
+            resep = parsed;
+            resepStatus = ResepStatus.baru;
+          }
         }
       }
+    }
+
+    final topPrescription = json['prescription'] ??
+        json['prescriptions'] ??
+        json['medicines'] ??
+        json['resep'];
+    if (resep.isEmpty && topPrescription is List && topPrescription.isNotEmpty) {
+      resep = topPrescription
+          .whereType<Map<String, dynamic>>()
+          .map((j) => ResepItem.fromJson(j))
+          .where((r) => r.obat.isNotEmpty)
+          .toList();
+      if (resep.isNotEmpty) resepStatus = ResepStatus.baru;
     }
 
     if (keluhan.isEmpty) {
@@ -304,6 +393,17 @@ class Patient extends Equatable {
     }
 
     final String? statusPenanganan = json['status_penanganan']?.toString();
+    final String registerNo = json['register_no']?.toString() ?? '';
+    final String? phone = json['phone']?.toString();
+    final String? poliCode = json['poli_code']?.toString();
+    final String? poliName = json['poliklinik'] is Map
+        ? json['poliklinik']['name']?.toString()
+        : (json['poliklinik']?.toString() ?? poliCode);
+    final String? serviceShipCode = json['service_ship_code']?.toString();
+    final String? serviceShipName = json['service_ship'] is Map
+        ? json['service_ship']['name']?.toString()
+        : (json['service_ship']?.toString() ?? serviceShipCode);
+    final String? lastVisit = json['last_visit']?.toString();
 
     return Patient(
       id: id,
@@ -323,16 +423,25 @@ class Patient extends Equatable {
       dbStatus: dbStatus,
       statusPenanganan: statusPenanganan,
       dob: dobStr,
+      bloodType: bloodType,
       namaWali: namaWali,
       hubunganWali: hubunganWali,
       keterangan: keterangan,
       kodeKelurahan: kodeKelurahan,
       kodePos: kodePos,
       diagnosa: diagnosa,
+      tindakan: tindakan,
       resep: resep,
       resepStatus: resepStatus,
       labOrder: labOrder,
       doctorName: doctorName,
+      registerNo: registerNo,
+      phone: phone,
+      poliCode: poliCode,
+      poliName: poliName,
+      serviceShipCode: serviceShipCode,
+      serviceShipName: serviceShipName,
+      lastVisit: lastVisit,
     );
   }
 
@@ -356,8 +465,8 @@ class Patient extends Equatable {
       'gender': jk == Gender.l ? 'Laki-laki' : 'Perempuan',
       'dob': (dob != null && dob.isNotEmpty) ? dob : (this.dob ?? '1990-01-01'),
       'address': alamat,
-      'phone': phone ?? '08123456789',
-      'blood_type': bloodType ?? 'O',
+      'phone': phone ?? this.phone ?? '08123456789',
+      'blood_type': bloodType ?? this.bloodType ?? 'O',
       'status': statusStr ?? 'Monitoring',
       if (namaWali != null && namaWali.isNotEmpty) 'nama_wali': namaWali,
       if (hubunganWali != null && hubunganWali.isNotEmpty) 'hubungan_wali': hubunganWali,
@@ -387,12 +496,14 @@ class Patient extends Equatable {
         dbStatus,
         statusPenanganan,
         dob,
+        bloodType,
         namaWali,
         hubunganWali,
         keterangan,
         kodeKelurahan,
         kodePos,
         diagnosa,
+        tindakan,
         resep,
         resepStatus,
         labOrder,
@@ -400,6 +511,13 @@ class Patient extends Equatable {
         dilihatPharmacy,
         dilihatLab,
         dilihatDokterLab,
+        registerNo,
+        phone,
+        poliCode,
+        poliName,
+        serviceShipCode,
+        serviceShipName,
+        lastVisit,
       ];
 }
 

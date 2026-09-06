@@ -20,7 +20,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = true;
-  String? _selectedDemoRole;
 
   @override
   void dispose() {
@@ -70,14 +69,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ],
       ),
     );
-  }
-
-  void _selectDemoAccount(String email, String password, String role) {
-    setState(() {
-      _selectedDemoRole = role;
-      _emailController.text = email;
-      _passwordController.text = password;
-    });
   }
 
   @override
@@ -402,130 +393,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               loadingLabel: 'Memeriksa...',
               onPressed: isLoading ? null : _submit,
             ),
-            const SizedBox(height: 22),
-
-            // Demo Accounts Section Header
-            Row(
-              children: const [
-                Expanded(child: Divider(color: AppColors.border, height: 1)),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    'PILIH AKUN DEMO',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.sub,
-                    ),
-                  ),
-                ),
-                Expanded(child: Divider(color: AppColors.border, height: 1)),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Demo Account Chips
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _DemoRoleChip(
-                  roleLabel: 'Dokter',
-                  email: 'dr_lie@yopmail.com',
-                  icon: LucideIcons.stethoscope,
-                  color: AppColors.blue,
-                  bg: AppColors.blueLt,
-                  isSelected: _selectedDemoRole == 'Dokter',
-                  onSelected: () => _selectDemoAccount(
-                    'dr_lie@yopmail.com',
-                    '123456',
-                    'Dokter',
-                  ),
-                ),
-                _DemoRoleChip(
-                  roleLabel: 'Perawat',
-                  email: 'budi.prasetyo@rme.id',
-                  icon: LucideIcons.pill,
-                  color: AppColors.yellow,
-                  bg: AppColors.yellowLt,
-                  isSelected: _selectedDemoRole == 'Perawat',
-                  onSelected: () => _selectDemoAccount(
-                    'budi.prasetyo@rme.id',
-                    '123456',
-                    'Perawat',
-                  ),
-                ),
-                _DemoRoleChip(
-                  roleLabel: 'Admin Kapal',
-                  email: 'bynp1@yopmail.com',
-                  icon: LucideIcons.heartPulse,
-                  color: AppColors.green,
-                  bg: AppColors.greenLt,
-                  isSelected: _selectedDemoRole == 'Admin Kapal',
-                  onSelected: () => _selectDemoAccount(
-                    'bynp1@yopmail.com',
-                    '123456',
-                    'Admin Kapal',
-                  ),
-                ),
-                _DemoRoleChip(
-                  roleLabel: 'Pharmacist',
-                  email: 'dewi@rme.id',
-                  icon: LucideIcons.flaskConical,
-                  color: AppColors.purple,
-                  bg: AppColors.purpleLt,
-                  isSelected: _selectedDemoRole == 'Pharmacist',
-                  onSelected: () =>
-                      _selectDemoAccount('dewi@rme.id', '123456', 'Pharmacist'),
-                ),
-                _DemoRoleChip(
-                  roleLabel: 'Admin Kapal',
-                  email: 'bynp2@yopmail.com',
-                  icon: LucideIcons.anchor,
-                  color: AppColors.orange,
-                  bg: AppColors.orangeLt,
-                  isSelected: _selectedDemoRole == 'Admin Kapal',
-                  onSelected: () => _selectDemoAccount(
-                    'bynp2@yopmail.com',
-                    '123456',
-                    'Admin Kapal',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-
-            // Footer info
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.card2,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(
-                    LucideIcons.shieldCheck,
-                    size: 14,
-                    color: AppColors.green,
-                  ),
-                  SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      'Koneksi SSL Terenkripsi · Bayan RME v1.0',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.sub,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -668,7 +536,7 @@ class _LoginHero extends StatelessWidget {
                         ),
                         SizedBox(height: 6),
                         Text(
-                          'Mendukung operasional klinik di atas kapal secara real-time antar perawat, dokter, apotek, dan laboratorium.',
+                          'Mendukung operasional klinik di atas kapal antar perawat, dokter, apotek, dan laboratorium.',
                           style: TextStyle(
                             color: Colors.white70,
                             fontSize: 11,
@@ -683,96 +551,6 @@ class _LoginHero extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DemoRoleChip extends StatelessWidget {
-  const _DemoRoleChip({
-    required this.roleLabel,
-    required this.email,
-    required this.icon,
-    required this.color,
-    required this.bg,
-    required this.isSelected,
-    required this.onSelected,
-  });
-
-  final String roleLabel;
-  final String email;
-  final IconData icon;
-  final Color color;
-  final Color bg;
-  final bool isSelected;
-  final VoidCallback onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onSelected,
-        borderRadius: BorderRadius.circular(10),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: isSelected ? bg : AppColors.card2,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isSelected ? color : AppColors.border,
-              width: isSelected ? 1.5 : 1.0,
-            ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.15),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: isSelected ? color.withValues(alpha: 0.2) : bg,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Icon(icon, size: 12, color: color),
-              ),
-              const SizedBox(width: 7),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    roleLabel,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: isSelected ? color : AppColors.text,
-                    ),
-                  ),
-                  Text(
-                    email,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: isSelected
-                          ? color.withValues(alpha: 0.8)
-                          : AppColors.sub,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

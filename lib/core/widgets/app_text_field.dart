@@ -20,6 +20,8 @@ class AppTextField extends StatelessWidget {
     this.suffixIcon,
     this.validator,
     this.autovalidateMode,
+    this.fontSize,
+    this.labelFontSize,
   });
 
   final String label;
@@ -34,13 +36,15 @@ class AppTextField extends StatelessWidget {
   final Widget? suffixIcon;
   final FormFieldValidator<String>? validator;
   final AutovalidateMode? autovalidateMode;
+  final double? fontSize;
+  final double? labelFontSize;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _FieldLabel(label: label, required: required),
+        AppFieldLabel(label: label, required: required, fontSize: labelFontSize),
         const SizedBox(height: 5),
         TextFormField(
           controller: controller,
@@ -51,9 +55,10 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           autovalidateMode: autovalidateMode,
           inputFormatters: numbersOnly ? [FilteringTextInputFormatter.digitsOnly] : null,
-          style: const TextStyle(fontSize: 14, color: AppColors.text),
+          style: TextStyle(fontSize: fontSize ?? 14, color: AppColors.text),
           decoration: InputDecoration(
             hintText: placeholder,
+            hintStyle: fontSize != null ? TextStyle(fontSize: fontSize) : null,
             suffixIcon: suffixIcon,
           ),
         ),
@@ -62,20 +67,27 @@ class AppTextField extends StatelessWidget {
   }
 }
 
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel({required this.label, required this.required});
+class AppFieldLabel extends StatelessWidget {
+  const AppFieldLabel({
+    super.key,
+    required this.label,
+    this.required = false,
+    this.fontSize,
+  });
 
   final String label;
   final bool required;
+  final double? fontSize;
 
   @override
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: const TextStyle(
-          fontSize: 13,
+        style: TextStyle(
+          fontSize: fontSize ?? 13,
           fontWeight: FontWeight.w600,
           color: AppColors.text,
+          fontFamily: 'PlusJakartaSans',
         ),
         children: [
           TextSpan(text: label),

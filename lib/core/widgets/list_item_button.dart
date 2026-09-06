@@ -13,6 +13,7 @@ class ListItemButton extends StatelessWidget {
     required this.initial,
     required this.title,
     required this.subtitle,
+    this.code,
     this.trailing,
   });
 
@@ -23,6 +24,7 @@ class ListItemButton extends StatelessWidget {
   final String initial;
   final String title;
   final String subtitle;
+  final String? code;
   final Widget? trailing;
 
   @override
@@ -64,9 +66,40 @@ class ListItemButton extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: scheme.onSurface)),
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    if (code != null && code!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        code!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.primary,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 1),
-                    Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ),
               ),

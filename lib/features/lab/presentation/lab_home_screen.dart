@@ -68,7 +68,9 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
                   separatorBuilder: (_, _) => const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final p = notifs[index];
-                    final doctorName = kDoctors.where((d) => d.id == p.assignedDokterId).map((d) => d.nama).firstOrNull ?? '—';
+                    final doctorName = (p.doctorName != null && p.doctorName!.isNotEmpty)
+                        ? p.doctorName!
+                        : (kDoctors.where((d) => d.id == p.assignedDokterId).map((d) => d.nama).firstOrNull ?? '—');
                     return Material(
                       color: AppColors.card,
                       borderRadius: BorderRadius.circular(14),

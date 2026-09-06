@@ -5,6 +5,7 @@ import '../../../core/network/api_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../domain/doctor.dart';
+import '../domain/medical_history.dart';
 import '../domain/patient.dart';
 
 class PaginatedPatients {
@@ -22,6 +23,23 @@ class PaginatedPatients {
   final int total;
   final int totalPages;
 }
+
+class PaginatedMedicalHistory {
+  const PaginatedMedicalHistory({
+    required this.data,
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.totalPages,
+  });
+
+  final List<MedicalHistory> data;
+  final int page;
+  final int limit;
+  final int total;
+  final int totalPages;
+}
+
 
 /// Calls the real Bayan RME patient endpoints:
 /// - GET  /api/v1/patients
@@ -45,8 +63,8 @@ class PatientApi {
       final queryParams = <String, dynamic>{
         'page': page,
         'limit': limit,
+        'search': search ?? '',
       };
-      if (search != null && search.isNotEmpty) queryParams['search'] = search;
       if (status != null && status.isNotEmpty) queryParams['status'] = status;
 
       final response = await _dio.get(
@@ -142,6 +160,20 @@ class PatientApi {
     }
   }
 
+  /// Fetches a single patient's raw JSON from GET /api/v1/patients/{id}
+  Future<Map<String, dynamic>> getPatientDetailRaw(String id) async {
+    try {
+      final response = await _dio.get('${ApiConfig.patientsPath}/$id');
+      final data = response.data;
+      if (data is! Map<String, dynamic> || data['result'] is! Map<String, dynamic>) {
+        throw const ApiException('Data pasien tidak ditemukan.');
+      }
+      return data['result'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
   /// Creates a new patient via POST /api/v1/patients
   Future<Patient> createPatient(Map<String, dynamic> body) async {
     try {
@@ -188,10 +220,11 @@ class PatientApi {
     }
   }
 
-  /// Fetches doctor list from GET /api/v1/doctors
+  /// Fetches doctor list from GET /api/v1/medical-personnel?type=Doctor
   Future<List<Doctor>> getDoctors({
     int page = 1,
     int limit = 50,
+    String type = 'Doctor',
     String? search,
     String? availability,
   }) async {
@@ -199,12 +232,13 @@ class PatientApi {
       final queryParams = <String, dynamic>{
         'page': page,
         'limit': limit,
+        'type': type,
       };
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
       if (availability != null && availability.isNotEmpty) queryParams['availability'] = availability;
 
       final response = await _dio.get(
-        ApiConfig.doctorsPath,
+        ApiConfig.medicalPersonnelPath,
         queryParameters: queryParams,
       );
 
@@ -227,6 +261,74 @@ class PatientApi {
           .whereType<Map<String, dynamic>>()
           .map((json) => Doctor.fromApiJson(json))
           .toList();
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
+  /// Fetches paginated medical history from GET /api/v1/medical-history
+  /// Example: /api/v1/medical-history?page=1&limit=10&sort_by=created_at&order=desc
+  Future<PaginatedMedicalHistory> getMedicalHistoryPaginated({
+    int page = 1,
+    int limit = 10,
+    String? search,
+    String sortBy = 'created_at',
+    String order = 'desc',
+  }) async {
+    try {
+      final queryParams = <String, dynamic>{
+        'page': page,
+        'limit': limit,
+        'sort_by': sortBy,
+        'order': order,
+      };
+      if (search != null && search.trim().isNotEmpty) {
+        queryParams['search'] = search.trim();
+      }
+
+      final response = await _dio.get(
+        ApiConfig.medicalHistoryPath,
+        queryParameters: queryParams,
+      );
+
+      final data = response.data;
+      if (data is! Map<String, dynamic>) {
+        throw const ApiException('Format respons riwayat kunjungan tidak valid.');
+      }
+
+      final result = data['result'];
+      final List rawList;
+      int resPage = page;
+      int resLimit = limit;
+      int resTotal = 0;
+      int resTotalPages = 1;
+
+      if (result is Map<String, dynamic>) {
+        rawList = result['data'] is List ? result['data'] as List : [];
+        resPage = (result['page'] as num?)?.toInt() ?? page;
+        resLimit = (result['limit'] as num?)?.toInt() ?? limit;
+        resTotal = (result['total'] as num?)?.toInt() ?? rawList.length;
+        resTotalPages = (result['total_pages'] as num?)?.toInt() ??
+            (resTotal > 0 ? (resTotal / resLimit).ceil() : 1);
+      } else if (result is List) {
+        rawList = result;
+        resTotal = rawList.length;
+      } else {
+        rawList = [];
+      }
+
+      final histories = rawList
+          .whereType<Map<String, dynamic>>()
+          .map((json) => MedicalHistory.fromApiJson(json))
+          .toList();
+
+      return PaginatedMedicalHistory(
+        data: histories,
+        page: resPage,
+        limit: resLimit,
+        total: resTotal,
+        totalPages: resTotalPages,
+      );
     } on DioException catch (e) {
       throw DioClient.mapError(e);
     }

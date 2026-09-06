@@ -4,40 +4,39 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../data/icd10_api.dart';
-import '../../domain/icd10_item.dart';
+import '../../data/icd9_api.dart';
+import '../../domain/icd9_item.dart';
 
-/// Multiple ICD-10 diagnosis picker with search, badge chips, and multi-select support.
-class Icd10MultiSearchPicker extends ConsumerStatefulWidget {
-  const Icd10MultiSearchPicker({
+/// Multiple ICD-9-CM procedure / action picker with search, badge chips, and multi-select support.
+class Icd9MultiSearchPicker extends ConsumerStatefulWidget {
+  const Icd9MultiSearchPicker({
     super.key,
     required this.label,
     required this.selectedItems,
     required this.onChanged,
     this.required = false,
-    this.hint = 'Pilih atau cari diagnosa ICD-10...',
+    this.hint = 'Pilih atau cari tindakan ICD-9-CM...',
   });
 
   final String label;
-  final List<Icd10Item> selectedItems;
-  final ValueChanged<List<Icd10Item>> onChanged;
+  final List<Icd9Item> selectedItems;
+  final ValueChanged<List<Icd9Item>> onChanged;
   final bool required;
   final String hint;
 
   @override
-  ConsumerState<Icd10MultiSearchPicker> createState() =>
-      _Icd10MultiSearchPickerState();
+  ConsumerState<Icd9MultiSearchPicker> createState() =>
+      _Icd9MultiSearchPickerState();
 }
 
-class _Icd10MultiSearchPickerState
-    extends ConsumerState<Icd10MultiSearchPicker> {
+class _Icd9MultiSearchPickerState extends ConsumerState<Icd9MultiSearchPicker> {
   void _openSearchSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: false,
       backgroundColor: Colors.transparent,
-      builder: (_) => _Icd10MultiSearchBottomSheet(
+      builder: (_) => _Icd9MultiSearchBottomSheet(
         initialSelected: widget.selectedItems,
         onConfirmed: (items) {
           widget.onChanged(items);
@@ -47,7 +46,7 @@ class _Icd10MultiSearchPickerState
   }
 
   void _removeItem(int index) {
-    final updated = List<Icd10Item>.from(widget.selectedItems)..removeAt(index);
+    final updated = List<Icd9Item>.from(widget.selectedItems)..removeAt(index);
     widget.onChanged(updated);
   }
 
@@ -86,20 +85,20 @@ class _Icd10MultiSearchPickerState
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.blueLt,
+                    color: const Color(0xFFCCFBF1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(LucideIcons.plus, size: 11, color: AppColors.blue),
+                      const Icon(LucideIcons.plus, size: 11, color: Color(0xFF0F766E)),
                       const SizedBox(width: 3),
                       Text(
-                        '$count Diagnosa',
+                        '$count Tindakan',
                         style: const TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.blue,
+                          color: Color(0xFF0F766E),
                         ),
                       ),
                     ],
@@ -125,7 +124,7 @@ class _Icd10MultiSearchPickerState
               child: Row(
                 children: [
                   const Icon(
-                    LucideIcons.stethoscope,
+                    LucideIcons.activity,
                     size: 13,
                     color: AppColors.sub,
                   ),
@@ -161,55 +160,48 @@ class _Icd10MultiSearchPickerState
             separatorBuilder: (_, _) => const SizedBox(height: 4),
             itemBuilder: (context, index) {
               final item = widget.selectedItems[index];
-              final isPrimary = index == 0;
 
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
                 decoration: BoxDecoration(
-                  color: isPrimary
-                      ? AppColors.blueLt.withValues(alpha: 0.35)
-                      : AppColors.card2,
+                  color: const Color(0xFFF0FDFA),
                   borderRadius: BorderRadius.circular(6),
                   border: Border.all(
-                    color: isPrimary
-                        ? AppColors.blue.withValues(alpha: 0.25)
-                        : AppColors.border,
+                    color: const Color(0xFF0D9488).withValues(alpha: 0.25),
                     width: 0.8,
                   ),
                 ),
                 child: Row(
                   children: [
-                    // Index tag (Utama / Sekunder)
+                    // Index tag
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 4,
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: isPrimary
-                            ? AppColors.blue
-                            : AppColors.sub.withValues(alpha: 0.15),
+                        color: const Color(0xFFCCFBF1),
                         borderRadius: BorderRadius.circular(3),
                       ),
                       child: Text(
-                        isPrimary ? 'Utama' : 'Sekunder',
-                        style: TextStyle(
+                        '#${index + 1}',
+                        style: const TextStyle(
                           fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
-                          color: isPrimary ? Colors.white : AppColors.sub,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F766E),
                         ),
                       ),
                     ),
                     const SizedBox(width: 6),
 
-                    // ICD-10 Code
+                    // ICD-9 Code
                     if (item.code.isNotEmpty) ...[
                       Text(
                         item.code,
                         style: const TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.blue,
+                          color: Color(0xFF0F766E),
                         ),
                       ),
                       const SizedBox(width: 5),
@@ -220,7 +212,7 @@ class _Icd10MultiSearchPickerState
                       const SizedBox(width: 5),
                     ],
 
-                    // Disease Name
+                    // Procedure Name
                     Expanded(
                       child: Text(
                         item.display,
@@ -255,7 +247,7 @@ class _Icd10MultiSearchPickerState
           ),
           const SizedBox(height: 4),
 
-          // Inline "+ Tambah Diagnosa Lainnya" Button
+          // Inline "+ Tambah Tindakan Lainnya" Button
           Align(
             alignment: Alignment.centerLeft,
             child: InkWell(
@@ -266,14 +258,14 @@ class _Icd10MultiSearchPickerState
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(LucideIcons.plus, size: 11, color: AppColors.blue),
+                    Icon(LucideIcons.plus, size: 11, color: Color(0xFF0F766E)),
                     SizedBox(width: 3),
                     Text(
-                      'Tambah diagnosa lainnya',
+                      'Tambah tindakan lainnya',
                       style: TextStyle(
                         fontSize: 10.0,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.blue,
+                        color: Color(0xFF0F766E),
                       ),
                     ),
                   ],
@@ -287,29 +279,29 @@ class _Icd10MultiSearchPickerState
   }
 }
 
-/// Bottom Sheet for searching and multi-selecting ICD-10 items.
-class _Icd10MultiSearchBottomSheet extends ConsumerStatefulWidget {
-  const _Icd10MultiSearchBottomSheet({
+/// Bottom Sheet for searching and multi-selecting ICD-9-CM items.
+class _Icd9MultiSearchBottomSheet extends ConsumerStatefulWidget {
+  const _Icd9MultiSearchBottomSheet({
     required this.initialSelected,
     required this.onConfirmed,
   });
 
-  final List<Icd10Item> initialSelected;
-  final ValueChanged<List<Icd10Item>> onConfirmed;
+  final List<Icd9Item> initialSelected;
+  final ValueChanged<List<Icd9Item>> onConfirmed;
 
   @override
-  ConsumerState<_Icd10MultiSearchBottomSheet> createState() =>
-      _Icd10MultiSearchBottomSheetState();
+  ConsumerState<_Icd9MultiSearchBottomSheet> createState() =>
+      _Icd9MultiSearchBottomSheetState();
 }
 
-class _Icd10MultiSearchBottomSheetState
-    extends ConsumerState<_Icd10MultiSearchBottomSheet> {
+class _Icd9MultiSearchBottomSheetState
+    extends ConsumerState<_Icd9MultiSearchBottomSheet> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  late List<Icd10Item> _selectedList;
+  late List<Icd9Item> _selectedList;
   Timer? _debounceTimer;
 
-  List<Icd10Item> _results = [];
+  List<Icd9Item> _results = [];
   int _currentPage = 1;
   int _total = 0;
   bool _loading = true;
@@ -320,7 +312,7 @@ class _Icd10MultiSearchBottomSheetState
   @override
   void initState() {
     super.initState();
-    _selectedList = List<Icd10Item>.from(widget.initialSelected);
+    _selectedList = List<Icd9Item>.from(widget.initialSelected);
     _fetchPage(1, reset: true);
     _scrollController.addListener(_onScroll);
   }
@@ -362,8 +354,8 @@ class _Icd10MultiSearchBottomSheetState
     }
 
     try {
-      final api = ref.read(icd10ApiProvider);
-      final paginated = await api.fetchIcd10Paginated(
+      final api = ref.read(icd9ApiProvider);
+      final paginated = await api.fetchIcd9Paginated(
         query: query,
         page: page,
         limit: 25,
@@ -400,13 +392,13 @@ class _Icd10MultiSearchBottomSheetState
     _fetchPage(_currentPage + 1, query: _currentQuery);
   }
 
-  bool _isSelected(Icd10Item item) {
+  bool _isSelected(Icd9Item item) {
     return _selectedList.any((s) =>
         s.code.toLowerCase().trim() == item.code.toLowerCase().trim() &&
         s.code.isNotEmpty);
   }
 
-  void _toggleItem(Icd10Item item) {
+  void _toggleItem(Icd9Item item) {
     setState(() {
       final idx = _selectedList.indexWhere((s) =>
           s.code.toLowerCase().trim() == item.code.toLowerCase().trim() &&
@@ -424,7 +416,7 @@ class _Icd10MultiSearchBottomSheetState
     if (trimmed.isEmpty) return;
     setState(() {
       if (!_selectedList.any((s) => s.display.toLowerCase() == trimmed.toLowerCase())) {
-        _selectedList.add(Icd10Item(code: '', display: trimmed));
+        _selectedList.add(Icd9Item(code: '', display: trimmed));
       }
       _searchController.clear();
       _fetchPage(1, query: '', reset: true);
@@ -477,13 +469,13 @@ class _Icd10MultiSearchBottomSheetState
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.orangeLt,
+                                color: const Color(0xFFCCFBF1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Icon(
-                                LucideIcons.stethoscope,
+                                LucideIcons.activity,
                                 size: 16,
-                                color: AppColors.orange,
+                                color: Color(0xFF0F766E),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -493,7 +485,7 @@ class _Icd10MultiSearchBottomSheetState
                                 Row(
                                   children: [
                                     const Text(
-                                      'Pilih Diagnosa ICD-10',
+                                      'Pilih Tindakan (ICD-9-CM)',
                                       style: TextStyle(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w700,
@@ -508,7 +500,7 @@ class _Icd10MultiSearchBottomSheetState
                                           vertical: 1.5,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.blueLt,
+                                          color: const Color(0xFFCCFBF1),
                                           borderRadius: BorderRadius.circular(6),
                                         ),
                                         child: Text(
@@ -516,7 +508,7 @@ class _Icd10MultiSearchBottomSheetState
                                           style: const TextStyle(
                                             fontSize: 9.5,
                                             fontWeight: FontWeight.w700,
-                                            color: AppColors.blue,
+                                            color: Color(0xFF0F766E),
                                           ),
                                         ),
                                       ),
@@ -524,7 +516,7 @@ class _Icd10MultiSearchBottomSheetState
                                   ],
                                 ),
                                 const Text(
-                                  'Pilih satu atau beberapa diagnosa klinis',
+                                  'Pilih satu atau beberapa prosedur/tindakan klinis',
                                   style: TextStyle(
                                     fontSize: 10.0,
                                     color: AppColors.sub,
@@ -565,7 +557,7 @@ class _Icd10MultiSearchBottomSheetState
                         ),
                         decoration: InputDecoration(
                           hintText:
-                              'Cari penyakit / kode (cth: allergic, J30, D69)...',
+                              'Cari prosedur / kode ICD-9 (cth: 89.07, injeksi, dressing)...',
                           hintStyle: const TextStyle(
                             fontSize: 11.0,
                             color: AppColors.sub,
@@ -613,10 +605,11 @@ class _Icd10MultiSearchBottomSheetState
                             return Container(
                               padding: const EdgeInsets.fromLTRB(7, 2, 3, 2),
                               decoration: BoxDecoration(
-                                color: AppColors.blueLt,
+                                color: const Color(0xFFCCFBF1),
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(
-                                  color: AppColors.blue.withValues(alpha: 0.3),
+                                  color: const Color(0xFF0D9488)
+                                      .withValues(alpha: 0.3),
                                 ),
                               ),
                               child: Row(
@@ -629,7 +622,7 @@ class _Icd10MultiSearchBottomSheetState
                                     style: const TextStyle(
                                       fontSize: 10.0,
                                       fontWeight: FontWeight.w700,
-                                      color: AppColors.blue,
+                                      color: Color(0xFF0F766E),
                                     ),
                                   ),
                                   const SizedBox(width: 2),
@@ -645,7 +638,7 @@ class _Icd10MultiSearchBottomSheetState
                                       child: Icon(
                                         LucideIcons.x,
                                         size: 11,
-                                        color: AppColors.blue,
+                                        color: Color(0xFF0F766E),
                                       ),
                                     ),
                                   ),
@@ -669,7 +662,7 @@ class _Icd10MultiSearchBottomSheetState
                         child: Padding(
                           padding: EdgeInsets.all(32),
                           child: CircularProgressIndicator(
-                            color: AppColors.orange,
+                            color: Color(0xFF0D9488),
                             strokeWidth: 2,
                           ),
                         ),
@@ -695,7 +688,7 @@ class _Icd10MultiSearchBottomSheetState
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: AppColors.orange,
+                                    color: Color(0xFF0D9488),
                                   ),
                                 ),
                               ),
@@ -722,12 +715,12 @@ class _Icd10MultiSearchBottomSheetState
                                     height: 18,
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? AppColors.blue
+                                          ? const Color(0xFF0D9488)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(5),
                                       border: Border.all(
                                         color: isSelected
-                                            ? AppColors.blue
+                                            ? const Color(0xFF0D9488)
                                             : AppColors.border,
                                         width: 1.4,
                                       ),
@@ -742,7 +735,7 @@ class _Icd10MultiSearchBottomSheetState
                                   ),
                                   const SizedBox(width: 8),
 
-                                  // ICD-10 Code badge
+                                  // ICD-9 Code badge
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 6,
@@ -750,12 +743,12 @@ class _Icd10MultiSearchBottomSheetState
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? AppColors.blueLt
+                                          ? const Color(0xFFCCFBF1)
                                           : AppColors.card2,
                                       borderRadius: BorderRadius.circular(5),
                                       border: Border.all(
                                         color: isSelected
-                                            ? AppColors.blue
+                                            ? const Color(0xFF0D9488)
                                                 .withValues(alpha: 0.3)
                                             : AppColors.border,
                                         width: 0.8,
@@ -767,14 +760,14 @@ class _Icd10MultiSearchBottomSheetState
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w800,
                                         color: isSelected
-                                            ? AppColors.blue
+                                            ? const Color(0xFF0F766E)
                                             : AppColors.text,
                                       ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
 
-                                  // Disease Name
+                                  // Procedure Name
                                   Expanded(
                                     child: Text(
                                       item.display,
@@ -784,7 +777,7 @@ class _Icd10MultiSearchBottomSheetState
                                             ? FontWeight.w700
                                             : FontWeight.w500,
                                         color: isSelected
-                                            ? AppColors.blue
+                                            ? const Color(0xFF0F766E)
                                             : AppColors.text,
                                         height: 1.25,
                                       ),
@@ -815,10 +808,10 @@ class _Icd10MultiSearchBottomSheetState
                         vertical: 7,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.orangeLt.withValues(alpha: 0.5),
+                        color: const Color(0xFFCCFBF1).withValues(alpha: 0.5),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: AppColors.orange.withValues(alpha: 0.35),
+                          color: const Color(0xFF0D9488).withValues(alpha: 0.35),
                         ),
                       ),
                       child: Row(
@@ -826,16 +819,16 @@ class _Icd10MultiSearchBottomSheetState
                           const Icon(
                             LucideIcons.plusCircle,
                             size: 13,
-                            color: AppColors.orange,
+                            color: Color(0xFF0D9488),
                           ),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              'Tambahkan "${_searchController.text.trim()}" sebagai diagnosa manual',
+                              'Tambahkan "${_searchController.text.trim()}" sebagai tindakan manual',
                               style: const TextStyle(
                                 fontSize: 11.0,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.orange,
+                                color: Color(0xFF0F766E),
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -878,7 +871,7 @@ class _Icd10MultiSearchBottomSheetState
                           Navigator.pop(context);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.blue,
+                          backgroundColor: const Color(0xFF0D9488),
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
@@ -892,7 +885,7 @@ class _Icd10MultiSearchBottomSheetState
                         child: Text(
                           _selectedList.isEmpty
                               ? 'Tutup'
-                              : 'Simpan (${_selectedList.length} Diagnosa)',
+                              : 'Simpan (${_selectedList.length} Tindakan)',
                           style: const TextStyle(
                             fontSize: 12.0,
                             fontWeight: FontWeight.w700,
@@ -930,7 +923,7 @@ class _Icd10MultiSearchBottomSheetState
           ),
           const SizedBox(height: 10),
           const Text(
-            'Tidak ada kode ICD-10 yang cocok',
+            'Tidak ada kode ICD-9-CM yang cocok',
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
@@ -939,63 +932,12 @@ class _Icd10MultiSearchBottomSheetState
           ),
           const SizedBox(height: 4),
           const Text(
-            'Anda dapat mengetik dan menambahkan diagnosa kustom di bawah.',
+            'Anda dapat mengetik dan menambahkan tindakan kustom di bawah.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 10.5, color: AppColors.sub),
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Single ICD-10 Search Picker for backward compatibility.
-class Icd10SearchPicker extends StatelessWidget {
-  const Icd10SearchPicker({
-    super.key,
-    required this.label,
-    required this.selectedCode,
-    this.displayLabel,
-    required this.onChanged,
-    this.onItemSelected,
-    this.required = false,
-    this.hint = 'Pilih atau cari diagnosa ICD-10...',
-  });
-
-  final String label;
-  final String selectedCode;
-  final String? displayLabel;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<Icd10Item>? onItemSelected;
-  final bool required;
-  final String hint;
-
-  @override
-  Widget build(BuildContext context) {
-    final List<Icd10Item> items = [];
-    if (selectedCode.isNotEmpty) {
-      items.add(Icd10Item(
-        code: selectedCode,
-        display: displayLabel?.isNotEmpty == true
-            ? displayLabel!
-            : selectedCode,
-      ));
-    }
-
-    return Icd10MultiSearchPicker(
-      label: label,
-      required: required,
-      hint: hint,
-      selectedItems: items,
-      onChanged: (newItems) {
-        if (newItems.isNotEmpty) {
-          final first = newItems.first;
-          onChanged(first.code);
-          onItemSelected?.call(first);
-        } else {
-          onChanged('');
-        }
-      },
     );
   }
 }

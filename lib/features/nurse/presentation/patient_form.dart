@@ -63,6 +63,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
   DateTime? _dob;
   Gender? _jk;
+  String? _bloodType;
   String? _dokterId;
   String? _hubunganWali;
   bool _saving = false;
@@ -101,12 +102,15 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     if (p != null) {
       _nama.text = p.nama;
       _nik.text = p.nik;
+      _bloodType = p.bloodType;
       _alamat.text = p.alamat;
       _namaWali.text = p.namaWali ?? '';
       _hubunganWali = p.hubunganWali;
       _keterangan.text = p.keterangan ?? '';
 
-      _keluhanUtama.text = p.keluhanUtama == 'Pemeriksaan umum' ? '' : p.keluhanUtama;
+      _keluhanUtama.text = p.keluhanUtama == 'Pemeriksaan umum'
+          ? ''
+          : p.keluhanUtama;
       _durasiKeluhan.text = p.durasiKeluhan == '-' ? '' : p.durasiKeluhan;
       _lokasiKeluhan.text = p.lokasiKeluhan == '-' ? '' : p.lokasiKeluhan;
       _td.text = p.vitals.tekananDarah;
@@ -128,6 +132,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _nik.text = '3171012304950001';
       _dob = DateTime(1995, 4, 23);
       _jk = Gender.l;
+      _bloodType = 'O';
       _isManualAddress = false;
       _alamat.text = 'Jl. Pelabuhan Semayang No. 12';
       _namaWali.text = 'Siti Rahmawati';
@@ -142,7 +147,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _suhu.text = '37.5';
       _rr.text = '18';
       _spo2.text = '98';
-      _dokterId = kDoctors.first.id;
+      _dokterId = null;
     }
 
     _loadProvinsi();
@@ -158,7 +163,11 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     });
 
     if (!_isManualAddress && _selectedProvinsi == null && list.isNotEmpty) {
-      final defaultProv = list.where((p) => p.namaProvinsi.toLowerCase().contains('kalimantan')).firstOrNull ?? list.first;
+      final defaultProv =
+          list
+              .where((p) => p.namaProvinsi.toLowerCase().contains('kalimantan'))
+              .firstOrNull ??
+          list.first;
       await _onProvinsiChanged(defaultProv);
       if (_kabkotaList.isNotEmpty) {
         await _onKabkotaChanged(_kabkotaList.first);
@@ -183,7 +192,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _kelurahanList = [];
     });
     if (prov == null) return;
-    final list = await ref.read(wilayahApiProvider).getKabupatenKota(prov.kodeProvinsi);
+    final list = await ref
+        .read(wilayahApiProvider)
+        .getKabupatenKota(prov.kodeProvinsi);
     if (mounted) {
       setState(() => _kabkotaList = list);
     }
@@ -198,7 +209,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _kelurahanList = [];
     });
     if (kab == null) return;
-    final list = await ref.read(wilayahApiProvider).getKecamatan(kab.kodeKabkota);
+    final list = await ref
+        .read(wilayahApiProvider)
+        .getKecamatan(kab.kodeKabkota);
     if (mounted) {
       setState(() => _kecamatanList = list);
     }
@@ -211,7 +224,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _kelurahanList = [];
     });
     if (kec == null) return;
-    final list = await ref.read(wilayahApiProvider).getKelurahan(kec.kodeKecamatan);
+    final list = await ref
+        .read(wilayahApiProvider)
+        .getKelurahan(kec.kodeKecamatan);
     if (mounted) {
       setState(() => _kelurahanList = list);
     }
@@ -220,7 +235,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   int _calculateAge(DateTime birthDate) {
     final today = DateTime.now();
     int age = today.year - birthDate.year;
-    if (today.month < birthDate.month || (today.month == birthDate.month && today.day < birthDate.day)) {
+    if (today.month < birthDate.month ||
+        (today.month == birthDate.month && today.day < birthDate.day)) {
       age--;
     }
     return age < 0 ? 0 : age;
@@ -290,18 +306,37 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       String fullAddress = _alamat.text.trim();
       if (!_isManualAddress && _selectedProvinsi != null) {
         final parts = <String>[];
-        if (_alamat.text.trim().isNotEmpty) parts.add(_alamat.text.trim());
-        if (_selectedKelurahan != null) parts.add('Kel. ${_selectedKelurahan!.namaKelurahan}');
-        if (_selectedKecamatan != null) parts.add('Kec. ${_selectedKecamatan!.namaKecamatan}');
-        if (_selectedKabkota != null) parts.add(_selectedKabkota!.namaKabkota);
-        if (_selectedProvinsi != null) parts.add(_selectedProvinsi!.namaProvinsi);
-        if (_selectedKelurahan != null && _selectedKelurahan!.kodePos > 0) parts.add('${_selectedKelurahan!.kodePos}');
-        if (parts.isNotEmpty) fullAddress = parts.join(', ');
+        if (_alamat.text.trim().isNotEmpty) {
+          parts.add(_alamat.text.trim());
+        }
+        if (_selectedKelurahan != null) {
+          parts.add('Kel. ${_selectedKelurahan!.namaKelurahan}');
+        }
+        if (_selectedKecamatan != null) {
+          parts.add('Kec. ${_selectedKecamatan!.namaKecamatan}');
+        }
+        if (_selectedKabkota != null) {
+          parts.add(_selectedKabkota!.namaKabkota);
+        }
+        if (_selectedProvinsi != null) {
+          parts.add(_selectedProvinsi!.namaProvinsi);
+        }
+        if (_selectedKelurahan != null && _selectedKelurahan!.kodePos > 0) {
+          parts.add('${_selectedKelurahan!.kodePos}');
+        }
+        if (parts.isNotEmpty) {
+          fullAddress = parts.join(', ');
+        }
       }
       if (fullAddress.isEmpty) fullAddress = 'Kalimantan Timur';
 
-      final kodeKel = (!_isManualAddress && _selectedKelurahan != null) ? _selectedKelurahan!.kodeKelurahan : null;
-      final kodePosVal = (!_isManualAddress && _selectedKelurahan != null && _selectedKelurahan!.kodePos > 0)
+      final kodeKel = (!_isManualAddress && _selectedKelurahan != null)
+          ? _selectedKelurahan!.kodeKelurahan
+          : null;
+      final kodePosVal =
+          (!_isManualAddress &&
+              _selectedKelurahan != null &&
+              _selectedKelurahan!.kodePos > 0)
           ? _selectedKelurahan!.kodePos
           : null;
 
@@ -313,15 +348,26 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           jk: _jk!,
           umur: umurCalc,
           dob: dobStr,
+          bloodType: _bloodType,
           alamat: fullAddress,
-          namaWali: _namaWali.text.trim().isNotEmpty ? _namaWali.text.trim() : null,
+          namaWali: _namaWali.text.trim().isNotEmpty
+              ? _namaWali.text.trim()
+              : null,
           hubunganWali: _hubunganWali,
-          keterangan: _keterangan.text.trim().isNotEmpty ? _keterangan.text.trim() : null,
+          keterangan: _keterangan.text.trim().isNotEmpty
+              ? _keterangan.text.trim()
+              : null,
           kodeKelurahan: kodeKel,
           kodePos: kodePosVal,
-          keluhanUtama: _keluhanUtama.text.trim().isNotEmpty ? _keluhanUtama.text.trim() : 'Pemeriksaan umum',
-          durasiKeluhan: _durasiKeluhan.text.trim().isNotEmpty ? _durasiKeluhan.text.trim() : '-',
-          lokasiKeluhan: _lokasiKeluhan.text.trim().isNotEmpty ? _lokasiKeluhan.text.trim() : '-',
+          keluhanUtama: _keluhanUtama.text.trim().isNotEmpty
+              ? _keluhanUtama.text.trim()
+              : 'Pemeriksaan umum',
+          durasiKeluhan: _durasiKeluhan.text.trim().isNotEmpty
+              ? _durasiKeluhan.text.trim()
+              : '-',
+          lokasiKeluhan: _lokasiKeluhan.text.trim().isNotEmpty
+              ? _lokasiKeluhan.text.trim()
+              : '-',
           vitals: Vitals(
             tekananDarah: _td.text.trim(),
             nadi: _nadi.text.trim(),
@@ -339,7 +385,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
         final id = 'Q${100 + Random().nextInt(900)}';
 
-        await ref.read(patientsProvider.notifier).addPatient(
+        await ref
+            .read(patientsProvider.notifier)
+            .addPatient(
               Patient(
                 id: id,
                 nama: _nama.text.trim(),
@@ -347,15 +395,26 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 jk: _jk!,
                 umur: umurCalc,
                 dob: dobStr,
+                bloodType: _bloodType,
                 alamat: fullAddress,
-                namaWali: _namaWali.text.trim().isNotEmpty ? _namaWali.text.trim() : null,
+                namaWali: _namaWali.text.trim().isNotEmpty
+                    ? _namaWali.text.trim()
+                    : null,
                 hubunganWali: _hubunganWali,
-                keterangan: _keterangan.text.trim().isNotEmpty ? _keterangan.text.trim() : null,
+                keterangan: _keterangan.text.trim().isNotEmpty
+                    ? _keterangan.text.trim()
+                    : null,
                 kodeKelurahan: kodeKel,
                 kodePos: kodePosVal,
-                keluhanUtama: _keluhanUtama.text.trim().isNotEmpty ? _keluhanUtama.text.trim() : 'Pemeriksaan umum',
-                durasiKeluhan: _durasiKeluhan.text.trim().isNotEmpty ? _durasiKeluhan.text.trim() : '-',
-                lokasiKeluhan: _lokasiKeluhan.text.trim().isNotEmpty ? _lokasiKeluhan.text.trim() : '-',
+                keluhanUtama: _keluhanUtama.text.trim().isNotEmpty
+                    ? _keluhanUtama.text.trim()
+                    : 'Pemeriksaan umum',
+                durasiKeluhan: _durasiKeluhan.text.trim().isNotEmpty
+                    ? _durasiKeluhan.text.trim()
+                    : '-',
+                lokasiKeluhan: _lokasiKeluhan.text.trim().isNotEmpty
+                    ? _lokasiKeluhan.text.trim()
+                    : '-',
                 vitals: Vitals(
                   tekananDarah: _td.text.trim(),
                   nadi: _nadi.text.trim(),
@@ -408,130 +467,144 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       data: (list) => list.isNotEmpty ? list : kDoctors,
       orElse: () => kDoctors,
     );
-    if (_dokterId == null && doctorList.isNotEmpty) {
-      _dokterId = doctorList.first.id;
+    if ((_dokterId == null || !doctorList.any((d) => d.id == _dokterId)) &&
+        doctorList.isNotEmpty) {
+      if (widget.initialPatient == null) {
+        _dokterId = doctorList.first.id;
+      }
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Material UI Header with Back Button beside title
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: const BoxDecoration(
-            color: AppColors.card,
-            border: Border(bottom: BorderSide(color: AppColors.border)),
-          ),
-          child: Row(
-            children: [
-              CircleIconButton(
-                icon: LucideIcons.arrowLeft,
-                onPressed: widget.onBack,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      widget.isEdit ? 'Edit Data Pasien' : 'Pasien Baru',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.text,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.isEdit
-                          ? 'Perbarui identitas & keluhan klinis'
-                          : 'Input identitas & registrasi pasien ke antrian',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.sub,
-                      ),
-                    ),
-                  ],
+    final theme = Theme.of(context);
+    final compactTheme = theme.copyWith(
+      inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 10.5),
+        isDense: true,
+      ),
+    );
+
+    return Theme(
+      data: compactTheme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Material UI Header with Back Button beside title
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: AppColors.card,
+              border: Border(bottom: BorderSide(color: AppColors.border)),
+            ),
+            child: Row(
+              children: [
+                CircleIconButton(
+                  icon: LucideIcons.arrowLeft,
+                  onPressed: widget.onBack,
+                  size: 34,
                 ),
-              ),
-            ],
-          ),
-        ),
-
-        // Scrollable Form Content
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth > 700;
-                final leftColumn = Column(
-                  children: [
-                    _buildDoctorCard(doctorList),
-                    const SizedBox(height: 14),
-                    _buildIdentityCard(),
-                    const SizedBox(height: 14),
-                    _buildWilayahCard(),
-                    const SizedBox(height: 14),
-                    _buildGuardianCard(),
-                  ],
-                );
-
-                final rightColumn = Column(
-                  children: [
-                    _buildComplaintAndVitalsCard(),
-                  ],
-                );
-
-                if (wide) {
-                  return Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(child: leftColumn),
-                      const SizedBox(width: 14),
-                      Expanded(child: rightColumn),
+                      Text(
+                        widget.isEdit ? 'Edit Data Pasien' : 'Pasien Baru',
+                        style: const TextStyle(
+                          fontSize: 13.0,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                        ),
+                      ),
+                      const SizedBox(height: 1.5),
+                      Text(
+                        widget.isEdit
+                            ? 'Perbarui identitas & keluhan klinis'
+                            : 'Input identitas & registrasi pasien ke antrian',
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          color: AppColors.sub,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Scrollable Form Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth > 700;
+                  final leftColumn = Column(
+                    children: [
+                      _buildDoctorCard(doctorList),
+                      const SizedBox(height: 14),
+                      _buildIdentityCard(),
+                      const SizedBox(height: 14),
+                      _buildWilayahCard(),
+                      const SizedBox(height: 14),
+                      _buildGuardianCard(),
                     ],
                   );
-                }
 
-                return Column(
-                  children: [
-                    leftColumn,
-                    const SizedBox(height: 14),
-                    rightColumn,
-                  ],
-                );
-              },
-            ),
-          ),
-        ),
+                  final rightColumn = Column(
+                    children: [_buildComplaintAndVitalsCard()],
+                  );
 
-        // Sticky Bottom Action Bar
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            border: const Border(top: BorderSide(color: AppColors.border)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.text.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, -3),
+                  if (wide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: leftColumn),
+                        const SizedBox(width: 14),
+                        Expanded(child: rightColumn),
+                      ],
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      leftColumn,
+                      const SizedBox(height: 14),
+                      rightColumn,
+                    ],
+                  );
+                },
               ),
-            ],
-          ),
-          child: SafeArea(
-            top: false,
-            child: AppButton(
-              label: widget.isEdit ? 'Simpan Perubahan' : 'Simpan',
-              full: true,
-              loading: _saving,
-              onPressed: _valid && !_saving ? _save : null,
             ),
           ),
-        ),
-      ],
+
+          // Fixed Action Bar
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              border: const Border(top: BorderSide(color: AppColors.border)),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.text.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -3),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: AppButton(
+                label: widget.isEdit ? 'Simpan Perubahan' : 'Simpan',
+                full: true,
+                loading: _saving,
+                onPressed: _valid && !_saving ? _save : null,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -544,33 +617,32 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         children: [
           _buildSectionHeader(
             icon: LucideIcons.stethoscope,
-            iconColor: AppColors.blue,
-            iconBg: AppColors.blueLt,
             title: 'DOKTER PEMERIKSA',
           ),
           const SizedBox(height: 14),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: const [
-                  Text(
-                    'Assign ke Dokter',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.sub),
-                  ),
-                  Text(' *', style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
-                ],
+              const AppFieldLabel(
+                label: 'Assign ke Dokter',
+                required: true,
+                fontSize: 10.5,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               GestureDetector(
                 onTap: () => _showDoctorSearchModal(doctors),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 11,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.inputBg,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: _dokterId != null ? AppColors.blue.withValues(alpha: 0.5) : AppColors.border,
+                      color: _dokterId != null
+                          ? AppColors.blue.withValues(alpha: 0.5)
+                          : AppColors.border,
                     ),
                   ),
                   child: Row(
@@ -580,13 +652,17 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                         height: 32,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: _dokterId != null ? AppColors.blueLt : AppColors.border.withValues(alpha: 0.5),
+                          color: _dokterId != null
+                              ? AppColors.blueLt
+                              : AppColors.border.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           LucideIcons.stethoscope,
                           size: 16,
-                          color: _dokterId != null ? AppColors.blue : AppColors.sub,
+                          color: _dokterId != null
+                              ? AppColors.blue
+                              : AppColors.sub,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -598,7 +674,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                                   Text(
                                     selectedDoc.nama,
                                     style: const TextStyle(
-                                      fontSize: 13,
+                                      fontSize: 11.0,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.text,
                                     ),
@@ -607,7 +683,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                                   Text(
                                     selectedDoc.spesialisasi,
                                     style: const TextStyle(
-                                      fontSize: 11,
+                                      fontSize: 9.0,
                                       color: AppColors.sub,
                                     ),
                                   ),
@@ -615,10 +691,17 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                               )
                             : const Text(
                                 'Pilih dokter pemeriksa...',
-                                style: TextStyle(fontSize: 13, color: AppColors.sub),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: AppColors.sub,
+                                ),
                               ),
                       ),
-                      const Icon(LucideIcons.chevronDown, size: 16, color: AppColors.sub),
+                      const Icon(
+                        LucideIcons.chevronDown,
+                        size: 16,
+                        color: AppColors.sub,
+                      ),
                     ],
                   ),
                 ),
@@ -642,8 +725,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         children: [
           _buildSectionHeader(
             icon: LucideIcons.user,
-            iconColor: AppColors.blue,
-            iconBg: AppColors.blueLt,
             title: 'IDENTITAS PASIEN',
           ),
           const SizedBox(height: 14),
@@ -653,6 +734,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             label: 'Nama Lengkap',
             required: true,
             controller: _nama,
+            fontSize: 11.0,
+            labelFontSize: 10.5,
             placeholder: 'Nama sesuai identitas KTP/Paspor',
             onChanged: (_) => setState(() {}),
           ),
@@ -668,20 +751,16 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: const [
-                        Text(
-                          'Tanggal Lahir',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.sub),
-                        ),
-                        Text(' *', style: TextStyle(color: AppColors.red, fontWeight: FontWeight.w700)),
-                      ],
+                    const AppFieldLabel(
+                      label: 'Tanggal Lahir',
+                      required: true,
+                      fontSize: 10.5,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     GestureDetector(
                       onTap: _selectDob,
                       child: Container(
-                        height: 44,
+                        height: 40,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
                           color: AppColors.inputBg,
@@ -690,24 +769,39 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(LucideIcons.calendar, size: 16, color: AppColors.blue),
+                            const Icon(
+                              LucideIcons.calendar,
+                              size: 15,
+                              color: AppColors.blue,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
                                 dobFormatted,
-                                style: const TextStyle(fontSize: 13, color: AppColors.text, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 11.0,
+                                  color: AppColors.text,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
                             if (ageText.isNotEmpty)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: AppColors.blueLt,
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
                                   ageText,
-                                  style: const TextStyle(fontSize: 11, color: AppColors.blue, fontWeight: FontWeight.w700),
+                                  style: const TextStyle(
+                                    fontSize: 9.0,
+                                    color: AppColors.blue,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                           ],
@@ -726,6 +820,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   label: 'Jenis Kelamin',
                   required: true,
                   value: _jk,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   options: const [
                     AppSelectOption(value: Gender.l, label: 'Laki-laki'),
                     AppSelectOption(value: Gender.p, label: 'Perempuan'),
@@ -737,11 +833,51 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           ),
           const SizedBox(height: 12),
 
-          // NIK (Flexible, no 16-digit restriction)
-          AppTextField(
-            label: 'NIK (Nomor Induk Kependudukan)',
-            controller: _nik,
-            placeholder: 'Nomor NIK / KTP / Paspor (opsional)',
+          // NIK & Golongan Darah Row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // NIK (Flexible, no 16-digit restriction)
+              Expanded(
+                flex: 3,
+                child: AppTextField(
+                  label: 'NIK (Nomor Induk Kependudukan)',
+                  controller: _nik,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
+                  placeholder: 'Nomor NIK / KTP / Paspor (opsional)',
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // Golongan Darah Dropdown
+              Expanded(
+                flex: 2,
+                child: AppSelect<String>(
+                  label: 'Golongan Darah',
+                  value: _bloodType,
+                  hint: 'Pilih...',
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
+                  options: const [
+                    AppSelectOption(value: 'O-', label: 'O− (O Negatif)'),
+                    AppSelectOption(value: 'O+', label: 'O+ (O Positif)'),
+                    AppSelectOption(value: 'A-', label: 'A− (A Negatif)'),
+                    AppSelectOption(value: 'A+', label: 'A+ (A Positif)'),
+                    AppSelectOption(value: 'B-', label: 'B− (B Negatif)'),
+                    AppSelectOption(value: 'B+', label: 'B+ (B Positif)'),
+                    AppSelectOption(value: 'AB-', label: 'AB− (AB Negatif)'),
+                    AppSelectOption(value: 'AB+', label: 'AB+ (AB Positif)'),
+                    AppSelectOption(value: 'O', label: 'O'),
+                    AppSelectOption(value: 'A', label: 'A'),
+                    AppSelectOption(value: 'B', label: 'B'),
+                    AppSelectOption(value: 'AB', label: 'AB'),
+                    AppSelectOption(value: '-', label: 'Tidak Tahu (-)'),
+                  ],
+                  onChanged: (v) => setState(() => _bloodType = v),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -760,8 +896,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 children: [
                   _buildSectionHeader(
                     icon: LucideIcons.mapPin,
-                    iconColor: AppColors.blue,
-                    iconBg: AppColors.blueLt,
                     title: 'ALAMAT & WILAYAH',
                   ),
                   if (_loadingWilayah) ...[
@@ -769,26 +903,36 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                     const SizedBox(
                       width: 12,
                       height: 12,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.blue),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.blue,
+                      ),
                     ),
                   ],
                 ],
               ),
               // Toggle manual free-text
               GestureDetector(
-                onTap: () => setState(() => _isManualAddress = !_isManualAddress),
+                onTap: () =>
+                    setState(() => _isManualAddress = !_isManualAddress),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _isManualAddress ? LucideIcons.checkSquare : LucideIcons.square,
+                      _isManualAddress
+                          ? LucideIcons.checkSquare
+                          : LucideIcons.square,
                       size: 16,
                       color: _isManualAddress ? AppColors.blue : AppColors.sub,
                     ),
                     const SizedBox(width: 5),
                     const Text(
                       'Input Manual',
-                      style: TextStyle(fontSize: 11.5, color: AppColors.sub, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 9.0,
+                        color: AppColors.sub,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                 ),
@@ -806,6 +950,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   child: AppSelect<WilayahProvinsi>(
                     label: 'Provinsi',
                     value: _selectedProvinsi,
+                    fontSize: 11.0,
+                    labelFontSize: 10.5,
                     options: [
                       for (final p in _provinsiList)
                         AppSelectOption(value: p, label: p.namaProvinsi),
@@ -818,6 +964,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   child: AppSelect<WilayahKabupatenKota>(
                     label: 'Kabupaten / Kota',
                     value: _selectedKabkota,
+                    fontSize: 11.0,
+                    labelFontSize: 10.5,
                     options: [
                       for (final k in _kabkotaList)
                         AppSelectOption(value: k, label: k.namaKabkota),
@@ -837,6 +985,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   child: AppSelect<WilayahKecamatan>(
                     label: 'Kecamatan',
                     value: _selectedKecamatan,
+                    fontSize: 11.0,
+                    labelFontSize: 10.5,
                     options: [
                       for (final k in _kecamatanList)
                         AppSelectOption(value: k, label: k.namaKecamatan),
@@ -849,11 +999,15 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   child: AppSelect<WilayahKelurahan>(
                     label: 'Kelurahan / Desa',
                     value: _selectedKelurahan,
+                    fontSize: 11.0,
+                    labelFontSize: 10.5,
                     options: [
                       for (final k in _kelurahanList)
                         AppSelectOption(
                           value: k,
-                          label: k.kodePos > 0 ? '${k.namaKelurahan} (${k.kodePos})' : k.namaKelurahan,
+                          label: k.kodePos > 0
+                              ? '${k.namaKelurahan} (${k.kodePos})'
+                              : k.namaKelurahan,
                         ),
                     ],
                     onChanged: (v) => setState(() => _selectedKelurahan = v),
@@ -866,8 +1020,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
           // Detail Alamat Jalan / RT / RW
           AppTextField(
-            label: _isManualAddress ? 'Alamat Lengkap (Free-text)' : 'Detail Jalan / RT / RW',
+            label: _isManualAddress
+                ? 'Alamat Lengkap (Free-text)'
+                : 'Detail Jalan / RT / RW',
             controller: _alamat,
+            fontSize: 11.0,
+            labelFontSize: 10.5,
             placeholder: _isManualAddress
                 ? 'Masukkan alamat lengkap jika daerah belum terdaftar...'
                 : 'Cth: Jl. Pelabuhan No. 12, RT 03/RW 02',
@@ -885,8 +1043,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         children: [
           _buildSectionHeader(
             icon: LucideIcons.users,
-            iconColor: AppColors.purple,
-            iconBg: AppColors.purpleLt,
             title: 'WALI / PENDAMPING & KETERANGAN',
           ),
           const SizedBox(height: 14),
@@ -900,6 +1056,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppTextField(
                   label: 'Nama Wali / Pendamping',
                   controller: _namaWali,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   placeholder: 'Nama lengkap wali / pendamping',
                 ),
               ),
@@ -909,6 +1067,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppSelect<String>(
                   label: 'Hubungan dengan Pasien',
                   value: _hubunganWali,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   options: [
                     for (final h in _hubunganWaliOptions)
                       AppSelectOption(value: h, label: h),
@@ -924,7 +1084,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           AppTextField(
             label: 'Keterangan Tambahan',
             controller: _keterangan,
-            placeholder: 'Catatan tambahan terkait pasien / penerima manfaat...',
+            fontSize: 11.0,
+            labelFontSize: 10.5,
+            placeholder:
+                'Catatan tambahan terkait pasien / penerima manfaat...',
             maxLines: 2,
           ),
         ],
@@ -938,9 +1101,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader(
-            icon: LucideIcons.stethoscope,
-            iconColor: AppColors.orange,
-            iconBg: AppColors.orangeLt,
+            icon: LucideIcons.clipboardList,
             title: 'KELUHAN AWAL & TANDA VITAL',
           ),
           const SizedBox(height: 14),
@@ -950,6 +1111,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             label: 'Keluhan Utama',
             required: true,
             controller: _keluhanUtama,
+            fontSize: 11.0,
+            labelFontSize: 10.5,
             placeholder: 'Apa keluhan atau gejala yang dirasakan pasien?',
             maxLines: 2,
             onChanged: (_) => setState(() {}),
@@ -964,6 +1127,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppTextField(
                   label: 'Durasi Keluhan',
                   controller: _durasiKeluhan,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   placeholder: 'cth: 2 hari',
                 ),
               ),
@@ -972,6 +1137,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppTextField(
                   label: 'Lokasi Keluhan',
                   controller: _lokasiKeluhan,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   placeholder: 'cth: Dada kiri, Perut',
                 ),
               ),
@@ -982,14 +1149,15 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           // Divider with Section Subheading for Tanda Vital
           Row(
             children: const [
-              Icon(LucideIcons.activity, size: 14, color: AppColors.green),
+              Icon(LucideIcons.activity, size: 14, color: AppColors.blue),
               SizedBox(width: 6),
               Text(
                 'TANDA VITAL',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11.0,
                   fontWeight: FontWeight.w800,
-                  color: AppColors.green,
+                  color: AppColors.blue,
+                  letterSpacing: 0.4,
                 ),
               ),
               SizedBox(width: 8),
@@ -1006,6 +1174,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppTextField(
                   label: 'Tekanan Darah',
                   controller: _td,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   placeholder: '120/80 mmHg',
                 ),
               ),
@@ -1014,6 +1184,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppTextField(
                   label: 'Nadi',
                   controller: _nadi,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   placeholder: 'x/menit (bpm)',
                   numbersOnly: true,
                   keyboardType: TextInputType.number,
@@ -1031,8 +1203,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppTextField(
                   label: 'Suhu Tubuh',
                   controller: _suhu,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   placeholder: '°C (cth: 36.5)',
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1040,6 +1216,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppTextField(
                   label: 'Frek. Napas',
                   controller: _rr,
+                  fontSize: 11.0,
+                  labelFontSize: 10.5,
                   placeholder: 'x/menit',
                   numbersOnly: true,
                   keyboardType: TextInputType.number,
@@ -1053,6 +1231,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           AppTextField(
             label: 'Saturasi Oksigen (SpO₂)',
             controller: _spo2,
+            fontSize: 11.0,
+            labelFontSize: 10.5,
             placeholder: '% (cth: 98)',
             numbersOnly: true,
             keyboardType: TextInputType.number,
@@ -1064,29 +1244,30 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
   Widget _buildSectionHeader({
     required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
     required String title,
+    Color iconColor = AppColors.blue,
+    Color iconBg = AppColors.blueLt,
   }) {
     return Row(
       children: [
         Container(
-          width: 28,
-          height: 28,
+          width: 24,
+          height: 24,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: iconBg,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
           ),
-          child: Icon(icon, size: 14, color: iconColor),
+          child: Icon(icon, size: 13, color: iconColor),
         ),
         const SizedBox(width: 8),
         Text(
           title,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: 11.5,
             fontWeight: FontWeight.w800,
             color: iconColor,
+            letterSpacing: 0.4,
           ),
         ),
       ],
@@ -1095,8 +1276,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 }
 
 /// Material UI Searchable Modal for Doctor selection
-class _DoctorSearchModal extends StatefulWidget {
-  const _DoctorSearchModal({
+class DoctorSearchModal extends StatefulWidget {
+  const DoctorSearchModal({
+    super.key,
     required this.doctors,
     required this.selectedId,
     required this.onSelect,
@@ -1107,10 +1289,12 @@ class _DoctorSearchModal extends StatefulWidget {
   final ValueChanged<String> onSelect;
 
   @override
-  State<_DoctorSearchModal> createState() => _DoctorSearchModalState();
+  State<DoctorSearchModal> createState() => _DoctorSearchModalState();
 }
 
-class _DoctorSearchModalState extends State<_DoctorSearchModal> {
+typedef _DoctorSearchModal = DoctorSearchModal;
+
+class _DoctorSearchModalState extends State<DoctorSearchModal> {
   final _searchController = TextEditingController();
   String _search = '';
 
@@ -1165,7 +1349,11 @@ class _DoctorSearchModalState extends State<_DoctorSearchModal> {
               children: [
                 const Text(
                   'Pilih Dokter',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text),
+                  style: TextStyle(
+                    fontSize: 12.0,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
                 ),
                 CircleIconButton(
                   icon: LucideIcons.x,
@@ -1180,7 +1368,7 @@ class _DoctorSearchModalState extends State<_DoctorSearchModal> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
             child: Container(
-              height: 42,
+              height: 40,
               decoration: BoxDecoration(
                 color: AppColors.inputBg,
                 borderRadius: BorderRadius.circular(10),
@@ -1189,17 +1377,27 @@ class _DoctorSearchModalState extends State<_DoctorSearchModal> {
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: Row(
                 children: [
-                  const Icon(LucideIcons.search, size: 16, color: AppColors.sub),
+                  const Icon(
+                    LucideIcons.search,
+                    size: 15,
+                    color: AppColors.sub,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
                       controller: _searchController,
                       onChanged: (v) => setState(() => _search = v),
                       textAlignVertical: TextAlignVertical.center,
-                      style: const TextStyle(fontSize: 13, color: AppColors.text),
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        color: AppColors.text,
+                      ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama dokter atau spesialisasi...',
-                        hintStyle: TextStyle(fontSize: 13, color: AppColors.sub),
+                        hintStyle: TextStyle(
+                          fontSize: 10.0,
+                          color: AppColors.sub,
+                        ),
                         isDense: true,
                         contentPadding: EdgeInsets.zero,
                         border: InputBorder.none,
@@ -1216,15 +1414,15 @@ class _DoctorSearchModalState extends State<_DoctorSearchModal> {
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 20,
-                        height: 20,
+                        width: 18,
+                        height: 18,
                         decoration: BoxDecoration(
                           color: AppColors.sub.withValues(alpha: 0.15),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           LucideIcons.x,
-                          size: 12,
+                          size: 11,
                           color: AppColors.sub,
                         ),
                       ),
@@ -1241,11 +1439,14 @@ class _DoctorSearchModalState extends State<_DoctorSearchModal> {
                     padding: EdgeInsets.all(32.0),
                     child: Text(
                       'Dokter tidak ditemukan.',
-                      style: TextStyle(fontSize: 13, color: AppColors.sub),
+                      style: TextStyle(fontSize: 10.5, color: AppColors.sub),
                     ),
                   )
                 : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
@@ -1258,29 +1459,37 @@ class _DoctorSearchModalState extends State<_DoctorSearchModal> {
                           duration: const Duration(milliseconds: 150),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isSelected ? AppColors.blueLt.withValues(alpha: 0.6) : AppColors.card2,
+                            color: isSelected
+                                ? AppColors.blueLt.withValues(alpha: 0.6)
+                                : AppColors.card2,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected ? AppColors.blue : AppColors.border,
+                              color: isSelected
+                                  ? AppColors.blue
+                                  : AppColors.border,
                               width: isSelected ? 1.5 : 1.0,
                             ),
                           ),
                           child: Row(
                             children: [
                               Container(
-                                width: 38,
-                                height: 38,
+                                width: 36,
+                                height: 36,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppColors.blue : AppColors.blueLt,
+                                  color: isSelected
+                                      ? AppColors.blue
+                                      : AppColors.blueLt,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
                                   doc.nama.isNotEmpty ? doc.nama[0] : 'D',
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: 11.0,
                                     fontWeight: FontWeight.w800,
-                                    color: isSelected ? Colors.white : AppColors.blue,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : AppColors.blue,
                                   ),
                                 ),
                               ),
@@ -1292,30 +1501,74 @@ class _DoctorSearchModalState extends State<_DoctorSearchModal> {
                                     Text(
                                       doc.nama,
                                       style: TextStyle(
-                                        fontSize: 13.5,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w700,
-                                        color: isSelected ? AppColors.blue : AppColors.text,
+                                        color: isSelected
+                                            ? AppColors.blue
+                                            : AppColors.text,
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Row(
+                                    const SizedBox(height: 4),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
                                       children: [
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: AppColors.card,
-                                            borderRadius: BorderRadius.circular(6),
-                                            border: Border.all(color: AppColors.border),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
+                                            border: Border.all(
+                                              color: AppColors.border,
+                                            ),
                                           ),
                                           child: Text(
                                             doc.spesialisasi,
                                             style: const TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 8.5,
                                               color: AppColors.sub,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                         ),
+                                        if (doc.availability != null &&
+                                            doc.availability!.isNotEmpty)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: doc.online
+                                                  ? AppColors.greenLt
+                                                  : AppColors.card,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: doc.online
+                                                    ? AppColors.green
+                                                          .withValues(
+                                                            alpha: 0.4,
+                                                          )
+                                                    : AppColors.border,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              doc.availability!,
+                                              style: TextStyle(
+                                                fontSize: 8.5,
+                                                color: doc.online
+                                                    ? AppColors.green
+                                                    : AppColors.sub,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ],

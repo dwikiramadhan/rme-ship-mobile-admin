@@ -154,8 +154,8 @@ class _Field extends StatelessWidget {
   }
 }
 
-class _RiwayatForm extends StatefulWidget {
-  const _RiwayatForm({this.existing, required this.onSubmit});
+class RiwayatFormModal extends StatefulWidget {
+  const RiwayatFormModal({super.key, this.existing, required this.onSubmit});
 
   final RiwayatKunjungan? existing;
   final void Function({
@@ -167,10 +167,12 @@ class _RiwayatForm extends StatefulWidget {
   }) onSubmit;
 
   @override
-  State<_RiwayatForm> createState() => _RiwayatFormState();
+  State<RiwayatFormModal> createState() => _RiwayatFormModalState();
 }
 
-class _RiwayatFormState extends State<_RiwayatForm> {
+typedef _RiwayatForm = RiwayatFormModal;
+
+class _RiwayatFormModalState extends State<RiwayatFormModal> {
   final _formKey = GlobalKey<FormState>();
   late final _nama = TextEditingController(text: widget.existing?.pasienNama);
   late final _nik = TextEditingController(text: widget.existing?.pasienNik);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import 'app_text_field.dart';
 
 class AppSelectOption<T> {
   const AppSelectOption({required this.value, required this.label});
@@ -19,6 +20,8 @@ class AppSelect<T> extends StatelessWidget {
     required this.onChanged,
     this.required = false,
     this.hint = 'Pilih...',
+    this.fontSize,
+    this.labelFontSize,
   });
 
   final String label;
@@ -27,39 +30,32 @@ class AppSelect<T> extends StatelessWidget {
   final ValueChanged<T?> onChanged;
   final bool required;
   final String hint;
+  final double? fontSize;
+  final double? labelFontSize;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text.rich(
-          TextSpan(
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: AppColors.text,
-              fontFamily: 'PlusJakartaSans',
-            ),
-            children: [
-              TextSpan(text: label),
-              if (required) const TextSpan(text: ' *', style: TextStyle(color: AppColors.red)),
-            ],
-          ),
-        ),
+        AppFieldLabel(label: label, required: required, fontSize: labelFontSize),
         const SizedBox(height: 5),
         DropdownButtonFormField<T>(
           initialValue: value,
           isExpanded: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.sub),
-          style: const TextStyle(fontSize: 14, color: AppColors.text),
+          style: TextStyle(fontSize: fontSize ?? 14, color: AppColors.text),
           decoration: const InputDecoration(),
-          hint: Text(hint, style: const TextStyle(fontSize: 14, color: AppColors.sub)),
+          hint: Text(hint, style: TextStyle(fontSize: fontSize ?? 14, color: AppColors.sub)),
           items: [
             for (final o in options)
               DropdownMenuItem<T>(
                 value: o.value,
-                child: Text(o.label, overflow: TextOverflow.ellipsis),
+                child: Text(
+                  o.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: fontSize ?? 14),
+                ),
               ),
           ],
           onChanged: onChanged,

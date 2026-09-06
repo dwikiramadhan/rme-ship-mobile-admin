@@ -1,39 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_card.dart';
-import '../../../core/widgets/vital_tile.dart';
-import '../data/patient_repository.dart';
-import '../domain/doctor.dart';
 import '../domain/patient.dart';
 
 /// Port of the prototype's `PatientInfoCard` — the identity +
 /// keluhan + vitals summary shown in every role's detail pane,
 /// with optional [onEdit] action for Perawat / Admin.
-class PatientInfoCard extends ConsumerWidget {
-  const PatientInfoCard({super.key, required this.patient, this.onEdit});
+class PatientInfoCard extends StatelessWidget {
+  const PatientInfoCard({
+    super.key,
+    required this.patient,
+    this.onEdit,
+    this.showKeluhanAwal = false,
+  });
 
   final Patient patient;
   final VoidCallback? onEdit;
+  final bool showKeluhanAwal;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final doctorsList = ref.watch(doctorsProvider).valueOrNull ?? kDoctors;
-    Doctor? doctor;
-    if (patient.assignedDokterId.isNotEmpty) {
-      doctor = doctorsList
-          .where(
-            (d) =>
-                d.id.toLowerCase() == patient.assignedDokterId.toLowerCase(),
-          )
-          .firstOrNull;
-    }
-    final doctorDisplayName =
-        (patient.doctorName != null && patient.doctorName!.trim().isNotEmpty)
-            ? patient.doctorName!.trim()
-            : (doctor?.nama ?? 'Dr. Budi Santoso');
+  Widget build(BuildContext context) {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,10 +44,7 @@ class PatientInfoCard extends ConsumerWidget {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFFFFEDD5),
-                            Color(0xFFFED7AA),
-                          ],
+                          colors: [Color(0xFFFFEDD5), Color(0xFFFED7AA)],
                         ),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
@@ -194,16 +179,19 @@ class PatientInfoCard extends ConsumerWidget {
                       label: 'NIK',
                       value: patient.nik,
                     ),
+                    if (patient.bloodType != null &&
+                        patient.bloodType!.isNotEmpty &&
+                        patient.bloodType != '-')
+                      _MuiPatientMetaItem(
+                        icon: LucideIcons.droplet,
+                        label: 'Gol. Darah',
+                        value: patient.bloodType!,
+                        accentColor: AppColors.red,
+                      ),
                     _MuiPatientMetaItem(
                       icon: LucideIcons.calendar,
                       label: 'Terdaftar',
                       value: patient.waktuMasuk,
-                    ),
-                    _MuiPatientMetaItem(
-                      icon: LucideIcons.stethoscope,
-                      label: 'Dokter',
-                      value: doctorDisplayName,
-                      accentColor: AppColors.orange,
                     ),
                   ],
                 ),
@@ -211,181 +199,94 @@ class PatientInfoCard extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 11),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.orangeLt,
-                      borderRadius: BorderRadius.circular(8),
+        if (showKeluhanAwal) ...[
+          const SizedBox(height: 11),
+          AppCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.orangeLt,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        LucideIcons.clipboardList,
+                        size: 15,
+                        color: AppColors.orange,
+                      ),
                     ),
-                    child: const Icon(
-                      LucideIcons.clipboardList,
-                      size: 15,
-                      color: AppColors.orange,
+                    const SizedBox(width: 8),
+                    const Text(
+                      'KELUHAN AWAL',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 11),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.orangeLt.withValues(alpha: 0.6),
+                        AppColors.card2,
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: const Border(
+                      left: BorderSide(color: AppColors.orange, width: 3.5),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'KELUHAN AWAL',
-                    style: TextStyle(
+                  child: Text(
+                    patient.keluhanUtama.trim().isNotEmpty
+                        ? patient.keluhanUtama.trim()
+                        : 'Tidak ada catatan keluhan utama',
+                    style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.orange,
+                      color: AppColors.text,
+                      height: 1.35,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 11),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
                 ),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.orangeLt.withValues(alpha: 0.6),
-                      AppColors.card2,
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  border: const Border(
-                    left: BorderSide(color: AppColors.orange, width: 3.5),
-                  ),
+                const SizedBox(height: 11),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _MuiMetaChip(
+                      icon: LucideIcons.clock,
+                      label: 'Durasi',
+                      value: patient.durasiKeluhan.isNotEmpty
+                          ? patient.durasiKeluhan
+                          : '—',
+                    ),
+                    _MuiMetaChip(
+                      icon: LucideIcons.mapPin,
+                      label: 'Lokasi',
+                      value: patient.lokasiKeluhan.isNotEmpty
+                          ? patient.lokasiKeluhan
+                          : '—',
+                    ),
+                  ],
                 ),
-                child: Text(
-                  patient.keluhanUtama.trim().isNotEmpty
-                      ? patient.keluhanUtama.trim()
-                      : 'Tidak ada catatan keluhan utama',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppColors.text,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 11),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _MuiMetaChip(
-                    icon: LucideIcons.clock,
-                    label: 'Durasi',
-                    value: patient.durasiKeluhan.isNotEmpty
-                        ? patient.durasiKeluhan
-                        : '—',
-                  ),
-                  _MuiMetaChip(
-                    icon: LucideIcons.mapPin,
-                    label: 'Lokasi',
-                    value: patient.lokasiKeluhan.isNotEmpty
-                        ? patient.lokasiKeluhan
-                        : '—',
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 11),
-        AppCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: AppColors.orangeLt,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      LucideIcons.activity,
-                      size: 15,
-                      color: AppColors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'TANDA VITAL',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.orange,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 11),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final w = constraints.maxWidth;
-                  final int crossAxisCount = w >= 700 ? 5 : (w >= 440 ? 3 : 2);
-                  final double childAspectRatio = w >= 700
-                      ? 2.1
-                      : (w >= 440 ? 2.6 : 2.5);
-                  return GridView.count(
-                    padding: EdgeInsets.zero,
-                    crossAxisCount: crossAxisCount,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: childAspectRatio,
-                    children: [
-                      VitalTile(
-                        icon: LucideIcons.heart,
-                        label: 'Tekanan Darah',
-                        value: patient.vitals.tekananDarah,
-                        unit: 'mmHg',
-                        color: AppColors.red,
-                      ),
-                      VitalTile(
-                        icon: LucideIcons.activity,
-                        label: 'Nadi',
-                        value: patient.vitals.nadi,
-                        unit: 'bpm',
-                        color: AppColors.blue,
-                      ),
-                      VitalTile(
-                        icon: LucideIcons.thermometer,
-                        label: 'Suhu Tubuh',
-                        value: patient.vitals.suhu,
-                        unit: '°C',
-                        color: AppColors.yellow,
-                      ),
-                      VitalTile(
-                        icon: LucideIcons.activity,
-                        label: 'Frek. Napas',
-                        value: patient.vitals.frekuensiNapas,
-                        unit: 'x/mnt',
-                        color: AppColors.purple,
-                      ),
-                      VitalTile(
-                        icon: LucideIcons.droplet,
-                        label: 'SpO₂',
-                        value: patient.vitals.spo2,
-                        unit: '%',
-                        color: AppColors.green,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
+        ],
       ],
     );
   }

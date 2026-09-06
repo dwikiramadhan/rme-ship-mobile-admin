@@ -11,6 +11,7 @@ class CircleIconButton extends StatelessWidget {
     this.background = AppColors.card2,
     this.foreground = AppColors.text,
     this.size = 38,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -18,10 +19,11 @@ class CircleIconButton extends StatelessWidget {
   final Color background;
   final Color foreground;
   final double size;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final button = Material(
       color: background,
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
@@ -34,5 +36,14 @@ class CircleIconButton extends StatelessWidget {
         ),
       ),
     );
+
+    if (tooltip != null && tooltip!.isNotEmpty) {
+      return Tooltip(
+        message: tooltip!,
+        child: button,
+      );
+    }
+
+    return button;
   }
 }

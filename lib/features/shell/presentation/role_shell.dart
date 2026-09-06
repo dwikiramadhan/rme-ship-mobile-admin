@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../environment/presentation/ship_environment_ribbon.dart';
 import 'nav_item.dart';
 import 'side_nav_rail.dart';
 
@@ -49,10 +50,17 @@ class RoleShell extends StatelessWidget {
       return Scaffold(
         resizeToAvoidBottomInset: false,
         body: SafeArea(
-          child: Row(
+          child: Column(
             children: [
-              SideNavRail(items: items, activeKey: activeKey, onChange: onChange),
-              Expanded(child: animatedContent),
+              const ShipEnvironmentRibbon(),
+              Expanded(
+                child: Row(
+                  children: [
+                    SideNavRail(items: items, activeKey: activeKey, onChange: onChange),
+                    Expanded(child: animatedContent),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -61,7 +69,14 @@ class RoleShell extends StatelessWidget {
 
     final activeIndex = items.indexWhere((i) => i.key == activeKey).clamp(0, items.length - 1);
     return Scaffold(
-      body: SafeArea(child: animatedContent),
+      body: SafeArea(
+        child: Column(
+          children: [
+            const ShipEnvironmentRibbon(),
+            Expanded(child: animatedContent),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: activeIndex,
         onDestinationSelected: (index) => onChange(items[index].key),

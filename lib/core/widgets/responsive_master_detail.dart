@@ -19,6 +19,7 @@ class MasterListEntry {
     required this.initial,
     required this.title,
     required this.subtitle,
+    this.code,
     this.badge,
     this.detailTitle,
   });
@@ -29,6 +30,7 @@ class MasterListEntry {
   final String initial;
   final String title;
   final String subtitle;
+  final String? code;
   final Widget? badge;
 
   /// Title shown on the phone detail page's app bar; defaults to [title].
@@ -158,6 +160,10 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
 
   Widget _list(BuildContext context, {required bool tablet}) {
     final showLoadingMore = widget.isLoadingMore || _internalLoadingMore;
+    final activeSelectedId = _selectedId != null && widget.entries.any((e) => e.id == _selectedId)
+        ? _selectedId
+        : (widget.entries.isNotEmpty ? widget.entries.first.id : null);
+
     final listWidget = widget.isLoading && widget.entries.isEmpty
         ? const SkeletonList()
         : widget.entries.isEmpty
@@ -210,11 +216,12 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
 
                   final entry = widget.entries[index];
                   return ListItemButton(
-                    active: tablet && _selectedId == entry.id,
+                    active: tablet && activeSelectedId == entry.id,
                     avatarColor: entry.avatarColor,
                     avatarBg: entry.avatarBg,
                     initial: entry.initial,
                     title: entry.title,
+                    code: entry.code,
                     subtitle: entry.subtitle,
                     trailing: entry.badge,
                     onTap: () {
@@ -351,6 +358,10 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
       return _list(context, tablet: false);
     }
 
+    final activeSelectedId = _selectedId != null && widget.entries.any((e) => e.id == _selectedId)
+        ? _selectedId
+        : (widget.entries.isNotEmpty ? widget.entries.first.id : null);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -362,10 +373,10 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
           ),
         ),
         Expanded(
-          child: _selectedId != null
+          child: activeSelectedId != null
               ? SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: widget.detailBuilder(context, _selectedId!),
+                  child: widget.detailBuilder(context, activeSelectedId),
                 )
               : EmptyState(icon: widget.emptyIcon, title: widget.emptyTitle, subtitle: widget.emptySubtitle),
         ),
@@ -377,6 +388,10 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
 // Re-export for convenience so screens only need one import for the header
 // action button pattern used across roles ("+", refresh, etc.).
 class HeaderActionButton extends CircleIconButton {
-  const HeaderActionButton({super.key, required super.icon, required super.onPressed})
-      : super(background: AppColors.blue, foreground: Colors.white);
+  const HeaderActionButton({
+    super.key,
+    required super.icon,
+    required super.onPressed,
+    super.tooltip,
+  }) : super(background: AppColors.blue, foreground: Colors.white);
 }

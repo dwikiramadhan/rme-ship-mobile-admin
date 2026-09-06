@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_config.dart';
 import '../../../core/network/dio_client.dart';
-import '../domain/icd10_item.dart';
+import '../domain/icd9_item.dart';
 
-class PaginatedIcd10 {
-  const PaginatedIcd10({
+class PaginatedIcd9 {
+  const PaginatedIcd9({
     required this.data,
     required this.total,
     required this.page,
@@ -16,7 +16,7 @@ class PaginatedIcd10 {
     required this.hasMore,
   });
 
-  final List<Icd10Item> data;
+  final List<Icd9Item> data;
   final int total;
   final int page;
   final int limit;
@@ -24,20 +24,20 @@ class PaginatedIcd10 {
   final bool hasMore;
 }
 
-class Icd10Api {
-  Icd10Api({Dio? dio}) : _dio = dio ?? DioClient.instance;
+class Icd9Api {
+  Icd9Api({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
   final Dio _dio;
 
-  /// Fetches paginated ICD-10 diagnosis codes via GET /api/v1/icd10?page=1&limit=20&search=...
-  Future<PaginatedIcd10> fetchIcd10Paginated({
+  /// Fetches paginated ICD-9-CM procedure codes via GET /api/v1/icd9?page=1&limit=20&search=...
+  Future<PaginatedIcd9> fetchIcd9Paginated({
     String query = '',
     int page = 1,
     int limit = 20,
   }) async {
     try {
       final response = await _dio.get(
-        ApiConfig.icd10Path,
+        ApiConfig.icd9Path,
         queryParameters: {
           'page': page,
           'limit': limit,
@@ -47,7 +47,7 @@ class Icd10Api {
 
       final data = response.data;
       if (data is! Map<String, dynamic>) {
-        return const PaginatedIcd10(
+        return const PaginatedIcd9(
           data: [],
           total: 0,
           page: 1,
@@ -87,10 +87,10 @@ class Icd10Api {
 
       final list = rawList
           .whereType<Map<String, dynamic>>()
-          .map((j) => Icd10Item.fromJson(j))
+          .map((j) => Icd9Item.fromJson(j))
           .toList();
 
-      return PaginatedIcd10(
+      return PaginatedIcd9(
         data: list,
         total: total,
         page: currentPage,
@@ -99,8 +99,8 @@ class Icd10Api {
         hasMore: hasMore,
       );
     } on DioException catch (e) {
-      debugPrint('Icd10Api fetchIcd10Paginated DioException: $e');
-      return const PaginatedIcd10(
+      debugPrint('Icd9Api fetchIcd9Paginated DioException: $e');
+      return const PaginatedIcd9(
         data: [],
         total: 0,
         page: 1,
@@ -109,8 +109,8 @@ class Icd10Api {
         hasMore: false,
       );
     } catch (e) {
-      debugPrint('Icd10Api fetchIcd10Paginated error: $e');
-      return const PaginatedIcd10(
+      debugPrint('Icd9Api fetchIcd9Paginated error: $e');
+      return const PaginatedIcd9(
         data: [],
         total: 0,
         page: 1,
@@ -121,13 +121,13 @@ class Icd10Api {
     }
   }
 
-  /// Fetches ICD-10 diagnosis codes via GET /api/v1/icd10?page=1&limit=20&search=...
-  Future<List<Icd10Item>> searchIcd10({
+  /// Fetches ICD-9-CM procedure codes via GET /api/v1/icd9?page=1&limit=20&search=...
+  Future<List<Icd9Item>> searchIcd9({
     String query = '',
     int page = 1,
     int limit = 20,
   }) async {
-    final paginated = await fetchIcd10Paginated(
+    final paginated = await fetchIcd9Paginated(
       query: query,
       page: page,
       limit: limit,
@@ -136,25 +136,25 @@ class Icd10Api {
   }
 }
 
-final icd10ApiProvider = Provider<Icd10Api>((ref) => Icd10Api());
+final icd9ApiProvider = Provider<Icd9Api>((ref) => Icd9Api());
 
-/// Resolves an ICD-10 code (or formatted string) to full Icd10Item (code + display)
-final icd10LookupProvider =
-    FutureProvider.family<Icd10Item?, String>((ref, code) async {
+/// Resolves an ICD-9 code (or formatted string) to full Icd9Item (code + display)
+final icd9LookupProvider =
+    FutureProvider.family<Icd9Item?, String>((ref, code) async {
   final cleanCode = code.trim();
   if (cleanCode.isEmpty || cleanCode == '—' || cleanCode == '-') return null;
 
   // If code already contains " - ", parse directly
   if (cleanCode.contains(' - ')) {
     final parts = cleanCode.split(' - ');
-    return Icd10Item(
+    return Icd9Item(
       code: parts.first.trim(),
       display: parts.sublist(1).join(' - ').trim(),
     );
   }
 
-  final api = ref.read(icd10ApiProvider);
-  final results = await api.searchIcd10(query: cleanCode, limit: 10);
+  final api = ref.read(icd9ApiProvider);
+  final results = await api.searchIcd9(query: cleanCode, limit: 10);
   final lowerCode = cleanCode.toLowerCase();
   final strippedCode = lowerCode.replaceAll('.', '').replaceAll(' ', '');
 
