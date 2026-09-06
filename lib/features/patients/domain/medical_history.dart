@@ -186,13 +186,27 @@ class MedicalHistory {
 
   /// Converts or falls back to a [Patient] object for patient detail navigation.
   Patient toPatient() {
+    final effectiveDiagnosa = (diagnosisDetail != null &&
+            diagnosisDetail!.trim().isNotEmpty &&
+            diagnosisDetail != '—' &&
+            diagnosisDetail != '-')
+        ? diagnosisDetail
+        : (diagnosis ?? patient?.diagnosa);
+    final effectiveTindakan = (tindakanDetail != null &&
+            tindakanDetail!.trim().isNotEmpty &&
+            tindakanDetail != '—' &&
+            tindakanDetail != '-')
+        ? tindakanDetail
+        : (treatment ?? patient?.tindakan);
+
     if (patient != null) {
       return patient!.copyWith(
         registerNo: code.isNotEmpty ? code : patient!.registerNo,
         statusPenanganan: statusPenanganan ?? patient!.statusPenanganan,
         poliName: poliName ?? patient!.poliName,
         keluhanUtama: complaint ?? patient!.keluhanUtama,
-        diagnosa: diagnosis ?? patient!.diagnosa,
+        diagnosa: effectiveDiagnosa,
+        tindakan: effectiveTindakan,
         vitals: !vitals.isEmpty ? vitals : patient!.vitals,
       );
     }
@@ -213,8 +227,8 @@ class MedicalHistory {
       registerNo: code,
       poliName: poliName,
       statusPenanganan: statusPenanganan,
-      diagnosa: diagnosis,
-      tindakan: treatment,
+      diagnosa: effectiveDiagnosa,
+      tindakan: effectiveTindakan,
     );
   }
 }

@@ -4,11 +4,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
+import '../../../core/utils/diagnosis_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/vital_tile.dart';
 import '../../auth/domain/user_role.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../doctor/data/icd10_api.dart';
+import '../../doctor/data/icd9_api.dart';
 import '../../doctor/presentation/widgets/examination_input_modal.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
@@ -40,10 +43,15 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     final isMenungguDokter =
         (history.statusPenanganan ?? '').trim().toLowerCase() ==
         'menunggu dokter';
-    final isDiagnosed =
-        !isMenungguDokter &&
-        history.diagnosis != null &&
-        history.diagnosis!.trim().isNotEmpty;
+    final hasDiagnosis = (history.diagnosis != null &&
+            history.diagnosis!.trim().isNotEmpty &&
+            history.diagnosis != '—' &&
+            history.diagnosis != '-') ||
+        (history.diagnosisDetail != null &&
+            history.diagnosisDetail!.trim().isNotEmpty &&
+            history.diagnosisDetail != '—' &&
+            history.diagnosisDetail != '-');
+    final isDiagnosed = !isMenungguDokter && hasDiagnosis;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -185,23 +193,15 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
               _buildDetailBox(
                 label: 'Diagnosa',
-                value: history.diagnosis?.isNotEmpty == true
-                    ? history.diagnosis!
-                    : (history.diagnosisDetail?.isNotEmpty == true
-                          ? history.diagnosisDetail!
-                          : 'Belum ada diagnosa dokter'),
+                customContent: _DiagnosaDetailValue(history: history),
                 icon: LucideIcons.activity,
-                isHighlight: history.diagnosis?.isNotEmpty == true,
+                isHighlight: hasDiagnosis,
               ),
               const SizedBox(height: 8),
 
               _buildDetailBox(
                 label: 'Tindakan / Terapi',
-                value: history.treatment?.isNotEmpty == true
-                    ? history.treatment!
-                    : (history.tindakanDetail?.isNotEmpty == true
-                          ? history.tindakanDetail!
-                          : 'Tidak ada tindakan klinis'),
+                customContent: _TindakanDetailValue(history: history),
                 icon: LucideIcons.fileCheck,
               ),
 
@@ -409,7 +409,8 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
   Widget _buildDetailBox({
     required String label,
-    required String value,
+    String? value,
+    Widget? customContent,
     required IconData icon,
     bool isHighlight = false,
     bool isWarning = false,
@@ -452,14 +453,17 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.text,
+                if (customContent != null)
+                  customContent
+                else
+                  Text(
+                    value ?? '',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.text,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -548,6 +552,327 @@ class MedicalHistoryDetailView extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+bool _isJustCode(String text) {
+  if (text.contains(' - ') || (text.contains('(') && text.contains(')'))) {
+    return false;
+  }
+  final parts = text
+      .split(',')
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return false;
+  return parts.every((p) => !p.contains(' ') && p.length <= 8);
+}
+
+class _DiagnosaDetailValue extends ConsumerWidget {
+  const _DiagnosaDetailValue({required this.history});
+
+  final MedicalHistory history;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 1. Prioritaskan rawJson['diagnoses'] jika ada list map dari backend
+    final rawDiagnoses = history.rawJson['diagnoses'];
+    if (rawDiagnoses is List && rawDiagnoses.isNotEmpty) {
+      final formatted = DiagnosisHelper.formatDiagnoses(rawDiagnoses);
+      if (formatted.isNotEmpty && formatted != '—' && !_isJustCode(formatted)) {
+        return Text(
+          formatted,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.text,
+          ),
+        );
+      }
+    }
+
+    // 2. Gunakan diagnosisDetail jika ada dan memuat nama
+    final detail = history.diagnosisDetail?.trim();
+    if (detail != null &&
+        detail.isNotEmpty &&
+        detail != '—' &&
+        detail != '-') {
+      if (!_isJustCode(detail)) {
+        return Text(
+          detail,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.text,
+          ),
+        );
+      }
+    }
+
+    // 3. Jika hanya ada diagnosis (kode) atau diagnosisDetail hanya kode
+    final rawCodes = (history.diagnosis?.trim().isNotEmpty == true)
+        ? history.diagnosis!.trim()
+        : detail;
+
+    if (rawCodes == null ||
+        rawCodes.isEmpty ||
+        rawCodes == '—' ||
+        rawCodes == '-') {
+      return const Text(
+        'Belum ada diagnosa dokter',
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.sub,
+        ),
+      );
+    }
+
+    // Jika rawCodes sudah memuat nama
+    if (!_isJustCode(rawCodes)) {
+      return Text(
+        rawCodes,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.text,
+        ),
+      );
+    }
+
+    // Split kode dan lookup nama ICD-10
+    final codes = rawCodes
+        .split(',')
+        .map((c) => c.trim())
+        .where((c) => c.isNotEmpty)
+        .toList();
+
+    if (codes.isEmpty) {
+      return Text(
+        rawCodes,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.text,
+        ),
+      );
+    }
+
+    return _Icd10CodesResolver(codes: codes, fallback: rawCodes);
+  }
+}
+
+class _Icd10CodesResolver extends ConsumerWidget {
+  const _Icd10CodesResolver({
+    required this.codes,
+    required this.fallback,
+  });
+
+  final List<String> codes;
+  final String fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final results = <String>[];
+    bool anyLoading = false;
+
+    for (final code in codes) {
+      final asyncItem = ref.watch(icd10LookupProvider(code));
+      asyncItem.when(
+        data: (item) {
+          if (item != null && item.display.isNotEmpty) {
+            if (item.display.contains(item.code)) {
+              results.add(item.display);
+            } else {
+              results.add('${item.display} (${item.code})');
+            }
+          } else {
+            results.add(code);
+          }
+        },
+        loading: () {
+          anyLoading = true;
+          results.add(code);
+        },
+        error: (_, _) {
+          results.add(code);
+        },
+      );
+    }
+
+    if (results.isEmpty) {
+      return Text(
+        anyLoading ? 'Memuat diagnosa ($fallback)...' : fallback,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.text,
+        ),
+      );
+    }
+
+    return Text(
+      results.join(', '),
+      style: const TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w500,
+        color: AppColors.text,
+      ),
+    );
+  }
+}
+
+class _TindakanDetailValue extends ConsumerWidget {
+  const _TindakanDetailValue({required this.history});
+
+  final MedicalHistory history;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // 1. Prioritaskan rawJson['procedures'] jika ada list map dari backend
+    final rawProcedures = history.rawJson['procedures'];
+    if (rawProcedures is List && rawProcedures.isNotEmpty) {
+      final formatted = DiagnosisHelper.formatDiagnoses(rawProcedures);
+      if (formatted.isNotEmpty && formatted != '—' && !_isJustCode(formatted)) {
+        return Text(
+          formatted,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.text,
+          ),
+        );
+      }
+    }
+
+    // 2. Gunakan tindakanDetail jika ada dan memuat nama
+    final detail = history.tindakanDetail?.trim();
+    if (detail != null &&
+        detail.isNotEmpty &&
+        detail != '—' &&
+        detail != '-') {
+      if (!_isJustCode(detail)) {
+        return Text(
+          detail,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: AppColors.text,
+          ),
+        );
+      }
+    }
+
+    // 3. Jika hanya ada treatment (kode) atau tindakanDetail hanya kode
+    final rawCodes = (history.treatment?.trim().isNotEmpty == true)
+        ? history.treatment!.trim()
+        : detail;
+
+    if (rawCodes == null ||
+        rawCodes.isEmpty ||
+        rawCodes == '—' ||
+        rawCodes == '-') {
+      return const Text(
+        'Tidak ada tindakan klinis',
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.sub,
+        ),
+      );
+    }
+
+    // Jika rawCodes sudah memuat nama
+    if (!_isJustCode(rawCodes)) {
+      return Text(
+        rawCodes,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.text,
+        ),
+      );
+    }
+
+    // Split kode dan lookup nama ICD-9
+    final codes = rawCodes
+        .split(',')
+        .map((c) => c.trim())
+        .where((c) => c.isNotEmpty)
+        .toList();
+
+    if (codes.isEmpty) {
+      return Text(
+        rawCodes,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.text,
+        ),
+      );
+    }
+
+    return _Icd9CodesResolver(codes: codes, fallback: rawCodes);
+  }
+}
+
+class _Icd9CodesResolver extends ConsumerWidget {
+  const _Icd9CodesResolver({
+    required this.codes,
+    required this.fallback,
+  });
+
+  final List<String> codes;
+  final String fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final results = <String>[];
+    bool anyLoading = false;
+
+    for (final code in codes) {
+      final asyncItem = ref.watch(icd9LookupProvider(code));
+      asyncItem.when(
+        data: (item) {
+          if (item != null && item.display.isNotEmpty) {
+            if (item.display.contains(item.code)) {
+              results.add(item.display);
+            } else {
+              results.add('${item.display} (${item.code})');
+            }
+          } else {
+            results.add(code);
+          }
+        },
+        loading: () {
+          anyLoading = true;
+          results.add(code);
+        },
+        error: (_, _) {
+          results.add(code);
+        },
+      );
+    }
+
+    if (results.isEmpty) {
+      return Text(
+        anyLoading ? 'Memuat tindakan ($fallback)...' : fallback,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: AppColors.text,
+        ),
+      );
+    }
+
+    return Text(
+      results.join(', '),
+      style: const TextStyle(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w500,
+        color: AppColors.text,
+      ),
     );
   }
 }

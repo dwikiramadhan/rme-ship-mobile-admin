@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bayan_rme/core/theme/app_colors.dart';
 import 'package:bayan_rme/core/widgets/responsive_master_detail.dart';
 import 'package:bayan_rme/features/patients/domain/medical_history.dart';
+import 'package:bayan_rme/features/patients/presentation/medical_history_detail_view.dart';
 import 'package:bayan_rme/features/patients/presentation/status_meta.dart';
 
 void main() {
@@ -175,6 +177,55 @@ void main() {
       expect(patient.statusPenanganan, equals("Menunggu Dokter"));
       expect(patient.poliName, equals("Poli Umum"));
     });
+
+    test('toPatient prioritizes diagnosisDetail and tindakanDetail', () {
+      final json = {
+        ...sampleJson,
+        "diagnosis": "A00",
+        "diagnosis_detail": "Cholera due to Vibrio cholerae 01 (A00)",
+        "treatment": "00.0",
+        "tindakan_detail": "Therapeutic ultrasound (00.0)",
+      };
+      final history = MedicalHistory.fromApiJson(json);
+      final patient = history.toPatient();
+
+      expect(patient.diagnosa, equals("Cholera due to Vibrio cholerae 01 (A00)"));
+      expect(patient.tindakan, equals("Therapeutic ultrasound (00.0)"));
+    });
+  });
+
+  testWidgets('MedicalHistoryDetailView renders diagnosis and treatment names', (tester) async {
+    final history = MedicalHistory(
+      id: '1',
+      code: 'RJ001',
+      patientId: 'p1',
+      patientName: 'Pierre Gasly',
+      diagnosis: 'A00, A00.9',
+      diagnosisDetail: 'Cholera (A00), Cholera unspecified (A00.9)',
+      treatment: '00.0',
+      tindakanDetail: 'Therapeutic ultrasound (00.0)',
+      statusPenanganan: 'Selesai',
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MedicalHistoryDetailView(
+                history: history,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // Verify Diagnosa box shows full name and not just code
+    expect(find.text('Cholera (A00), Cholera unspecified (A00.9)'), findsOneWidget);
+    // Verify Tindakan box shows full name and not just code
+    expect(find.text('Therapeutic ultrasound (00.0)'), findsOneWidget);
   });
 
   testWidgets('HeaderActionButton renders with Tambah Kunjungan tooltip and triggers onPressed', (tester) async {
