@@ -9,6 +9,7 @@ class AppUser extends Equatable {
     required this.email,
     required this.role,
     this.shipId,
+    this.shipCode,
   });
 
   final String id;
@@ -16,18 +17,23 @@ class AppUser extends Equatable {
   final String email;
   final UserRole role;
   final String? shipId;
+  final String? shipCode;
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     final role = userRoleFromApiValue(json['role'] as String?);
     if (role == null) {
       throw FormatException('Unknown role in login response: ${json['role']}');
     }
+    final shipMap = json['ship'] is Map<String, dynamic> ? json['ship'] as Map<String, dynamic> : null;
+    final code = (json['ship_code'] ?? json['shipCode'] ?? shipMap?['code'])?.toString();
+
     return AppUser(
       id: (json['id'] ?? json['user_id'] ?? '').toString(),
       name: (json['full_name'] ?? json['name'] ?? json['nama'] ?? json['username'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
       role: role,
-      shipId: json['ship_id']?.toString(),
+      shipId: (json['ship_id'] ?? json['shipId'] ?? shipMap?['id'])?.toString(),
+      shipCode: code,
     );
   }
 
@@ -37,10 +43,11 @@ class AppUser extends Equatable {
         'email': email,
         'role': role.apiValue,
         if (shipId != null) 'ship_id': shipId,
+        if (shipCode != null) 'ship_code': shipCode,
       };
 
   @override
-  List<Object?> get props => [id, name, email, role, shipId];
+  List<Object?> get props => [id, name, email, role, shipId, shipCode];
 }
 
 class AuthSession extends Equatable {
