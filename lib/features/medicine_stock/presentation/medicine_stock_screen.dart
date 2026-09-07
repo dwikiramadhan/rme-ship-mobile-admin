@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -96,7 +97,9 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
       final code = _resolveShipCode(isWatching: false);
       if (code.isEmpty) return;
       final stockState = ref.read(shipMedicineStockProvider(code));
-      if (!stockState.hasMore || stockState.isLoading || stockState.isLoadingMore) {
+      if (!stockState.hasMore ||
+          stockState.isLoading ||
+          stockState.isLoadingMore) {
         return;
       }
       if (_stockScrollController.hasClients) {
@@ -144,7 +147,7 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
     final subtitle = isStockTab
         ? (stockState.isLoading
               ? 'Memuat data inventaris...'
-              : '${stockState.total} jenis obat${effectiveShipCode.isNotEmpty ? ' · Kapal $effectiveShipCode' : ''}')
+              : '${stockState.total} jenis obat')
         : (historyState.isLoading
               ? 'Memuat riwayat transaksi...'
               : '${historyState.total} transaksi tercatat');
@@ -487,46 +490,46 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
                         ],
                       )
                     : state.hasMore
-                        ? OutlinedButton.icon(
-                            onPressed: () {
-                              final code = _resolveShipCode(isWatching: false);
-                              if (code.isNotEmpty) {
-                                ref
-                                    .read(shipMedicineStockProvider(code).notifier)
-                                    .loadMore();
-                              }
-                            },
-                            icon: const Icon(LucideIcons.chevronDown, size: 14),
-                            label: Text(
-                              'Muat Lebih Banyak (${state.items.length} dari ${state.total})',
+                    ? OutlinedButton.icon(
+                        onPressed: () {
+                          final code = _resolveShipCode(isWatching: false);
+                          if (code.isNotEmpty) {
+                            ref
+                                .read(shipMedicineStockProvider(code).notifier)
+                                .loadMore();
+                          }
+                        },
+                        icon: const Icon(LucideIcons.chevronDown, size: 14),
+                        label: Text(
+                          'Muat Lebih Banyak (${state.items.length} dari ${state.total})',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.blue,
+                          side: BorderSide(
+                            color: AppColors.blue.withValues(alpha: 0.3),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
+                      )
+                    : (state.items.isNotEmpty
+                          ? Text(
+                              'Semua ${state.total} jenis obat telah dimuat',
                               style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 11.5,
+                                color: AppColors.sub,
                               ),
-                            ),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.blue,
-                              side: BorderSide(
-                                color: AppColors.blue.withValues(alpha: 0.3),
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                            ),
-                          )
-                        : (state.items.isNotEmpty
-                            ? Text(
-                                'Semua ${state.total} jenis obat telah dimuat',
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  color: AppColors.sub,
-                                ),
-                              )
-                            : const SizedBox.shrink()),
+                            )
+                          : const SizedBox.shrink()),
               ),
             ),
           ),
@@ -801,9 +804,12 @@ class _StockItemCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  item.medicineName.isNotEmpty
-                      ? item.medicineName
-                      : item.medicineSku,
+                  CleanTextHelper.cleanName(
+                    item.medicineName.isNotEmpty
+                        ? item.medicineName
+                        : item.medicineSku,
+                    fallback: 'Obat',
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -818,7 +824,7 @@ class _StockItemCard extends StatelessWidget {
                     if (item.medicineSku.isNotEmpty) ...[
                       Flexible(
                         child: Text(
-                          item.medicineSku,
+                          CleanTextHelper.cleanCode(item.medicineSku),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -896,18 +902,22 @@ class _StockItemCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  formattedUpdated,
-                  textAlign: TextAlign.end,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 9.5,
-                    color: AppColors.sub,
-                    fontWeight: FontWeight.w500,
+                if (!item.isOutOfStock &&
+                    formattedUpdated.isNotEmpty &&
+                    formattedUpdated != '-') ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    formattedUpdated,
+                    textAlign: TextAlign.end,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      color: AppColors.sub,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -988,7 +998,7 @@ class _HistoryItemCard extends StatelessWidget {
 
           // Nama Obat, Code, Type
           Text(
-            item.medicineName,
+            CleanTextHelper.cleanName(item.medicineName, fallback: 'Obat'),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -1002,7 +1012,7 @@ class _HistoryItemCard extends StatelessWidget {
             children: [
               if (item.medicineSku.isNotEmpty) ...[
                 Text(
-                  item.medicineSku,
+                  CleanTextHelper.cleanCode(item.medicineSku),
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -1089,7 +1099,7 @@ class _HistoryItemCard extends StatelessWidget {
               ),
               Expanded(
                 child: Text(
-                  item.userName,
+                  CleanTextHelper.cleanName(item.userName, fallback: '-'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

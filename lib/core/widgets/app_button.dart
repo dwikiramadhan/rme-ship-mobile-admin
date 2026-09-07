@@ -129,7 +129,7 @@ class AppButton extends StatelessWidget {
               Text(
                 loading ? loadingLabel : label,
                 style: TextStyle(
-                  fontSize: small ? 12 : 13,
+                  fontSize: small ? 11 : 12,
                   fontWeight: FontWeight.w700,
                   color: fg,
                 ),
@@ -151,6 +151,8 @@ class AppButton extends StatelessWidget {
       child: content,
     );
 
-    return full ? SizedBox(width: double.infinity, child: decorated) : decorated;
+    return full
+        ? SizedBox(width: double.infinity, child: decorated)
+        : decorated;
   }
 }

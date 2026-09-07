@@ -30,7 +30,7 @@ class EnvironmentApi {
       final data = response.data;
       if (data is! Map<String, dynamic>) {
         debugPrint('EnvironmentApi response is not a Map: $data');
-        return _storage.read();
+        return await _storage.read();
       }
 
       final result = data['data'] ?? data['result'] ?? data['items'];
@@ -47,13 +47,13 @@ class EnvironmentApi {
 
       if (rawList.isEmpty) {
         debugPrint('EnvironmentApi: environments list is empty');
-        return _storage.read();
+        return await _storage.read();
       }
 
       final firstJson = rawList.first;
       if (firstJson is! Map<String, dynamic>) {
         debugPrint('EnvironmentApi: first item is not a Map: $firstJson');
-        return _storage.read();
+        return await _storage.read();
       }
 
       final env = EnvironmentItem.fromJson(firstJson);

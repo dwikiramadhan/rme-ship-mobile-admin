@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/clean_text_helper.dart';
+
 /// Port of the prototype's `ListButton` — an avatar + title/subtitle row
 /// used in every master list (antrian, pasien, daftar resep, order lab).
 /// Selected state swaps the shadow for a thin blue border.
@@ -30,6 +32,10 @@ class ListItemButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final cleanTitle = CleanTextHelper.cleanName(title, fallback: 'Item');
+    final cleanCode = CleanTextHelper.cleanCode(code);
+    final cleanInitial = cleanTitle.isNotEmpty ? cleanTitle[0].toUpperCase() : initial;
+
     return Material(
       color: active ? scheme.primaryContainer : scheme.surface,
       borderRadius: BorderRadius.circular(14),
@@ -58,7 +64,7 @@ class ListItemButton extends StatelessWidget {
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: avatarBg, borderRadius: BorderRadius.circular(11)),
-                child: Text(initial, style: TextStyle(color: avatarColor, fontWeight: FontWeight.w800, fontSize: 15)),
+                child: Text(cleanInitial, style: TextStyle(color: avatarColor, fontWeight: FontWeight.w800, fontSize: 15)),
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -67,7 +73,7 @@ class ListItemButton extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      title,
+                      cleanTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -76,10 +82,10 @@ class ListItemButton extends StatelessWidget {
                         color: scheme.onSurface,
                       ),
                     ),
-                    if (code != null && code!.isNotEmpty) ...[
+                    if (cleanCode.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(
-                        code!,
+                        cleanCode,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(

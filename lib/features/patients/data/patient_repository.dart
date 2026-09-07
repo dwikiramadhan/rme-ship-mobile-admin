@@ -212,6 +212,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     try {
       try {
         final detailedPatient = await _api.getPatient(id);
+        if (!state.any((p) => p.id == id)) {
+          state = [...state, detailedPatient];
+        }
         _update(id, (p) => p.copyWith(
           diagnosa: detailedPatient.diagnosa ?? p.diagnosa,
           tindakan: detailedPatient.tindakan ?? p.tindakan,
@@ -379,6 +382,17 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       for (final p in state)
         if (p.id == id) updater(p) else p,
     ];
+  }
+
+  void upsertPatient(Patient patient) {
+    if (state.any((p) => p.id == patient.id)) {
+      state = [
+        for (final p in state)
+          if (p.id == patient.id) patient else p,
+      ];
+    } else {
+      state = [...state, patient];
+    }
   }
 
   Future<Patient> addPatient(Patient patient) async {
@@ -800,15 +814,101 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
   }
 
-  void gantiObat(String id, int index, String obatBaru, String alasan) {
+  void gantiObat(
+    String id,
+    int index,
+    String obatBaru,
+    String alasan, {
+    String? newSku,
+    dynamic newJumlah,
+    String? notes,
+  }) {
     _update(id, (p) {
       final resep = [...p.resep];
       final row = resep[index];
       resep[index] = row.copyWith(
         obat: obatBaru,
-        penggantian: ObatPenggantian(dari: row.penggantian?.dari ?? row.obat, alasan: alasan),
+        sku: newSku ?? row.sku,
+        jumlah: newJumlah ?? row.jumlah,
+        penggantian: ObatPenggantian(
+          dari: row.penggantian?.dari ?? row.obat,
+          alasan: alasan,
+          notes: notes,
+          sku: newSku ?? row.sku,
+        ),
       );
       return p.copyWith(resep: resep);
+    });
+  }
+
+  Future<void> dispensePrescription({
+    required String medRecId,
+    required String patientId,
+    required String dispensedById,
+    required List<ResepItem> items,
+  }) async {
+    final payloadItems = items.map((r) {
+      final isSubstituted = r.penggantian != null;
+      final qty = int.tryParse(r.jumlah?.toString() ?? '1') ?? 1;
+
+      String sku = r.sku ?? '';
+      if (sku.isEmpty) {
+        final match = RegExp(r'\(([^)]+)\)').firstMatch(r.obat);
+        if (match != null) {
+          sku = match.group(1)?.trim() ?? '';
+        }
+      }
+
+      final itemMap = <String, dynamic>{
+        'prescription_id': r.id ?? '',
+        'dispensed_sku': sku,
+        'dispensed_quantity': qty,
+        'is_substituted': isSubstituted,
+      };
+
+      if (isSubstituted) {
+        final reason = r.penggantian?.alasan ?? '';
+        if (reason.isNotEmpty) {
+          itemMap['substitution_reason'] = reason;
+        }
+        final notes = r.penggantian?.notes ?? r.penggantian?.alasan ?? '';
+        if (notes.isNotEmpty) {
+          itemMap['substitution_notes'] = notes;
+        }
+      }
+
+      return itemMap;
+    }).toList();
+
+    final body = <String, dynamic>{
+      'dispensed_by_id': dispensedById,
+      'items': payloadItems,
+    };
+
+    debugPrint('🚀 [dispensePrescription] POST /api/v1/medical-records/$medRecId/dispense body: $body');
+
+    try {
+      await _api.dispensePrescription(medRecId, body);
+      debugPrint('✅ [dispensePrescription] Successfully dispensed prescription for medRecId $medRecId');
+    } catch (e) {
+      debugPrint('❌ [dispensePrescription] Failed to dispense prescription for medRecId $medRecId: $e');
+      rethrow;
+    }
+
+    _update(
+      patientId,
+      (p) => p.copyWith(
+        resepStatus: ResepStatus.selesai,
+        statusPenanganan: 'Selesai',
+      ),
+    );
+
+    _wsService.send({
+      'type': 'prescription_completed',
+      'patient_id': patientId,
+      'medical_record_id': medRecId,
+      'status_penanganan': 'Selesai',
+      'timestamp': DateTime.now().toIso8601String(),
     });
   }
 
@@ -823,7 +923,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     );
 
     if (status == ResepStatus.selesai) {
-      _seenStorage.markPharmacySeen(id);
       try {
         await _api.updatePatient(id, {
           'status_penanganan': 'Selesai',
@@ -1015,14 +1114,16 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   MedicalHistoryNotifier({
     PatientApi? api,
     bool autoFetch = true,
+    this.statusPenanganan,
   })  : _api = api ?? PatientApi(),
-        super(const []) {
+        super([]) {
     if (autoFetch) {
       Future.microtask(() => fetchHistory());
     }
   }
 
   final PatientApi _api;
+  String? statusPenanganan;
   bool _isLoading = false;
   bool _isLoadingMore = false;
   int _currentPage = 1;
@@ -1040,6 +1141,11 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   int get totalPages => _totalPages;
   int get currentPage => _currentPage;
 
+  void setStatusPenanganan(String? newStatus) {
+    if (statusPenanganan == newStatus) return;
+    statusPenanganan = newStatus;
+    fetchHistory(refresh: true);
+  }
 
   Future<void> fetchHistory({bool refresh = false}) async {
     if (refresh) {
@@ -1047,19 +1153,20 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       _hasMore = true;
     }
     _isLoading = true;
-    state = state;
+    state = [...state];
     try {
       final res = await _api.getMedicalHistoryPaginated(
         page: 1,
         limit: _limit,
         search: _currentSearch,
+        statusPenanganan: statusPenanganan,
         sortBy: 'created_at',
         order: 'desc',
       );
       _currentPage = res.page;
       _totalPages = res.totalPages;
       _total = res.total;
-      _hasMore = res.page < res.totalPages;
+      _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
       state = res.data;
     } catch (e) {
       debugPrint('MedicalHistoryNotifier.fetchHistory error: $e');
@@ -1072,20 +1179,21 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   Future<void> loadMore() async {
     if (_isLoadingMore || !_hasMore || _isLoading) return;
     _isLoadingMore = true;
-    state = state;
+    state = [...state];
     try {
       final nextPage = _currentPage + 1;
       final res = await _api.getMedicalHistoryPaginated(
         page: nextPage,
         limit: _limit,
         search: _currentSearch,
+        statusPenanganan: statusPenanganan,
         sortBy: 'created_at',
         order: 'desc',
       );
       _currentPage = res.page;
       _totalPages = res.totalPages;
       _total = res.total;
-      _hasMore = res.page < res.totalPages;
+      _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
       final existingIds = {for (final m in state) m.id};
       final newItems =
           res.data.where((m) => !existingIds.contains(m.id)).toList();
@@ -1098,10 +1206,16 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     }
   }
 
-  void searchHistory(String query) {
+  void searchHistory(String query, {bool debounce = false}) {
     _debounceTimer?.cancel();
+    final trimmed = query.trim();
+    if (!debounce) {
+      _currentSearch = trimmed;
+      fetchHistory(refresh: true);
+      return;
+    }
     _debounceTimer = Timer(const Duration(milliseconds: 350), () {
-      _currentSearch = query.trim();
+      _currentSearch = trimmed;
       fetchHistory(refresh: true);
     });
   }
@@ -1121,5 +1235,15 @@ final medicalHistoryProvider =
   return MedicalHistoryNotifier(api: api, autoFetch: hasSession);
 });
 
-
-
+/// Dedicated medical history provider for Pharmacy (Antrian Resep) filtered by status_penanganan = 'Menunggu Obat'
+final pharmacyPrescriptionHistoryProvider =
+    StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
+  final api = ref.watch(patientApiProvider);
+  final authState = ref.watch(authControllerProvider);
+  final hasSession = authState.session != null;
+  return MedicalHistoryNotifier(
+    api: api,
+    autoFetch: hasSession,
+    statusPenanganan: 'Menunggu Obat',
+  );
+});

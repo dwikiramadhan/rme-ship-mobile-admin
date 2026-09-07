@@ -61,6 +61,7 @@ class ResponsiveMasterDetail extends StatefulWidget {
     this.onEntrySelected,
     this.onSearchChanged,
     this.searchPlaceholder,
+    this.searchTrailing,
   });
 
   final String title;
@@ -80,6 +81,7 @@ class ResponsiveMasterDetail extends StatefulWidget {
   final void Function(String id)? onEntrySelected;
   final ValueChanged<String>? onSearchChanged;
   final String? searchPlaceholder;
+  final Widget? searchTrailing;
 
   @override
   State<ResponsiveMasterDetail> createState() => _ResponsiveMasterDetailState();
@@ -251,97 +253,107 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
         if (widget.onSearchChanged != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              height: 42,
-              decoration: BoxDecoration(
-                color: _isSearchFocused ? AppColors.card : AppColors.card2,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _isSearchFocused ? AppColors.orange : AppColors.border,
-                  width: _isSearchFocused ? 1.5 : 1,
-                ),
-                boxShadow: _isSearchFocused
-                    ? [
-                        BoxShadow(
-                          color: AppColors.orange.withValues(alpha: 0.12),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const SizedBox(width: 11),
-                  AnimatedSwitcher(
+            child: Row(
+              children: [
+                Expanded(
+                  child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    child: Icon(
-                      LucideIcons.search,
-                      key: ValueKey(_isSearchFocused),
-                      size: 16,
-                      color: _isSearchFocused ? AppColors.orange : AppColors.sub,
+                    curve: Curves.easeInOut,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: _isSearchFocused ? AppColors.card : AppColors.card2,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _isSearchFocused ? AppColors.orange : AppColors.border,
+                        width: _isSearchFocused ? 1.5 : 1,
+                      ),
+                      boxShadow: _isSearchFocused
+                          ? [
+                              BoxShadow(
+                                color: AppColors.orange.withValues(alpha: 0.12),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        const SizedBox(width: 11),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            LucideIcons.search,
+                            key: ValueKey(_isSearchFocused),
+                            size: 16,
+                            color: _isSearchFocused ? AppColors.orange : AppColors.sub,
+                          ),
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: TextField(
+                            focusNode: _searchFocusNode,
+                            controller: _searchController,
+                            textAlignVertical: TextAlignVertical.center,
+                            onChanged: (val) {
+                              setState(() {});
+                              _searchDebounce?.cancel();
+                              _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+                                widget.onSearchChanged?.call(val);
+                              });
+                            },
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.text,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: widget.searchPlaceholder ?? 'Cari nama pasien...',
+                              hintStyle: const TextStyle(
+                                fontSize: 13,
+                                color: AppColors.sub,
+                              ),
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                        if (_searchController.text.isNotEmpty) ...[
+                          GestureDetector(
+                            onTap: () {
+                              _searchController.clear();
+                              setState(() {});
+                              widget.onSearchChanged?.call('');
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: AppColors.sub.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                LucideIcons.x,
+                                size: 13,
+                                color: AppColors.sub,
+                              ),
+                            ),
+                          ),
+                        ] else
+                          const SizedBox(width: 6),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: TextField(
-                      focusNode: _searchFocusNode,
-                      controller: _searchController,
-                      textAlignVertical: TextAlignVertical.center,
-                      onChanged: (val) {
-                        setState(() {});
-                        _searchDebounce?.cancel();
-                        _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-                          widget.onSearchChanged?.call(val);
-                        });
-                      },
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.text,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: widget.searchPlaceholder ?? 'Cari nama pasien...',
-                        hintStyle: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.sub,
-                        ),
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                      ),
-                    ),
-                  ),
-                  if (_searchController.text.isNotEmpty) ...[
-                    GestureDetector(
-                      onTap: () {
-                        _searchController.clear();
-                        setState(() {});
-                        widget.onSearchChanged?.call('');
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 8),
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: AppColors.sub.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          LucideIcons.x,
-                          size: 13,
-                          color: AppColors.sub,
-                        ),
-                      ),
-                    ),
-                  ] else
-                    const SizedBox(width: 6),
+                ),
+                if (widget.searchTrailing != null) ...[
+                  const SizedBox(width: 8),
+                  widget.searchTrailing!,
                 ],
-              ),
+              ],
             ),
           ),
         Expanded(child: content),

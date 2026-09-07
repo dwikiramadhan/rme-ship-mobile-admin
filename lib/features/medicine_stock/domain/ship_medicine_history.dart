@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/utils/clean_text_helper.dart';
+
 /// Single item representation of Ship Medicine History
 /// from GET /api/v1/ship-medicines/history
 class ShipMedicineHistory extends Equatable {
@@ -33,31 +35,36 @@ class ShipMedicineHistory extends Equatable {
 
   factory ShipMedicineHistory.fromJson(Map<String, dynamic> json) {
     // Nested Medicine object
-    final medicineJson = json['medicine'] is Map<String, dynamic>
-        ? json['medicine'] as Map<String, dynamic>
+    final medicineJson = json['medicine'] is Map
+        ? Map<String, dynamic>.from(json['medicine'] as Map)
         : null;
 
     // Nested User object
-    final userJson = json['user'] is Map<String, dynamic>
-        ? json['user'] as Map<String, dynamic>
+    final userJson = json['user'] is Map
+        ? Map<String, dynamic>.from(json['user'] as Map)
         : null;
 
     // Nested Ship object
-    final shipJson = json['ship'] is Map<String, dynamic>
-        ? json['ship'] as Map<String, dynamic>
+    final shipJson = json['ship'] is Map
+        ? Map<String, dynamic>.from(json['ship'] as Map)
         : null;
 
-    final medSku = (json['medicine_sku'] ??
-            json['sku'] ??
-            medicineJson?['sku'] ??
-            '')
-        .toString();
+    final medSku = CleanTextHelper.cleanCode(
+      json['medicine_sku'] ??
+          json['sku'] ??
+          json['code'] ??
+          medicineJson?['sku'] ??
+          medicineJson?['code'],
+    );
 
-    final medName = (medicineJson?['name'] ??
-            json['medicine_name'] ??
-            json['name'] ??
-            medSku)
-        .toString();
+    final medName = CleanTextHelper.cleanName(
+      medicineJson?['name'] ??
+          medicineJson?['nama'] ??
+          json['medicine_name'] ??
+          json['name'] ??
+          json['medicine'],
+      fallback: medSku.isNotEmpty ? medSku : 'Obat',
+    );
 
     final medCat = (medicineJson?['category'] ??
             medicineJson?['type'] ??

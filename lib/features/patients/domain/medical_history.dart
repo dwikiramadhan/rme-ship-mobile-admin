@@ -1,4 +1,7 @@
+import '../../../core/utils/clean_text_helper.dart';
+import '../../../core/utils/diagnosis_helper.dart';
 import 'patient.dart';
+import 'prescription_item.dart';
 import 'vitals.dart';
 
 /// Represents a medical history entry (riwayat kunjungan) from GET /api/v1/medical-history
@@ -80,64 +83,101 @@ class MedicalHistory {
     String patientName = '';
     String patientNik = '';
 
-    if (json['patient'] is Map<String, dynamic>) {
-      final pMap = json['patient'] as Map<String, dynamic>;
+    if (json['patient'] is Map) {
+      final pMap = Map<String, dynamic>.from(json['patient'] as Map);
       parsedPatient = Patient.fromApiJson(pMap);
       patientName = parsedPatient.nama;
       patientNik = parsedPatient.nik;
     }
 
     if (patientName.isEmpty) {
-      patientName = json['patient_name']?.toString() ??
-          json['name']?.toString() ??
-          'Pasien';
+      patientName = CleanTextHelper.cleanName(
+        json['patient_name'] ?? json['name'] ?? json['patient'],
+        fallback: 'Pasien',
+      );
     }
+    patientName = CleanTextHelper.cleanName(patientName, fallback: 'Pasien');
+
     if (patientNik.isEmpty) {
-      patientNik = json['patient_nik']?.toString() ??
-          json['nik']?.toString() ??
-          '';
+      patientNik = CleanTextHelper.cleanCode(
+        json['patient_nik'] ?? json['nik'],
+      );
     }
+    patientNik = CleanTextHelper.cleanCode(patientNik);
+
+    final rawCode = json['code'] ??
+        json['register_no'] ??
+        json['registration_code'] ??
+        json['visit_code'] ??
+        json['no_registrasi'] ??
+        parsedPatient?.registerNo;
+    final code = CleanTextHelper.cleanCode(rawCode);
 
     // Doctor info
-    String? docName;
-    String? docSip;
-    if (json['doctor'] is Map<String, dynamic>) {
-      final dMap = json['doctor'] as Map<String, dynamic>;
-      docName = dMap['name']?.toString();
-      docSip = dMap['sip']?.toString();
+    final String? docName;
+    final String? docSip;
+    if (json['doctor'] is Map) {
+      final dMap = Map<String, dynamic>.from(json['doctor'] as Map);
+      final n = CleanTextHelper.cleanName(dMap['name'] ?? dMap['nama']);
+      final s = CleanTextHelper.cleanCode(dMap['sip']);
+      docName = n.isNotEmpty ? n : null;
+      docSip = s.isNotEmpty ? s : null;
+    } else {
+      final n = CleanTextHelper.cleanName(json['doctor_name']);
+      final s = CleanTextHelper.cleanCode(json['doctor_sip']);
+      docName = n.isNotEmpty ? n : null;
+      docSip = s.isNotEmpty ? s : null;
     }
 
     // Ship info
-    String? sCode;
-    String? sName;
-    if (json['ship'] is Map<String, dynamic>) {
-      final sMap = json['ship'] as Map<String, dynamic>;
-      sCode = sMap['code']?.toString();
-      sName = sMap['name']?.toString();
+    final String? sCode;
+    final String? sName;
+    if (json['ship'] is Map) {
+      final sMap = Map<String, dynamic>.from(json['ship'] as Map);
+      final c = CleanTextHelper.cleanCode(sMap['code'] ?? sMap['kode']);
+      final n = CleanTextHelper.cleanName(sMap['name'] ?? sMap['nama']);
+      sCode = c.isNotEmpty ? c : null;
+      sName = n.isNotEmpty ? n : null;
+    } else {
+      final c = CleanTextHelper.cleanCode(json['ship_code']);
+      final n = CleanTextHelper.cleanName(json['ship_name']);
+      sCode = c.isNotEmpty ? c : null;
+      sName = n.isNotEmpty ? n : null;
     }
 
     // Port info
-    String? pName;
-    if (json['port'] is Map<String, dynamic>) {
-      final portMap = json['port'] as Map<String, dynamic>;
-      pName = portMap['name']?.toString();
+    final String? pName;
+    if (json['port'] is Map) {
+      final portMap = Map<String, dynamic>.from(json['port'] as Map);
+      final n = CleanTextHelper.cleanName(portMap['name'] ?? portMap['nama']);
+      pName = n.isNotEmpty ? n : null;
+    } else {
+      final n = CleanTextHelper.cleanName(json['port_name']);
+      pName = n.isNotEmpty ? n : null;
     }
 
     // Poliklinik info
-    String? polCode = json['poli_code']?.toString();
-    String? polName;
-    if (json['poliklinik'] is Map<String, dynamic>) {
-      final polMap = json['poliklinik'] as Map<String, dynamic>;
-      polCode ??= polMap['code']?.toString();
-      polName = polMap['name']?.toString();
+    final String? polCode;
+    final String? polName;
+    if (json['poliklinik'] is Map) {
+      final polMap = Map<String, dynamic>.from(json['poliklinik'] as Map);
+      final c = CleanTextHelper.cleanCode(polMap['code'] ?? polMap['kode'] ?? json['poli_code']);
+      final n = CleanTextHelper.cleanName(polMap['name'] ?? polMap['nama']);
+      polCode = c.isNotEmpty ? c : null;
+      polName = n.isNotEmpty ? n : null;
+    } else {
+      final c = CleanTextHelper.cleanCode(json['poli_code']);
+      final n = CleanTextHelper.cleanName(json['poli_name']);
+      polCode = c.isNotEmpty ? c : null;
+      polName = n.isNotEmpty ? n : null;
     }
 
     // Vitals from API (keys: systolic, diastolic, blood_pressure, heart_rate, temperature, respiratory_rate, oxygen_saturation)
     Map<String, dynamic> vitalsMap = json;
-    if (json['vitals'] is Map<String, dynamic>) {
+    if (json['vitals'] is Map) {
       vitalsMap = {
         ...json,
-        ...json['vitals'] as Map<String, dynamic>,
+        ...Map<String, dynamic>.from(json['vitals'] as Map),
       };
     }
     final parsedVitals = Vitals.fromJson(vitalsMap);
@@ -147,7 +187,7 @@ class MedicalHistory {
 
     return MedicalHistory(
       id: json['id']?.toString() ?? '',
-      code: json['code']?.toString() ?? '',
+      code: code,
       patientId: json['patient_id']?.toString() ?? parsedPatient?.id ?? '',
       patient: parsedPatient,
       patientName: patientName,
@@ -186,7 +226,14 @@ class MedicalHistory {
 
   /// Converts or falls back to a [Patient] object for patient detail navigation.
   Patient toPatient() {
-    final effectiveDiagnosa = (diagnosisDetail != null &&
+    String? effectiveDiagnosa;
+    if (rawJson['diagnoses'] is List && (rawJson['diagnoses'] as List).isNotEmpty) {
+      final formatted = DiagnosisHelper.formatDiagnoses(rawJson['diagnoses']);
+      if (formatted.isNotEmpty && formatted != '—') {
+        effectiveDiagnosa = formatted;
+      }
+    }
+    effectiveDiagnosa ??= (diagnosisDetail != null &&
             diagnosisDetail!.trim().isNotEmpty &&
             diagnosisDetail != '—' &&
             diagnosisDetail != '-')
@@ -199,21 +246,59 @@ class MedicalHistory {
         ? tindakanDetail
         : (treatment ?? patient?.tindakan);
 
+    List<ResepItem> effectiveResep = patient?.resep ?? const [];
+    if (effectiveResep.isEmpty) {
+      final rawRx = rawJson['prescription'] ??
+          rawJson['prescriptions'] ??
+          rawJson['medicines'] ??
+          rawJson['resep'];
+      if (rawRx is List && rawRx.isNotEmpty) {
+        effectiveResep = rawRx
+            .whereType<Map>()
+            .map((j) => ResepItem.fromJson(Map<String, dynamic>.from(j)))
+            .where((r) => r.obat.isNotEmpty)
+            .toList();
+      } else if (rawRx is String && rawRx.isNotEmpty) {
+        effectiveResep = parseResepString(rawRx);
+      }
+    }
+
+    final cleanPatientName = CleanTextHelper.cleanName(patientName, fallback: 'Pasien');
+    final cleanPatientNik = CleanTextHelper.cleanCode(patientNik);
+    final cleanCode = CleanTextHelper.cleanCode(code);
+
+    final effectiveStatusPenanganan = statusPenanganan ?? patient?.statusPenanganan;
+    final isSelesai = effectiveStatusPenanganan == 'Selesai' || status == 'Selesai';
+    final effectiveResepStatus = isSelesai
+        ? ResepStatus.selesai
+        : (effectiveStatusPenanganan == 'Menunggu Obat'
+            ? ResepStatus.baru
+            : (patient?.resepStatus ?? (effectiveResep.isNotEmpty ? ResepStatus.baru : null)));
+
     if (patient != null) {
       return patient!.copyWith(
-        registerNo: code.isNotEmpty ? code : patient!.registerNo,
-        statusPenanganan: statusPenanganan ?? patient!.statusPenanganan,
+        nama: patient!.nama.isNotEmpty
+            ? CleanTextHelper.cleanName(patient!.nama, fallback: cleanPatientName)
+            : cleanPatientName,
+        nik: patient!.nik.isNotEmpty
+            ? CleanTextHelper.cleanCode(patient!.nik, fallback: cleanPatientNik)
+            : cleanPatientNik,
+        registerNo: cleanCode.isNotEmpty ? cleanCode : CleanTextHelper.cleanCode(patient!.registerNo),
+        statusPenanganan: effectiveStatusPenanganan,
+        resepStatus: effectiveResepStatus,
         poliName: poliName ?? patient!.poliName,
         keluhanUtama: complaint ?? patient!.keluhanUtama,
         diagnosa: effectiveDiagnosa,
         tindakan: effectiveTindakan,
         vitals: !vitals.isEmpty ? vitals : patient!.vitals,
+        resep: effectiveResep.isNotEmpty ? effectiveResep : patient!.resep,
+        medicalRecordId: id,
       );
     }
     return Patient(
       id: patientId,
-      nama: patientName,
-      nik: patientNik,
+      nama: cleanPatientName,
+      nik: cleanPatientNik,
       jk: Gender.l,
       umur: 0,
       alamat: '',
@@ -224,11 +309,14 @@ class MedicalHistory {
       assignedDokterId: doctorId ?? '',
       waktuMasuk: createdAt ?? '',
       updatedAt: DateTime.tryParse(updatedAt ?? '') ?? DateTime.now(),
-      registerNo: code,
+      registerNo: cleanCode,
       poliName: poliName,
-      statusPenanganan: statusPenanganan,
+      statusPenanganan: effectiveStatusPenanganan,
+      resepStatus: effectiveResepStatus,
       diagnosa: effectiveDiagnosa,
       tindakan: effectiveTindakan,
+      resep: effectiveResep,
+      medicalRecordId: id,
     );
   }
 }

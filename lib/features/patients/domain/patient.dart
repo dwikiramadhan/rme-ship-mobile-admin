@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/utils/diagnosis_helper.dart';
 import 'lab_order.dart';
 import 'prescription_item.dart';
@@ -57,6 +58,7 @@ class Patient extends Equatable {
     this.serviceShipCode,
     this.serviceShipName,
     this.lastVisit,
+    this.medicalRecordId,
   });
 
   final String id;
@@ -73,6 +75,7 @@ class Patient extends Equatable {
   final String? serviceShipCode;
   final String? serviceShipName;
   final String? lastVisit;
+  final String? medicalRecordId;
 
   final String keluhanUtama;
   final String durasiKeluhan;
@@ -147,6 +150,7 @@ class Patient extends Equatable {
     String? serviceShipCode,
     String? serviceShipName,
     String? lastVisit,
+    Object? medicalRecordId = _unset,
   }) {
     return Patient(
       id: id,
@@ -189,13 +193,16 @@ class Patient extends Equatable {
       serviceShipCode: serviceShipCode ?? this.serviceShipCode,
       serviceShipName: serviceShipName ?? this.serviceShipName,
       lastVisit: lastVisit ?? this.lastVisit,
+      medicalRecordId: identical(medicalRecordId, _unset)
+          ? this.medicalRecordId
+          : medicalRecordId as String?,
     );
   }
 
   factory Patient.fromApiJson(Map<String, dynamic> json) {
     final String id = json['id']?.toString() ?? '';
-    final String name = json['name']?.toString() ?? '';
-    final String nik = json['nik']?.toString() ?? '';
+    final String name = CleanTextHelper.cleanName(json['name'] ?? json['nama'], fallback: 'Pasien');
+    final String nik = CleanTextHelper.cleanCode(json['nik'] ?? json['patient_nik']);
     final String genderStr = json['gender']?.toString().toLowerCase() ?? '';
     final Gender jk = genderStr.contains('perempuan') ? Gender.p : Gender.l;
     final String dobStr = json['dob']?.toString() ?? '';
@@ -233,9 +240,10 @@ class Patient extends Equatable {
     String keluhan = '';
     String? diagnosa;
     String assignedDoctorId = '';
-    String? doctorName = json['assigned_doctor']?['name']?.toString() ??
-        json['doctor']?['name']?.toString() ??
-        json['doctor_name']?.toString();
+    String? doctorName = CleanTextHelper.cleanName(
+      json['assigned_doctor'] ?? json['doctor'] ?? json['doctor_name'],
+    );
+    if (doctorName.isEmpty) doctorName = null;
     List<ResepItem> resep = const [];
     ResepStatus? resepStatus;
     PatientStatus status = PatientStatus.menungguDokter;
@@ -393,17 +401,35 @@ class Patient extends Equatable {
     }
 
     final String? statusPenanganan = json['status_penanganan']?.toString();
-    final String registerNo = json['register_no']?.toString() ?? '';
+    final String registerNo = CleanTextHelper.cleanCode(
+      json['register_no'] ?? json['code'] ?? json['registration_code'] ?? json['no_registrasi'],
+    );
     final String? phone = json['phone']?.toString();
-    final String? poliCode = json['poli_code']?.toString();
-    final String? poliName = json['poliklinik'] is Map
-        ? json['poliklinik']['name']?.toString()
-        : (json['poliklinik']?.toString() ?? poliCode);
-    final String? serviceShipCode = json['service_ship_code']?.toString();
-    final String? serviceShipName = json['service_ship'] is Map
-        ? json['service_ship']['name']?.toString()
-        : (json['service_ship']?.toString() ?? serviceShipCode);
+    final rawPoliCode = CleanTextHelper.cleanCode(json['poli_code']);
+    final String? poliCode = rawPoliCode.isNotEmpty ? rawPoliCode : null;
+    final rawPoliName = json['poliklinik'] is Map
+        ? CleanTextHelper.cleanName(json['poliklinik']['name'] ?? json['poliklinik']['nama'])
+        : CleanTextHelper.cleanName(json['poliklinik'] ?? poliCode);
+    final String? poliName = rawPoliName.isNotEmpty ? rawPoliName : null;
+    final rawServiceShipCode = CleanTextHelper.cleanCode(json['service_ship_code']);
+    final String? serviceShipCode = rawServiceShipCode.isNotEmpty ? rawServiceShipCode : null;
+    final rawServiceShipName = json['service_ship'] is Map
+        ? CleanTextHelper.cleanName(json['service_ship']['name'] ?? json['service_ship']['nama'])
+        : CleanTextHelper.cleanName(json['service_ship'] ?? serviceShipCode);
+    final String? serviceShipName = rawServiceShipName.isNotEmpty ? rawServiceShipName : null;
     final String? lastVisit = json['last_visit']?.toString();
+    final String? medicalRecordId = (json['medical_record_id'] ??
+            json['medicalRecordId'] ??
+            json['med_rec_id'] ??
+            (json['medical_record'] is Map ? json['medical_record']['id'] : null) ??
+            (json['medical_records'] is List && (json['medical_records'] as List).isNotEmpty
+                ? (json['medical_records'] as List).last['id']
+                : null))
+        ?.toString();
+
+    if (statusPenanganan == 'Selesai') {
+      resepStatus = ResepStatus.selesai;
+    }
 
     return Patient(
       id: id,
@@ -442,6 +468,7 @@ class Patient extends Equatable {
       serviceShipCode: serviceShipCode,
       serviceShipName: serviceShipName,
       lastVisit: lastVisit,
+      medicalRecordId: medicalRecordId,
     );
   }
 
@@ -518,6 +545,7 @@ class Patient extends Equatable {
         serviceShipCode,
         serviceShipName,
         lastVisit,
+        medicalRecordId,
       ];
 }
 

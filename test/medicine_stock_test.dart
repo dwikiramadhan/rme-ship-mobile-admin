@@ -222,6 +222,8 @@ void main() {
       expect(find.text('Amoxicillin 500mg'), findsOneWidget);
       expect(find.text('Habis'), findsOneWidget);
       expect(find.text('Tersedia'), findsOneWidget);
+      // Verify date is hidden for out-of-stock item ('Habis') and '-' is not rendered
+      expect(find.text('-'), findsNothing);
 
       // Tap Tab 2: Riwayat Tambah Obat
       await tester.tap(find.text('Riwayat Tambah Obat'));

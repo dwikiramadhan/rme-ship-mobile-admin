@@ -293,6 +293,7 @@ class PatientApi {
     int page = 1,
     int limit = 10,
     String? search,
+    String? statusPenanganan,
     String sortBy = 'created_at',
     String order = 'desc',
   }) async {
@@ -306,6 +307,9 @@ class PatientApi {
       if (search != null && search.trim().isNotEmpty) {
         queryParams['search'] = search.trim();
       }
+      if (statusPenanganan != null && statusPenanganan.trim().isNotEmpty) {
+        queryParams['status_penanganan'] = statusPenanganan.trim();
+      }
 
       final response = await _dio.get(
         ApiConfig.medicalHistoryPath,
@@ -317,7 +321,7 @@ class PatientApi {
         throw const ApiException('Format respons riwayat kunjungan tidak valid.');
       }
 
-      final result = data['result'];
+      final result = data['result'] ?? data['data'];
       final List rawList;
       int resPage = page;
       int resLimit = limit;
@@ -325,7 +329,9 @@ class PatientApi {
       int resTotalPages = 1;
 
       if (result is Map<String, dynamic>) {
-        rawList = result['data'] is List ? result['data'] as List : [];
+        rawList = result['data'] is List
+            ? (result['data'] as List)
+            : (result['items'] is List ? (result['items'] as List) : []);
         resPage = (result['page'] as num?)?.toInt() ?? page;
         resLimit = (result['limit'] as num?)?.toInt() ?? limit;
         resTotal = (result['total'] as num?)?.toInt() ?? rawList.length;
@@ -339,8 +345,8 @@ class PatientApi {
       }
 
       final histories = rawList
-          .whereType<Map<String, dynamic>>()
-          .map((json) => MedicalHistory.fromApiJson(json))
+          .whereType<Map>()
+          .map((item) => MedicalHistory.fromApiJson(Map<String, dynamic>.from(item)))
           .toList();
 
       return PaginatedMedicalHistory(
@@ -349,6 +355,22 @@ class PatientApi {
         limit: resLimit,
         total: resTotal,
         totalPages: resTotalPages,
+      );
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
+  /// Dispenses prescription for a medical record.
+  /// POST /api/v1/medical-records/{medRecId}/dispense
+  Future<void> dispensePrescription(
+    String medRecId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      await _dio.post(
+        ApiConfig.medicalRecordDispensePath(medRecId),
+        data: body,
       );
     } on DioException catch (e) {
       throw DioClient.mapError(e);

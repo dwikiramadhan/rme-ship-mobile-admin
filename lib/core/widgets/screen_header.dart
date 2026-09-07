@@ -25,7 +25,9 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final fg = gradient ? Colors.white : scheme.onSurface;
-    final sfg = gradient ? Colors.white.withValues(alpha: 0.7) : scheme.onSurfaceVariant;
+    final sfg = gradient
+        ? Colors.white.withValues(alpha: 0.7)
+        : scheme.onSurfaceVariant;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -38,7 +40,9 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
               )
             : null,
         color: gradient ? null : scheme.surface,
-        border: gradient ? null : Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        border: gradient
+            ? null
+            : Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -48,10 +52,24 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: fg)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: fg,
+                  ),
+                ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
-                  Text(subtitle!, style: TextStyle(fontSize: 13, color: sfg)),
+                  Text(
+                    subtitle!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: sfg,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ],
             ),

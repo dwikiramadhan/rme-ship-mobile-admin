@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_card.dart';
 import '../domain/patient.dart';
 
@@ -22,6 +23,8 @@ class PatientInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cleanNama = CleanTextHelper.cleanName(patient.nama, fallback: 'Pasien');
+    final cleanNik = CleanTextHelper.cleanCode(patient.nik);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,7 +63,7 @@ class PatientInfoCard extends StatelessWidget {
                         ],
                       ),
                       child: Text(
-                        patient.nama.isNotEmpty ? patient.nama[0] : '?',
+                        cleanNama.isNotEmpty ? cleanNama[0] : '?',
                         style: const TextStyle(
                           color: AppColors.orange,
                           fontWeight: FontWeight.w800,
@@ -77,7 +80,7 @@ class PatientInfoCard extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  patient.nama,
+                                  cleanNama,
                                   style: const TextStyle(
                                     fontSize: 15.5,
                                     fontWeight: FontWeight.w800,
@@ -177,7 +180,7 @@ class PatientInfoCard extends StatelessWidget {
                     _MuiPatientMetaItem(
                       icon: LucideIcons.creditCard,
                       label: 'NIK',
-                      value: patient.nik,
+                      value: cleanNik.isNotEmpty ? cleanNik : '—',
                     ),
                     if (patient.bloodType != null &&
                         patient.bloodType!.isNotEmpty &&

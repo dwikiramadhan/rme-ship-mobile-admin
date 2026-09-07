@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../core/utils/clean_text_helper.dart';
+
 /// Single item representation of Ship Medicine Stock
 /// from GET /api/v1/ship-medicines/stocks/:ship_code
 class ShipMedicineStock extends Equatable {
@@ -44,15 +46,41 @@ class ShipMedicineStock extends Equatable {
       parsedDate = DateTime.tryParse(rawDate.toString())?.toLocal();
     }
 
+    Map<String, dynamic>? medMap;
+    if (json['medicine'] is Map) {
+      medMap = Map<String, dynamic>.from(json['medicine'] as Map);
+    }
+
+    final rawName = medMap?['name'] ??
+        medMap?['nama'] ??
+        medMap?['medicine_name'] ??
+        medMap?['nama_obat'] ??
+        json['medicine_name'] ??
+        json['nama_obat'] ??
+        json['name'] ??
+        json['nama'] ??
+        json['medicine'];
+    final cleanName = CleanTextHelper.cleanName(rawName);
+
+    final rawSku = medMap?['sku'] ??
+        medMap?['code'] ??
+        medMap?['kode'] ??
+        medMap?['medicine_sku'] ??
+        json['medicine_sku'] ??
+        json['sku'] ??
+        json['code'] ??
+        json['kode'];
+    final cleanSku = CleanTextHelper.cleanCode(rawSku);
+
     return ShipMedicineStock(
       shipId: (json['ship_id'] ?? '').toString(),
-      shipCode: (json['ship_code'] ?? '').toString(),
-      shipName: (json['ship_name'] ?? '').toString(),
-      medicineId: (json['medicine_id'] ?? json['id'] ?? '').toString(),
-      medicineSku: (json['medicine_sku'] ?? json['sku'] ?? '').toString(),
-      medicineName: (json['medicine_name'] ?? json['name'] ?? '').toString(),
-      category: (json['category'] ?? json['type'] ?? json['tipe'] ?? '').toString(),
-      unitOfMeasurement: (json['unit_of_measurement'] ?? json['unit'] ?? json['satuan'] ?? '').toString(),
+      shipCode: CleanTextHelper.cleanCode(json['ship_code']),
+      shipName: CleanTextHelper.cleanName(json['ship_name']),
+      medicineId: (json['medicine_id'] ?? json['id'] ?? medMap?['id'] ?? '').toString(),
+      medicineSku: cleanSku.isNotEmpty ? cleanSku : (CleanTextHelper.cleanCode(rawName)),
+      medicineName: cleanName.isNotEmpty ? cleanName : 'Obat',
+      category: (json['category'] ?? json['type'] ?? json['tipe'] ?? medMap?['category'] ?? medMap?['type'] ?? '').toString(),
+      unitOfMeasurement: (json['unit_of_measurement'] ?? json['unit'] ?? json['satuan'] ?? medMap?['unit'] ?? medMap?['satuan'] ?? '').toString(),
       shipMedicineId: json['ship_medicine_id']?.toString(),
       stock: (json['stock'] as num?)?.toInt() ?? 0,
       minStock: (json['min_stock'] as num?)?.toInt() ?? 0,

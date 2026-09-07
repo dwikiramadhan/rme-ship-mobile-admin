@@ -13,6 +13,24 @@ import 'package:bayan_rme/features/auth/domain/user_role.dart';
 import 'package:bayan_rme/features/auth/presentation/auth_controller.dart';
 
 import 'package:bayan_rme/features/patients/data/patient_repository.dart';
+import 'package:bayan_rme/features/schedule/domain/trip_schedule.dart';
+
+class _FakeMedicalHistoryNotifier extends MedicalHistoryNotifier {
+  _FakeMedicalHistoryNotifier() : super(autoFetch: false);
+
+  @override
+  Future<void> fetchHistory({bool refresh = false}) async {}
+}
+
+class _FakeSchedulesNotifier extends StateNotifier<AsyncValue<List<JadwalPerjalanan>>> implements SchedulesNotifier {
+  _FakeSchedulesNotifier() : super(const AsyncValue.data([]));
+
+  @override
+  Future<void> load() async {}
+
+  @override
+  Future<void> refresh() async {}
+}
 
 class _FixedSessionAuthRepository implements AuthRepository {
 
@@ -51,6 +69,9 @@ Future<void> _pumpRole(WidgetTester tester, UserRole? role, {String email = 'tes
       overrides: [
         authRepositoryProvider.overrideWithValue(_FixedSessionAuthRepository(session)),
         patientsProvider.overrideWith((ref) => PatientsNotifier(autoFetch: false)),
+        pharmacyPrescriptionHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
+        medicalHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
+        schedulesNotifierProvider.overrideWith((ref) => _FakeSchedulesNotifier()),
       ],
       child: const BayanRmeApp(),
     ),

@@ -1,7 +1,6 @@
 // Smoke test: the app boots to the login screen (no persisted session) and
 // shows the core login form fields. Auth is faked so the test never touches
 // the real secure-storage platform channel (unavailable under flutter test).
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,6 +39,6 @@ void main() {
     expect(find.text('Bayan RME'), findsWidgets);
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
-    expect(find.widgetWithText(ElevatedButton, 'Masuk'), findsOneWidget);
+    expect(find.text('Masuk'), findsOneWidget);
   });
 }
