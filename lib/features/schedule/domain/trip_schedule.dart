@@ -54,17 +54,19 @@ enum TripStatus {
 class ScheduleStop extends Equatable {
   const ScheduleStop({
     required this.id,
+    this.portId = '',
     required this.portCode,
     required this.portName,
-    required this.city,
-    required this.stopOrder,
-    required this.departure,
-    required this.arrival,
+    this.city = '',
+    this.stopOrder = 0,
+    this.departure,
+    this.arrival,
     this.departureTz = 'WIB',
     this.arrivalTz = 'WIB',
   });
 
   final String id;
+  final String portId;
   final String portCode;
   final String portName;
   final String city;
@@ -87,8 +89,15 @@ class ScheduleStop extends Equatable {
         ? json['port'] as Map<String, dynamic>
         : null;
 
+    final portId = (portObj?['id'] ??
+            json['port_id'] ??
+            json['portId'] ??
+            '')
+        .toString();
+
     return ScheduleStop(
       id: (json['id'] ?? '').toString(),
+      portId: portId,
       portCode: (portObj?['code'] ?? json['port_code'] ?? 'IDP').toString(),
       portName:
           (portObj?['name'] ?? json['port_name'] ?? 'Pelabuhan').toString(),
@@ -104,6 +113,7 @@ class ScheduleStop extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        portId,
         portCode,
         portName,
         city,
@@ -115,10 +125,308 @@ class ScheduleStop extends Equatable {
       ];
 }
 
+/// Represents a clinic assigned to a schedule (Poli Layanan)
+class ScheduleClinicItem extends Equatable {
+  const ScheduleClinicItem({
+    required this.id,
+    required this.poliId,
+    required this.poliName,
+    required this.poliCode,
+    required this.openTime,
+    required this.closeTime,
+  });
+
+  final String id;
+  final String poliId;
+  final String poliName;
+  final String poliCode;
+  final String openTime;
+  final String closeTime;
+
+  String get operationalHours => '$openTime – $closeTime';
+  String get name => poliName;
+  String get code => poliCode;
+
+  factory ScheduleClinicItem.fromJson(Map<String, dynamic> json) {
+    final poli = json['poliklinik'] is Map<String, dynamic>
+        ? json['poliklinik'] as Map<String, dynamic>
+        : null;
+    return ScheduleClinicItem(
+      id: (json['id'] ?? '').toString(),
+      poliId: (json['poliklinik_id'] ??
+              poli?['id'] ??
+              json['poli_id'] ??
+              json['id'] ??
+              '')
+          .toString(),
+      poliName: (poli?['name'] ?? poli?['nama'] ?? json['name'] ?? 'Poli').toString(),
+      poliCode: (poli?['code'] ?? poli?['kode'] ?? json['code'] ?? 'POLI').toString().toUpperCase(),
+      openTime: (json['open_time'] ?? '08:00').toString(),
+      closeTime: (json['close_time'] ?? '18:00').toString(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, poliId, poliName, poliCode, openTime, closeTime];
+}
+
+/// Represents a medical personnel (Doctor or Nurse) assigned to a schedule
+class SchedulePersonnelItem extends Equatable {
+  const SchedulePersonnelItem({
+    this.id = '',
+    required this.name,
+    this.role = '',
+    this.specialization = '',
+    this.type = 'Doctor',
+  });
+
+  final String id;
+  final String name;
+  final String role;
+  final String specialization;
+  final String type;
+
+  String get initials {
+    final clean = name.replaceAll('dr.', '').replaceAll('Dr.', '').trim();
+    final parts = clean.split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'D';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+
+  factory SchedulePersonnelItem.fromJson(
+    Map<String, dynamic> json, {
+    String defaultType = 'Doctor',
+  }) {
+    final nested = (json['doctor'] is Map<String, dynamic>)
+        ? json['doctor'] as Map<String, dynamic>
+        : (json['nurse'] is Map<String, dynamic>)
+            ? json['nurse'] as Map<String, dynamic>
+            : (json['medical_personnel'] is Map<String, dynamic>)
+                ? json['medical_personnel'] as Map<String, dynamic>
+                : null;
+
+    final name = (nested?['name'] ??
+            nested?['full_name'] ??
+            json['name'] ??
+            json['full_name'] ??
+            '')
+        .toString()
+        .trim();
+    final spec = (nested?['specialty'] ??
+            nested?['specialization'] ??
+            nested?['spesialis'] ??
+            json['specialty'] ??
+            json['specialization'] ??
+            '')
+        .toString()
+        .trim();
+    final role = (nested?['role'] ?? json['role'] ?? '').toString().trim();
+    final type = (nested?['type'] ?? json['type'] ?? defaultType).toString();
+
+    // Prioritize actual medical personnel ID over the schedule_personnels pivot table row ID
+    final effectiveId = (nested?['id'] ??
+            json['medical_personnel_id'] ??
+            json['doctor_id'] ??
+            json['nurse_id'] ??
+            json['id'] ??
+            '')
+        .toString();
+
+    return SchedulePersonnelItem(
+      id: effectiveId,
+      name: name.isNotEmpty ? name : 'Tenaga Medis',
+      specialization: spec,
+      role: role,
+      type: type,
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, role, specialization, type];
+}
+
+/// Represents a ship crew member assigned to a schedule
+class ScheduleCrewItem extends Equatable {
+  const ScheduleCrewItem({
+    required this.id,
+    required this.name,
+    required this.role,
+  });
+
+  final String id;
+  final String name;
+  final String role;
+
+  String get initials {
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return 'C';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+
+  factory ScheduleCrewItem.fromJson(Map<String, dynamic> json) {
+    final crew = json['crew'] is Map<String, dynamic>
+        ? json['crew'] as Map<String, dynamic>
+        : null;
+
+    // Prioritize actual crew member ID over schedule_crews pivot ID
+    final effectiveId = (crew?['id'] ?? json['crew_id'] ?? json['id'] ?? '').toString();
+
+    return ScheduleCrewItem(
+      id: effectiveId,
+      name: (crew?['name'] ?? json['name'] ?? 'Crew').toString().trim(),
+      role: (crew?['role'] ?? json['role'] ?? 'ABK').toString().trim(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, role];
+}
+
+/// Represents provision (BBM and Water) history entry
+class ProvisionHistoryItem extends Equatable {
+  const ProvisionHistoryItem({
+    required this.id,
+    required this.scheduleCode,
+    required this.fuelOil,
+    required this.water,
+    this.lat,
+    this.lng,
+    required this.createdAt,
+    this.isLatest = false,
+  });
+
+  final String id;
+  final String scheduleCode;
+  final int fuelOil;
+  final int water;
+  final double? lat;
+  final double? lng;
+  final DateTime createdAt;
+  final bool isLatest;
+
+  String get coordinateDisplay {
+    if (lat != null && lng != null) {
+      return '${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(6)}';
+    }
+    return '—';
+  }
+
+  factory ProvisionHistoryItem.fromJson(
+    Map<String, dynamic> json, {
+    bool isLatest = false,
+  }) {
+    DateTime parseDate(dynamic val) {
+      if (val is String && val.isNotEmpty) {
+        final parsed = DateTime.tryParse(val);
+        if (parsed != null) return parsed.toLocal();
+      }
+      return DateTime.now();
+    }
+
+    double? parseNum(dynamic val) {
+      if (val is num) return val.toDouble();
+      if (val is String && val.isNotEmpty) return double.tryParse(val);
+      return null;
+    }
+
+    return ProvisionHistoryItem(
+      id: (json['id'] ?? '').toString(),
+      scheduleCode: (json['schedule_code'] ?? '').toString(),
+      fuelOil: (json['fuel_oil'] as num?)?.toInt() ?? 0,
+      water: (json['water'] as num?)?.toInt() ?? 0,
+      lat: parseNum(json['lat']),
+      lng: parseNum(json['lng']),
+      createdAt: parseDate(json['created_at']),
+      isLatest: isLatest,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        scheduleCode,
+        fuelOil,
+        water,
+        lat,
+        lng,
+        createdAt,
+        isLatest,
+      ];
+}
+
+/// Represents an obstacle / incident on a trip
+class TripIssueItem extends Equatable {
+  const TripIssueItem({
+    required this.id,
+    required this.scheduleId,
+    required this.description,
+    required this.occurredAt,
+    this.occurredAtTz = 'WIB',
+    this.lat,
+    this.lng,
+  });
+
+  final String id;
+  final String scheduleId;
+  final String description;
+  final DateTime occurredAt;
+  final String occurredAtTz;
+  final double? lat;
+  final double? lng;
+
+  String get coordinateDisplay {
+    if (lat != null && lng != null) {
+      return '${lat!.toStringAsFixed(5)}, ${lng!.toStringAsFixed(5)}';
+    }
+    return '—';
+  }
+
+  factory TripIssueItem.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic val) {
+      if (val is String && val.isNotEmpty) {
+        final parsed = DateTime.tryParse(val);
+        if (parsed != null) return parsed.toLocal();
+      }
+      return DateTime.now();
+    }
+
+    double? parseNum(dynamic val) {
+      if (val is num) return val.toDouble();
+      if (val is String && val.isNotEmpty) return double.tryParse(val);
+      return null;
+    }
+
+    return TripIssueItem(
+      id: (json['id'] ?? '').toString(),
+      scheduleId: (json['schedule_id'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      occurredAt: parseDate(json['occurred_at'] ?? json['created_at']),
+      occurredAtTz: (json['occurred_at_tz'] ?? 'WIB').toString(),
+      lat: parseNum(json['lat']),
+      lng: parseNum(json['lng']),
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        scheduleId,
+        description,
+        occurredAt,
+        occurredAtTz,
+        lat,
+        lng,
+      ];
+}
+
 /// One sailing schedule entry from API / domain
 class JadwalPerjalanan extends Equatable {
   const JadwalPerjalanan({
     required this.id,
+    this.code = '',
+    this.shipId = '',
     required this.shipCode,
     required this.namaKapal,
     this.shipType = 'Passenger',
@@ -138,9 +446,17 @@ class JadwalPerjalanan extends Equatable {
     this.stops = const [],
     this.fuelLiters = 0,
     this.waterLiters = 0,
+    this.clinics = const [],
+    this.doctorStaff = const [],
+    this.nurseStaff = const [],
+    this.crewStaff = const [],
+    this.provisions = const [],
+    this.tripIssues = const [],
   });
 
   final String id;
+  final String code;
+  final String shipId;
   final String shipCode;
   final String namaKapal;
   final String shipType;
@@ -160,6 +476,14 @@ class JadwalPerjalanan extends Equatable {
   final List<ScheduleStop> stops;
   final int fuelLiters;
   final int waterLiters;
+  final List<ScheduleClinicItem> clinics;
+  final List<SchedulePersonnelItem> doctorStaff;
+  final List<SchedulePersonnelItem> nurseStaff;
+  final List<ScheduleCrewItem> crewStaff;
+  final List<ProvisionHistoryItem> provisions;
+  final List<TripIssueItem> tripIssues;
+
+  String get scheduleCode => code.isNotEmpty ? code : shipCode;
 
   String get namaDokter =>
       doctors.isNotEmpty ? doctors.join(', ') : 'dr. Lie Dharmawan';
@@ -176,6 +500,68 @@ class JadwalPerjalanan extends Equatable {
   bool get isCompleted => tripStatus == TripStatus.completed;
   bool get isCancelled => tripStatus == TripStatus.cancelled;
 
+  JadwalPerjalanan copyWith({
+    String? id,
+    String? code,
+    String? shipId,
+    String? shipCode,
+    String? namaKapal,
+    String? shipType,
+    List<String>? doctors,
+    String? pelabuhanAsal,
+    String? kodeAsal,
+    String? pelabuhanTujuan,
+    String? kodeTujuan,
+    DateTime? berangkat,
+    DateTime? tiba,
+    String? status,
+    String? estimasiDurasi,
+    String? kecepatan,
+    int? kruCount,
+    String? catatan,
+    double? progressPersen,
+    List<ScheduleStop>? stops,
+    int? fuelLiters,
+    int? waterLiters,
+    List<ScheduleClinicItem>? clinics,
+    List<SchedulePersonnelItem>? doctorStaff,
+    List<SchedulePersonnelItem>? nurseStaff,
+    List<ScheduleCrewItem>? crewStaff,
+    List<ProvisionHistoryItem>? provisions,
+    List<TripIssueItem>? tripIssues,
+  }) {
+    return JadwalPerjalanan(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      shipId: shipId ?? this.shipId,
+      shipCode: shipCode ?? this.shipCode,
+      namaKapal: namaKapal ?? this.namaKapal,
+      shipType: shipType ?? this.shipType,
+      doctors: doctors ?? this.doctors,
+      pelabuhanAsal: pelabuhanAsal ?? this.pelabuhanAsal,
+      kodeAsal: kodeAsal ?? this.kodeAsal,
+      pelabuhanTujuan: pelabuhanTujuan ?? this.pelabuhanTujuan,
+      kodeTujuan: kodeTujuan ?? this.kodeTujuan,
+      berangkat: berangkat ?? this.berangkat,
+      tiba: tiba ?? this.tiba,
+      status: status ?? this.status,
+      estimasiDurasi: estimasiDurasi ?? this.estimasiDurasi,
+      kecepatan: kecepatan ?? this.kecepatan,
+      kruCount: kruCount ?? this.kruCount,
+      catatan: catatan ?? this.catatan,
+      progressPersen: progressPersen ?? this.progressPersen,
+      stops: stops ?? this.stops,
+      fuelLiters: fuelLiters ?? this.fuelLiters,
+      waterLiters: waterLiters ?? this.waterLiters,
+      clinics: clinics ?? this.clinics,
+      doctorStaff: doctorStaff ?? this.doctorStaff,
+      nurseStaff: nurseStaff ?? this.nurseStaff,
+      crewStaff: crewStaff ?? this.crewStaff,
+      provisions: provisions ?? this.provisions,
+      tripIssues: tripIssues ?? this.tripIssues,
+    );
+  }
+
   factory JadwalPerjalanan.fromApiJson(Map<String, dynamic> json) {
     DateTime parseDate(dynamic value) {
       if (value is String && value.isNotEmpty) {
@@ -191,6 +577,10 @@ class JadwalPerjalanan extends Equatable {
     final shipObj = json['ship'] is Map<String, dynamic>
         ? json['ship'] as Map<String, dynamic>
         : null;
+    final shipId = (shipObj?['id'] ??
+            json['ship_id'] ??
+            '')
+        .toString();
     final shipName = (shipObj?['name'] ??
             json['ship_name'] ??
             json['nama_kapal'] ??
@@ -348,14 +738,70 @@ class JadwalPerjalanan extends Equatable {
       }
     }
 
-    // 6. Parse Crews & Nurses count
-    int totalPersonnel = 0;
-    if (json['crews'] is List) {
-      totalPersonnel += (json['crews'] as List).length;
+    // 6. Parse Crews & Nurses count and staff lists
+    final List<SchedulePersonnelItem> parsedDoctorStaff = [];
+    if (json['doctors'] is List) {
+      for (final d in json['doctors'] as List) {
+        if (d is Map<String, dynamic>) {
+          parsedDoctorStaff.add(
+            SchedulePersonnelItem.fromJson(d, defaultType: 'Doctor'),
+          );
+        }
+      }
     }
+
+    final List<SchedulePersonnelItem> parsedNurseStaff = [];
     if (json['nurses'] is List) {
-      totalPersonnel += (json['nurses'] as List).length;
+      for (final n in json['nurses'] as List) {
+        if (n is Map<String, dynamic>) {
+          parsedNurseStaff.add(
+            SchedulePersonnelItem.fromJson(n, defaultType: 'Nurse'),
+          );
+        }
+      }
     }
+
+    final List<ScheduleCrewItem> parsedCrewStaff = [];
+    if (json['crews'] is List) {
+      for (final cr in json['crews'] as List) {
+        if (cr is Map<String, dynamic>) {
+          parsedCrewStaff.add(ScheduleCrewItem.fromJson(cr));
+        }
+      }
+    }
+
+    final List<ScheduleClinicItem> parsedClinics = [];
+    if (json['clinics'] is List) {
+      for (final c in json['clinics'] as List) {
+        if (c is Map<String, dynamic>) {
+          parsedClinics.add(ScheduleClinicItem.fromJson(c));
+        }
+      }
+    }
+
+    final List<ProvisionHistoryItem> parsedProvisions = [];
+    if (json['provisions'] is List) {
+      final list = json['provisions'] as List;
+      for (var i = 0; i < list.length; i++) {
+        final p = list[i];
+        if (p is Map<String, dynamic>) {
+          parsedProvisions.add(
+            ProvisionHistoryItem.fromJson(p, isLatest: i == 0),
+          );
+        }
+      }
+    }
+
+    final List<TripIssueItem> parsedTripIssues = [];
+    if (json['trip_issues'] is List) {
+      for (final ti in json['trip_issues'] as List) {
+        if (ti is Map<String, dynamic>) {
+          parsedTripIssues.add(TripIssueItem.fromJson(ti));
+        }
+      }
+    }
+
+    int totalPersonnel = parsedCrewStaff.length + parsedNurseStaff.length;
     if (json['crew_count'] != null) {
       totalPersonnel = (json['crew_count'] as num).toInt();
     }
@@ -363,9 +809,12 @@ class JadwalPerjalanan extends Equatable {
     // 7. Parse Resources
     final fuel = (json['fuel_liters'] as num?)?.toInt() ?? 0;
     final water = (json['water_liters'] as num?)?.toInt() ?? 0;
+    final scheduleCode = (json['code'] ?? json['schedule_code'] ?? '').toString();
 
     return JadwalPerjalanan(
       id: (json['id'] ?? json['schedule_id'] ?? '').toString(),
+      code: scheduleCode,
+      shipId: shipId,
       shipCode: shipCode,
       namaKapal: shipName,
       shipType: shipType,
@@ -385,12 +834,20 @@ class JadwalPerjalanan extends Equatable {
       stops: parsedStops,
       fuelLiters: fuel,
       waterLiters: water,
+      clinics: parsedClinics,
+      doctorStaff: parsedDoctorStaff,
+      nurseStaff: parsedNurseStaff,
+      crewStaff: parsedCrewStaff,
+      provisions: parsedProvisions,
+      tripIssues: parsedTripIssues,
     );
   }
 
   @override
   List<Object?> get props => [
         id,
+        code,
+        shipId,
         shipCode,
         namaKapal,
         shipType,
@@ -410,5 +867,144 @@ class JadwalPerjalanan extends Equatable {
         stops,
         fuelLiters,
         waterLiters,
+        clinics,
+        doctorStaff,
+        nurseStaff,
+        crewStaff,
+        provisions,
+        tripIssues,
       ];
 }
+
+/// Represents a Port in the ports master
+class PortItem extends Equatable {
+  const PortItem({
+    required this.id,
+    required this.code,
+    required this.name,
+    this.city = '',
+  });
+
+  final String id;
+  final String code;
+  final String name;
+  final String city;
+
+  factory PortItem.fromJson(Map<String, dynamic> json) {
+    return PortItem(
+      id: (json['id'] ?? json['port_id'] ?? json['code'] ?? '').toString(),
+      code: (json['code'] ?? json['port_code'] ?? '').toString(),
+      name: (json['name'] ?? json['port_name'] ?? '').toString(),
+      city: (json['city'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'name': name,
+        'city': city,
+      };
+
+  @override
+  List<Object?> get props => [id, code, name, city];
+}
+
+class PaginatedPortResult {
+  const PaginatedPortResult({
+    required this.items,
+    this.total = 0,
+    this.page = 1,
+    this.limit = 10,
+    this.hasMore = false,
+  });
+
+  final List<PortItem> items;
+  final int total;
+  final int page;
+  final int limit;
+  final bool hasMore;
+}
+
+class PaginatedPersonnelResult {
+  const PaginatedPersonnelResult({
+    required this.items,
+    this.total = 0,
+    this.page = 1,
+    this.limit = 10,
+    this.hasMore = false,
+  });
+
+  final List<SchedulePersonnelItem> items;
+  final int total;
+  final int page;
+  final int limit;
+  final bool hasMore;
+}
+
+class PaginatedCrewResult {
+  const PaginatedCrewResult({
+    required this.items,
+    this.total = 0,
+    this.page = 1,
+    this.limit = 10,
+    this.hasMore = false,
+  });
+
+  final List<ScheduleCrewItem> items;
+  final int total;
+  final int page;
+  final int limit;
+  final bool hasMore;
+}
+
+class PoliklinikItem extends Equatable {
+  const PoliklinikItem({
+    required this.id,
+    required this.code,
+    required this.name,
+    this.description = '',
+  });
+
+  final String id;
+  final String code;
+  final String name;
+  final String description;
+
+  factory PoliklinikItem.fromJson(Map<String, dynamic> json) {
+    return PoliklinikItem(
+      id: (json['id'] ?? json['poliklinik_id'] ?? '').toString(),
+      code: (json['code'] ?? json['kode'] ?? json['poli_code'] ?? '').toString().toUpperCase(),
+      name: (json['name'] ?? json['nama'] ?? json['poli_name'] ?? 'Poliklinik').toString(),
+      description: (json['description'] ?? json['deskripsi'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'name': name,
+        'description': description,
+      };
+
+  @override
+  List<Object?> get props => [id, code, name, description];
+}
+
+class PaginatedPoliklinikResult {
+  const PaginatedPoliklinikResult({
+    required this.items,
+    this.total = 0,
+    this.page = 1,
+    this.limit = 10,
+    this.hasMore = false,
+  });
+
+  final List<PoliklinikItem> items;
+  final int total;
+  final int page;
+  final int limit;
+  final bool hasMore;
+}
+
+

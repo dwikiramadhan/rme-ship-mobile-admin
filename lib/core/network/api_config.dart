@@ -57,6 +57,11 @@ class ApiConfig {
       '/api/v1/medical-records/$medRecId/dispense';
   static String medicalRecordLabExaminationsPath(String medRecId) =>
       '/api/v1/medical-records/$medRecId/lab-examinations';
+  static const String shipProvisionsHistoryPath = '/api/v1/ship-provisions-history';
+  static const String tripIssuesPath = '/api/v1/trip-issues';
+  static const String portsPath = '/api/v1/ports';
+  static const String crewsPath = '/api/v1/crews';
+  static const String poliklinikPath = '/api/v1/poliklinik';
 }
 
 

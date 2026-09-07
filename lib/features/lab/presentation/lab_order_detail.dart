@@ -531,7 +531,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.purple,
+                                color: AppColors.text,
                                 letterSpacing: 0.3,
                               ),
                             ),

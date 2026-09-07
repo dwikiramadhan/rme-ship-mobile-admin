@@ -75,6 +75,153 @@ class ScheduleRepository {
       rethrow;
     }
   }
+
+  /// Updates a schedule by ID
+  Future<JadwalPerjalanan> updateSchedule(
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      return await _api.updateSchedule(id, body);
+    } catch (e) {
+      debugPrint('ScheduleRepository updateSchedule error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches provisions history for a schedule code
+  Future<List<ProvisionHistoryItem>> fetchProvisionsHistory(String scheduleCode) async {
+    try {
+      return await _api.getProvisionsHistory(scheduleCode);
+    } catch (e) {
+      debugPrint('ScheduleRepository fetchProvisionsHistory error: $e');
+      return [];
+    }
+  }
+
+  /// Adds a new provision entry
+  Future<ProvisionHistoryItem> addProvision(Map<String, dynamic> body) async {
+    try {
+      return await _api.createProvision(body);
+    } catch (e) {
+      debugPrint('ScheduleRepository addProvision error: $e');
+      rethrow;
+    }
+  }
+
+  /// Deletes a provision entry
+  Future<void> deleteProvision(String id) async {
+    try {
+      await _api.deleteProvision(id);
+    } catch (e) {
+      debugPrint('ScheduleRepository deleteProvision error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches trip issues for a schedule
+  Future<List<TripIssueItem>> fetchTripIssues(String scheduleId) async {
+    try {
+      return await _api.getTripIssues(scheduleId);
+    } catch (e) {
+      debugPrint('ScheduleRepository fetchTripIssues error: $e');
+      return [];
+    }
+  }
+
+  /// Adds a new trip issue
+  Future<TripIssueItem> addTripIssue(Map<String, dynamic> body) async {
+    try {
+      return await _api.createTripIssue(body);
+    } catch (e) {
+      debugPrint('ScheduleRepository addTripIssue error: $e');
+      rethrow;
+    }
+  }
+
+  /// Deletes a trip issue
+  Future<void> deleteTripIssue(String id) async {
+    try {
+      await _api.deleteTripIssue(id);
+    } catch (e) {
+      debugPrint('ScheduleRepository deleteTripIssue error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches paginated ports via GET /api/v1/ports?page=1&limit=10
+  Future<PaginatedPortResult> fetchPorts({
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
+    try {
+      return await _api.getPorts(
+        page: page,
+        limit: limit,
+        search: search,
+      );
+    } catch (e) {
+      debugPrint('ScheduleRepository fetchPorts error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches paginated medical personnel via GET /api/v1/medical-personnel
+  Future<PaginatedPersonnelResult> fetchMedicalPersonnel({
+    required String type,
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
+    try {
+      return await _api.getMedicalPersonnel(
+        type: type,
+        page: page,
+        limit: limit,
+        search: search,
+      );
+    } catch (e) {
+      debugPrint('ScheduleRepository fetchMedicalPersonnel error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches paginated crews via GET /api/v1/crews
+  Future<PaginatedCrewResult> fetchCrews({
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
+    try {
+      return await _api.getCrews(
+        page: page,
+        limit: limit,
+        search: search,
+      );
+    } catch (e) {
+      debugPrint('ScheduleRepository fetchCrews error: $e');
+      rethrow;
+    }
+  }
+
+  /// Fetches paginated poliklinik via GET /api/v1/poliklinik
+  Future<PaginatedPoliklinikResult> fetchPoliklinik({
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
+    try {
+      return await _api.getPoliklinik(
+        page: page,
+        limit: limit,
+        search: search,
+      );
+    } catch (e) {
+      debugPrint('ScheduleRepository fetchPoliklinik error: $e');
+      rethrow;
+    }
+  }
 }
 
 final scheduleApiProvider = Provider<ScheduleApi>((ref) => ScheduleApi());
@@ -83,6 +230,116 @@ final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
   final api = ref.watch(scheduleApiProvider);
   return ScheduleRepository(api);
 });
+
+class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
+  TripDetailNotifier(this._repository, this._initial)
+      : super(AsyncValue.data(_initial)) {
+    load();
+  }
+
+  final ScheduleRepository _repository;
+  final JadwalPerjalanan _initial;
+
+  Future<void> load() async {
+    try {
+      var schedule = await _repository.fetchScheduleById(_initial.id);
+      final schedCode =
+          schedule.code.isNotEmpty ? schedule.code : _initial.code;
+
+      List<ProvisionHistoryItem> provisions = [];
+      if (schedCode.isNotEmpty) {
+        provisions = await _repository.fetchProvisionsHistory(schedCode);
+      }
+
+      final issues = await _repository.fetchTripIssues(schedule.id);
+
+      schedule = schedule.copyWith(
+        provisions: provisions,
+        tripIssues: issues,
+      );
+
+      state = AsyncValue.data(schedule);
+    } catch (e, st) {
+      debugPrint('TripDetailNotifier load error: $e');
+      if (!mounted) return;
+      if (!state.hasValue) {
+        state = AsyncValue.error(e, st);
+      }
+    }
+  }
+
+  Future<void> refresh() async => load();
+
+  Future<void> addProvision({
+    required double fuelOil,
+    required double water,
+    double? lat,
+    double? lng,
+    String? scheduleCode,
+  }) async {
+    final current = state.valueOrNull ?? _initial;
+    final schedCode = (scheduleCode != null && scheduleCode.isNotEmpty)
+        ? scheduleCode
+        : (current.scheduleCode.isNotEmpty
+            ? current.scheduleCode
+            : (current.code.isNotEmpty ? current.code : _initial.code));
+    final body = <String, dynamic>{
+      'schedule_code': schedCode,
+      'fuel_oil': fuelOil % 1 == 0 ? fuelOil.toInt() : fuelOil,
+      'water': water % 1 == 0 ? water.toInt() : water,
+      'lat': ?lat,
+      'lng': ?lng,
+    };
+    debugPrint('ScheduleRepository [POST /api/v1/ship-provisions-history] body: $body');
+    await _repository.addProvision(body);
+    await refresh();
+  }
+
+  Future<void> deleteProvision(String id) async {
+    await _repository.deleteProvision(id);
+    await refresh();
+  }
+
+  Future<void> addTripIssue({
+    required String description,
+    required DateTime occurredAt,
+    String? occurredAtTz,
+    double? lat,
+    double? lng,
+  }) async {
+    final current = state.valueOrNull ?? _initial;
+    final body = {
+      'schedule_id': current.id,
+      'description': description,
+      'occurred_at': occurredAt.toIso8601String(),
+      'occurred_at_tz': ?occurredAtTz,
+      'lat': ?lat,
+      'lng': ?lng,
+    };
+    await _repository.addTripIssue(body);
+    await refresh();
+  }
+
+  Future<void> deleteTripIssue(String id) async {
+    await _repository.deleteTripIssue(id);
+    await refresh();
+  }
+
+  Future<void> updateSchedule(Map<String, dynamic> body) async {
+    final current = state.valueOrNull ?? _initial;
+    final updated = await _repository.updateSchedule(current.id, body);
+    state = AsyncValue.data(updated);
+    await refresh();
+  }
+}
+
+final tripDetailNotifierProvider = StateNotifierProvider.autoDispose
+    .family<TripDetailNotifier, AsyncValue<JadwalPerjalanan>, JadwalPerjalanan>(
+  (ref, initial) {
+    final repo = ref.watch(scheduleRepositoryProvider);
+    return TripDetailNotifier(repo, initial);
+  },
+);
 
 class SchedulesNotifier
     extends StateNotifier<AsyncValue<List<JadwalPerjalanan>>> {

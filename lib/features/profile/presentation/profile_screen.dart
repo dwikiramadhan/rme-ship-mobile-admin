@@ -90,7 +90,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               const SizedBox(height: 3),
               Text(
-                '${widget.role} · Bayan RME',
+                '${widget.role} · RME Bayan',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.white.withValues(alpha: 0.75),

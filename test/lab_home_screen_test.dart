@@ -214,8 +214,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Tap 'Daftar Order' tab
-    await tester.tap(find.text('Daftar Order'));
+    // Tap 'Antrian Lab' tab
+    await tester.tap(find.text('Antrian Lab'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
@@ -287,8 +287,8 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // Tap 'Daftar Order' tab
-    await tester.tap(find.text('Daftar Order'));
+    // Tap 'Antrian Lab' tab
+    await tester.tap(find.text('Antrian Lab'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 

@@ -79,7 +79,7 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
       ),
       ShellNavItem(
         key: 'order',
-        label: 'Daftar Order',
+        label: 'Antrian Lab',
         icon: LucideIcons.flaskConical,
         badgeCount: labHistories.length,
       ),
@@ -234,10 +234,10 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   Widget _buildOrder(List<MedicalHistory> histories) {
     final notifier = ref.read(labOrderHistoryProvider.notifier);
     return ResponsiveMasterDetail(
-      title: 'Daftar Order Lab',
+      title: 'Antrian Lab',
       subtitle: notifier.total > 0
-          ? '${notifier.total} order lab'
-          : '${histories.length} order lab',
+          ? '${notifier.total} antrian lab'
+          : '${histories.length} antrian lab',
       isLoading: notifier.isLoading && histories.isEmpty,
       hasMore: notifier.hasMore,
       isLoadingMore: notifier.isLoadingMore,
@@ -253,8 +253,11 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
           ref.read(patientsProvider.notifier).upsertPatient(item.toPatient());
         }
         ref
+            .read(notificationsProvider.notifier)
+            .markLabSeen(effectivePatientId);
+        ref
             .read(patientsProvider.notifier)
-            .fetchPatientDetail(effectivePatientId);
+            .markDilihatLab(effectivePatientId);
       },
       entries: [
         for (final m in histories) () {
@@ -289,8 +292,8 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
         );
       },
       emptyIcon: LucideIcons.flaskConical,
-      emptyTitle: 'Pilih order',
-      emptySubtitle: 'Pilih order lab untuk input hasil pemeriksaan.',
+      emptyTitle: 'Pilih antrian',
+      emptySubtitle: 'Pilih antrian lab untuk input hasil pemeriksaan.',
     );
   }
 

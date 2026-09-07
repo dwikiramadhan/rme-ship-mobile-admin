@@ -10,7 +10,7 @@ class BayanRmeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Bayan RME',
+      title: 'RME Bayan',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       builder: (context, child) {

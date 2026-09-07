@@ -23,6 +23,13 @@ class AppColors {
   static const Color green = Color(0xFF059669);
   static const Color greenLt = Color(0xFFECFDF5);
 
+  // Sky / Ocean Blue (Air Bersih, Crew, Status Ongoing, dsb.)
+  static const Color sky = Color(0xFF0284C7);
+  static const Color skyLt = Color(0xFFE0F2FE);
+  static const Color skyBlue = sky;
+  static const Color oceanBlue = sky;
+  static const Color cyan = sky;
+
   static const Color purple = Color(0xFF7C3AED);
   static const Color purpleLt = Color(0xFFF5F3FF);
 
