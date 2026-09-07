@@ -376,5 +376,25 @@ class PatientApi {
       throw DioClient.mapError(e);
     }
   }
+
+  /// Submits lab examinations for a medical record.
+  /// POST /api/v1/medical-records/{medRecId}/lab-examinations
+  Future<Map<String, dynamic>> submitLabExaminations(
+    String medRecId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await _dio.post(
+        ApiConfig.medicalRecordLabExaminationsPath(medRecId),
+        data: body,
+      );
+      if (response.data is Map<String, dynamic>) {
+        return response.data as Map<String, dynamic>;
+      }
+      return {'status': 'success'};
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
 }
 

@@ -13,6 +13,8 @@ class SessionStorage {
 
   static const _sessionKey = 'bayan_rme.auth_session';
 
+  static const _rememberEmailKey = 'bayan_rme.remember_email';
+
   final FlutterSecureStorage _storage;
 
   Future<void> save(AuthSession session) {
@@ -33,5 +35,17 @@ class SessionStorage {
 
   Future<void> clear() {
     return _storage.delete(key: _sessionKey);
+  }
+
+  Future<void> saveRememberEmail(String email) {
+    return _storage.write(key: _rememberEmailKey, value: email);
+  }
+
+  Future<String?> readRememberEmail() {
+    return _storage.read(key: _rememberEmailKey);
+  }
+
+  Future<void> clearRememberEmail() {
+    return _storage.delete(key: _rememberEmailKey);
   }
 }

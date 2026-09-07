@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -16,348 +18,389 @@ class TripScheduleScreen extends ConsumerStatefulWidget {
 }
 
 class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
-  String _selectedFilter = 'Semua';
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  Timer? _debounceTimer;
 
   @override
   void dispose() {
+    _debounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+      ref.read(schedulesNotifierProvider.notifier).setSearch(val);
+    });
+    setState(() {});
+  }
+
+  void _onClearSearch() {
+    _debounceTimer?.cancel();
+    _searchController.clear();
+    ref.read(schedulesNotifierProvider.notifier).setSearch('');
+    setState(() {});
+  }
+
+  void _onFilterSelected(String status) {
+    ref.read(schedulesNotifierProvider.notifier).setStatusFilter(status);
+  }
+
+  void _onResetAll() {
+    _debounceTimer?.cancel();
+    _searchController.clear();
+    ref.read(schedulesNotifierProvider.notifier).resetFilters();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final schedulesAsync = ref.watch(schedulesNotifierProvider);
+    final schedulesNotifier = ref.watch(schedulesNotifierProvider.notifier);
+    final selectedFilter = schedulesNotifier.statusFilter;
+    final allJadwal = schedulesAsync.valueOrNull ?? [];
+
+    final ongoingCount = allJadwal.where((j) => j.isOngoing).length;
+    final scheduledCount = allJadwal.where((j) => j.isScheduled).length;
+    final completedCount = allJadwal.where((j) => j.isCompleted).length;
+    final cancelledCount = allJadwal.where((j) => j.isCancelled).length;
+
+    final totalCountDisplay = schedulesNotifier.totalCount > 0
+        ? schedulesNotifier.totalCount
+        : allJadwal.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Screen Header
-        schedulesAsync.when(
-          data: (allJadwal) {
-            final ongoingCount =
-                allJadwal.where((j) => j.isOngoing).length;
-            return ScreenHeader(
-              title: 'Jadwal Perjalanan',
-              subtitle:
-                  '$ongoingCount Ongoing · ${allJadwal.length} Total Jadwal',
-            );
-          },
-          loading: () => const ScreenHeader(
-            title: 'Jadwal Perjalanan',
-            subtitle: 'Memuat data jadwal...',
-          ),
-          error: (_, _) => const ScreenHeader(
-            title: 'Jadwal Perjalanan',
-            subtitle: 'Gagal memuat jadwal',
-          ),
+        ScreenHeader(
+          title: 'Jadwal Perjalanan',
+          subtitle: schedulesAsync.isLoading && allJadwal.isEmpty
+              ? 'Memuat data jadwal...'
+              : '$ongoingCount Ongoing · $totalCountDisplay Total Jadwal',
         ),
 
         Expanded(
-          child: schedulesAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(color: AppColors.orange),
-            ),
-            error: (err, _) => RefreshIndicator(
-              color: AppColors.orange,
-              onRefresh: () async {
-                await ref.read(schedulesNotifierProvider.notifier).refresh();
+          child: RefreshIndicator(
+            color: AppColors.orange,
+            onRefresh: () async {
+              await ref.read(schedulesNotifierProvider.notifier).refresh();
+            },
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is ScrollUpdateNotification) {
+                  final metrics = notification.metrics;
+                  if (metrics.pixels >= metrics.maxScrollExtent - 200) {
+                    ref.read(schedulesNotifierProvider.notifier).loadMore();
+                  }
+                }
+                return false;
               },
               child: ListView(
-                padding: const EdgeInsets.all(32),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
-                  const SizedBox(height: 48),
+                  // Top Metric Cards (M3 Summary Row)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _M3StatPill(
+                          icon: LucideIcons.navigation,
+                          iconColor: AppColors.blue,
+                          bg: AppColors.blueLt,
+                          value: '$ongoingCount',
+                          label: 'Ongoing',
+                          isSelected: selectedFilter == 'Ongoing',
+                          onTap: () {
+                            _onFilterSelected(
+                              selectedFilter == 'Ongoing' ? 'Semua' : 'Ongoing',
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _M3StatPill(
+                          icon: LucideIcons.calendarCheck2,
+                          iconColor: AppColors.yellow,
+                          bg: AppColors.yellowLt,
+                          value: '$scheduledCount',
+                          label: 'Scheduled',
+                          isSelected: selectedFilter == 'Scheduled',
+                          onTap: () {
+                            _onFilterSelected(
+                              selectedFilter == 'Scheduled'
+                                  ? 'Semua'
+                                  : 'Scheduled',
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _M3StatPill(
+                          icon: LucideIcons.checkCircle2,
+                          iconColor: AppColors.green,
+                          bg: AppColors.greenLt,
+                          value: '$completedCount',
+                          label: 'Completed',
+                          isSelected: selectedFilter == 'Completed',
+                          onTap: () {
+                            _onFilterSelected(
+                              selectedFilter == 'Completed'
+                                  ? 'Semua'
+                                  : 'Completed',
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Search Bar (M3 Outlined Search Input)
                   Container(
-                    width: 64,
-                    height: 64,
-                    alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.redLt,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.red.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: const Icon(
-                      LucideIcons.alertCircle,
-                      size: 32,
-                      color: AppColors.red,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Gagal Memuat Jadwal Perjalanan',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.text,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    err.toString().replaceAll('Exception:', '').trim(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.sub,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  Center(
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.orange,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => ref
-                          .read(schedulesNotifierProvider.notifier)
-                          .refresh(),
-                      icon: const Icon(LucideIcons.rotateCcw, size: 16),
-                      label: const Text('Coba Lagi'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            data: (allJadwal) {
-              final ongoingCount =
-                  allJadwal.where((j) => j.isOngoing).length;
-              final scheduledCount =
-                  allJadwal.where((j) => j.isScheduled).length;
-              final completedCount =
-                  allJadwal.where((j) => j.isCompleted).length;
-              final cancelledCount =
-                  allJadwal.where((j) => j.isCancelled).length;
-
-              final filtered = allJadwal.where((item) {
-                final matchesFilter = switch (_selectedFilter) {
-                  'Ongoing' => item.isOngoing,
-                  'Scheduled' => item.isScheduled,
-                  'Completed' => item.isCompleted,
-                  'Cancelled' => item.isCancelled,
-                  _ => true,
-                };
-
-                if (!matchesFilter) return false;
-                if (_searchQuery.trim().isEmpty) return true;
-
-                final query = _searchQuery.toLowerCase().trim();
-                return item.namaKapal.toLowerCase().contains(query) ||
-                    item.shipCode.toLowerCase().contains(query) ||
-                    item.shipType.toLowerCase().contains(query) ||
-                    item.pelabuhanAsal.toLowerCase().contains(query) ||
-                    item.pelabuhanTujuan.toLowerCase().contains(query) ||
-                    item.kodeAsal.toLowerCase().contains(query) ||
-                    item.kodeTujuan.toLowerCase().contains(query) ||
-                    item.namaDokter.toLowerCase().contains(query);
-              }).toList();
-
-              return RefreshIndicator(
-                color: AppColors.orange,
-                onRefresh: () async {
-                  await ref.read(schedulesNotifierProvider.notifier).refresh();
-                },
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  children: [
-                    // Top Metric Cards (M3 Summary Row)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _M3StatPill(
-                            icon: LucideIcons.navigation,
-                            iconColor: AppColors.blue,
-                            bg: AppColors.blueLt,
-                            value: '$ongoingCount',
-                            label: 'Ongoing',
-                            isSelected: _selectedFilter == 'Ongoing',
-                            onTap: () {
-                              setState(() {
-                                _selectedFilter =
-                                    _selectedFilter == 'Ongoing'
-                                        ? 'Semua'
-                                        : 'Ongoing';
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _M3StatPill(
-                            icon: LucideIcons.calendarCheck2,
-                            iconColor: AppColors.yellow,
-                            bg: AppColors.yellowLt,
-                            value: '$scheduledCount',
-                            label: 'Scheduled',
-                            isSelected: _selectedFilter == 'Scheduled',
-                            onTap: () {
-                              setState(() {
-                                _selectedFilter =
-                                    _selectedFilter == 'Scheduled'
-                                        ? 'Semua'
-                                        : 'Scheduled';
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _M3StatPill(
-                            icon: LucideIcons.checkCircle2,
-                            iconColor: AppColors.green,
-                            bg: AppColors.greenLt,
-                            value: '$completedCount',
-                            label: 'Completed',
-                            isSelected: _selectedFilter == 'Completed',
-                            onTap: () {
-                              setState(() {
-                                _selectedFilter =
-                                    _selectedFilter == 'Completed'
-                                        ? 'Semua'
-                                        : 'Completed';
-                              });
-                            },
-                          ),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 14),
-
-                    // Search Bar (M3 Outlined Search Input)
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.border),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
                       ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (val) => setState(() => _searchQuery = val),
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
+                      decoration: InputDecoration(
+                        hintText: 'Cari kapal, rute, pelabuhan, dokter...',
+                        hintStyle: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.sub,
+                          fontWeight: FontWeight.w400,
                         ),
-                        decoration: InputDecoration(
-                          hintText: 'Cari kapal, rute, pelabuhan, dokter...',
-                          hintStyle: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.sub,
-                            fontWeight: FontWeight.w400,
-                          ),
-                          prefixIcon: const Icon(
-                            LucideIcons.search,
-                            size: 18,
-                            color: AppColors.sub,
-                          ),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(
-                                    LucideIcons.x,
-                                    size: 16,
-                                    color: AppColors.sub,
-                                  ),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() => _searchQuery = '');
-                                  },
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 14,
-                            horizontal: 16,
-                          ),
+                        prefixIcon: const Icon(
+                          LucideIcons.search,
+                          size: 18,
+                          color: AppColors.sub,
+                        ),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(
+                                  LucideIcons.x,
+                                  size: 16,
+                                  color: AppColors.sub,
+                                ),
+                                onPressed: _onClearSearch,
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 16,
                         ),
                       ),
                     ),
+                  ),
 
-                    const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                    // Material 3 Filter Chips Row
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _M3FilterChip(
-                            label: 'Semua',
-                            count: allJadwal.length,
-                            isSelected: _selectedFilter == 'Semua',
-                            onTap: () =>
-                                setState(() => _selectedFilter = 'Semua'),
-                          ),
+                  // Material 3 Filter Chips Row
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _M3FilterChip(
+                          label: 'Semua',
+                          count: totalCountDisplay,
+                          isSelected: selectedFilter == 'Semua',
+                          onTap: () => _onFilterSelected('Semua'),
+                        ),
+                        const SizedBox(width: 8),
+                        _M3FilterChip(
+                          label: 'Ongoing',
+                          count: ongoingCount,
+                          isSelected: selectedFilter == 'Ongoing',
+                          color: AppColors.blue,
+                          onTap: () => _onFilterSelected('Ongoing'),
+                        ),
+                        const SizedBox(width: 8),
+                        _M3FilterChip(
+                          label: 'Scheduled',
+                          count: scheduledCount,
+                          isSelected: selectedFilter == 'Scheduled',
+                          color: AppColors.yellow,
+                          onTap: () => _onFilterSelected('Scheduled'),
+                        ),
+                        const SizedBox(width: 8),
+                        _M3FilterChip(
+                          label: 'Completed',
+                          count: completedCount,
+                          isSelected: selectedFilter == 'Completed',
+                          color: AppColors.green,
+                          onTap: () => _onFilterSelected('Completed'),
+                        ),
+                        if (cancelledCount > 0 ||
+                            selectedFilter == 'Cancelled') ...[
                           const SizedBox(width: 8),
                           _M3FilterChip(
-                            label: 'Ongoing',
-                            count: ongoingCount,
-                            isSelected: _selectedFilter == 'Ongoing',
-                            color: AppColors.blue,
-                            onTap: () =>
-                                setState(() => _selectedFilter = 'Ongoing'),
+                            label: 'Cancelled',
+                            count: cancelledCount,
+                            isSelected: selectedFilter == 'Cancelled',
+                            color: AppColors.red,
+                            onTap: () => _onFilterSelected('Cancelled'),
                           ),
-                          const SizedBox(width: 8),
-                          _M3FilterChip(
-                            label: 'Scheduled',
-                            count: scheduledCount,
-                            isSelected: _selectedFilter == 'Scheduled',
-                            color: AppColors.yellow,
-                            onTap: () =>
-                                setState(() => _selectedFilter = 'Scheduled'),
-                          ),
-                          const SizedBox(width: 8),
-                          _M3FilterChip(
-                            label: 'Completed',
-                            count: completedCount,
-                            isSelected: _selectedFilter == 'Completed',
-                            color: AppColors.green,
-                            onTap: () =>
-                                setState(() => _selectedFilter = 'Completed'),
-                          ),
-                          if (cancelledCount > 0) ...[
-                            const SizedBox(width: 8),
-                            _M3FilterChip(
-                              label: 'Cancelled',
-                              count: cancelledCount,
-                              isSelected: _selectedFilter == 'Cancelled',
-                              color: AppColors.red,
-                              onTap: () =>
-                                  setState(() => _selectedFilter = 'Cancelled'),
-                            ),
-                          ],
                         ],
-                      ),
+                      ],
                     ),
+                  ),
 
+                  const SizedBox(height: 16),
+
+                  // Schedules Content
+                  if (schedulesAsync.isLoading && allJadwal.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 48),
+                      child: Center(
+                        child: CircularProgressIndicator(color: AppColors.orange),
+                      ),
+                    )
+                  else if (schedulesAsync.hasError && allJadwal.isEmpty)
+                    _buildErrorState(schedulesAsync.error)
+                  else if (allJadwal.isEmpty)
+                    _buildEmptyState()
+                  else
+                    ...allJadwal.map((item) => TripScheduleCard(item: item)),
+
+                  if (schedulesNotifier.isLoadingMore) ...[
                     const SizedBox(height: 16),
-
-                    // Schedules List
-                    if (filtered.isEmpty)
-                      _buildEmptyState()
-                    else
-                      ...filtered.map((item) => TripScheduleCard(item: item)),
+                    const Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.orange,
+                        ),
+                      ),
+                    ),
+                  ] else if (schedulesNotifier.hasMore) ...[
+                    const SizedBox(height: 16),
+                    Center(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                        onPressed: () => ref
+                            .read(schedulesNotifierProvider.notifier)
+                            .loadMore(),
+                        icon: const Icon(
+                          LucideIcons.arrowDownCircle,
+                          size: 15,
+                          color: AppColors.orange,
+                        ),
+                        label: const Text(
+                          'Muat Lebih Banyak',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.orange,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
-                ),
-              );
-            },
+                ],
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildErrorState(Object? err) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 32),
+          Container(
+            width: 64,
+            height: 64,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.redLt,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.red.withValues(alpha: 0.3),
+              ),
+            ),
+            child: const Icon(
+              LucideIcons.alertCircle,
+              size: 32,
+              color: AppColors.red,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Gagal Memuat Jadwal Perjalanan',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            (err ?? '').toString().replaceAll('Exception:', '').trim(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12.5,
+              color: AppColors.sub,
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.orange,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () =>
+                ref.read(schedulesNotifierProvider.notifier).refresh(),
+            icon: const Icon(LucideIcons.rotateCcw, size: 16),
+            label: const Text('Coba Lagi'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -409,13 +452,7 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            onPressed: () {
-              setState(() {
-                _selectedFilter = 'Semua';
-                _searchController.clear();
-                _searchQuery = '';
-              });
-            },
+            onPressed: _onResetAll,
             icon: const Icon(
               LucideIcons.rotateCcw,
               size: 14,

@@ -19,7 +19,10 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   String get _initials {
-    final stripped = widget.name.replaceFirst(RegExp(r'^(dr\.|Suster|Apt\.|Analis)\s*'), '');
+    final stripped = widget.name.replaceFirst(
+      RegExp(r'^(dr\.|Suster|Apt\.|Analis)\s*'),
+      '',
+    );
     return stripped.isNotEmpty ? stripped[0].toUpperCase() : 'U';
   }
 
@@ -35,7 +38,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           );
         },
         onError: (msg) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(msg)));
         },
       ),
     );
@@ -62,12 +67,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 height: 72,
                 alignment: Alignment.center,
                 margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(20)),
-                child: Text(_initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 28)),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _initials,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 28,
+                  ),
+                ),
               ),
-              Text(widget.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+              Text(
+                widget.name,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
               const SizedBox(height: 3),
-              Text('${widget.role} · Bayan RME', style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.75))),
+              Text(
+                '${widget.role} · Bayan RME',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.75),
+                ),
+              ),
             ],
           ),
         ),
@@ -89,10 +117,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         SizedBox(
                           width: 34,
                           height: 34,
-                          child: Icon(LucideIcons.keyRound, size: 17, color: AppColors.blue),
+                          child: Icon(
+                            LucideIcons.keyRound,
+                            size: 17,
+                            color: AppColors.blue,
+                          ),
                         ),
                         SizedBox(width: 11),
-                        Text('Ubah Kata Sandi', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.blue)),
+                        Text(
+                          'Ubah Kata Sandi',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.blue,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -105,7 +144,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 borderRadius: BorderRadius.circular(12),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () => ref.read(authControllerProvider.notifier).logout(),
+                  onTap: () =>
+                      ref.read(authControllerProvider.notifier).logout(),
                   child: Padding(
                     padding: const EdgeInsets.all(13),
                     child: Row(
@@ -114,11 +154,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           width: 34,
                           height: 34,
                           alignment: Alignment.center,
-                          decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(9)),
-                          child: const Icon(LucideIcons.logOut, size: 17, color: AppColors.red),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(9),
+                          ),
+                          child: const Icon(
+                            LucideIcons.logOut,
+                            size: 17,
+                            color: AppColors.red,
+                          ),
                         ),
                         const SizedBox(width: 11),
-                        const Text('Keluar / Ganti Role', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.red)),
+                        const Text(
+                          'Logout',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.red,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -139,7 +193,8 @@ class _ChangePasswordSheet extends ConsumerStatefulWidget {
   final void Function(String message) onError;
 
   @override
-  ConsumerState<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+  ConsumerState<_ChangePasswordSheet> createState() =>
+      _ChangePasswordSheetState();
 }
 
 class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
@@ -163,10 +218,9 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _loading = true);
     try {
-      await ref.read(authControllerProvider.notifier).changePassword(
-            oldPassword: _oldPw.text,
-            newPassword: _newPw.text,
-          );
+      await ref
+          .read(authControllerProvider.notifier)
+          .changePassword(oldPassword: _oldPw.text, newPassword: _newPw.text);
       widget.onSuccess();
     } catch (e) {
       widget.onError(e.toString());
@@ -178,7 +232,9 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
@@ -188,7 +244,14 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Ubah Kata Sandi', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.text)),
+                const Text(
+                  'Ubah Kata Sandi',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
                 const SizedBox(height: 14),
                 _PasswordField(
                   label: 'Kata Sandi Lama',
@@ -210,7 +273,9 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                   obscure: _obscureNew,
                   validator: (v) {
                     if ((v == null || v.trim().isEmpty)) return 'Wajib diisi';
-                    if (v.trim() != _newPw.text.trim()) return 'Tidak cocok dengan kata sandi baru';
+                    if (v.trim() != _newPw.text.trim()) {
+                      return 'Tidak cocok dengan kata sandi baru';
+                    }
                     return null;
                   },
                 ),
@@ -223,9 +288,14 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                           backgroundColor: AppColors.blue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
-                        child: const Text('Simpan', style: TextStyle(fontWeight: FontWeight.w700)),
+                        child: const Text(
+                          'Simpan',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
               ],
             ),
@@ -256,7 +326,14 @@ class _PasswordField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
         const SizedBox(height: 5),
         TextFormField(
           controller: controller,
@@ -266,7 +343,11 @@ class _PasswordField extends StatelessWidget {
             suffixIcon: onToggle != null
                 ? IconButton(
                     onPressed: onToggle,
-                    icon: Icon(obscure ? LucideIcons.eye : LucideIcons.eyeOff, size: 18, color: AppColors.sub),
+                    icon: Icon(
+                      obscure ? LucideIcons.eye : LucideIcons.eyeOff,
+                      size: 18,
+                      color: AppColors.sub,
+                    ),
                   )
                 : null,
           ),
@@ -275,5 +356,6 @@ class _PasswordField extends StatelessWidget {
     );
   }
 
-  static String? _defaultRequired(String? v) => (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null;
+  static String? _defaultRequired(String? v) =>
+      (v == null || v.trim().isEmpty) ? 'Wajib diisi' : null;
 }

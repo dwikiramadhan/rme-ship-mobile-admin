@@ -22,6 +22,8 @@ class AppTextField extends StatelessWidget {
     this.autovalidateMode,
     this.fontSize,
     this.labelFontSize,
+    this.style,
+    this.labelStyle,
   });
 
   final String label;
@@ -38,13 +40,20 @@ class AppTextField extends StatelessWidget {
   final AutovalidateMode? autovalidateMode;
   final double? fontSize;
   final double? labelFontSize;
+  final TextStyle? style;
+  final TextStyle? labelStyle;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppFieldLabel(label: label, required: required, fontSize: labelFontSize),
+        AppFieldLabel(
+          label: label,
+          required: required,
+          fontSize: labelFontSize,
+          style: labelStyle,
+        ),
         const SizedBox(height: 5),
         TextFormField(
           controller: controller,
@@ -55,10 +64,13 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           autovalidateMode: autovalidateMode,
           inputFormatters: numbersOnly ? [FilteringTextInputFormatter.digitsOnly] : null,
-          style: TextStyle(fontSize: fontSize ?? 14, color: AppColors.text),
+          style: style ?? TextStyle(fontSize: fontSize ?? 14, color: AppColors.text),
           decoration: InputDecoration(
             hintText: placeholder,
-            hintStyle: fontSize != null ? TextStyle(fontSize: fontSize) : null,
+            hintStyle: TextStyle(
+              fontSize: fontSize ?? 13.5,
+              color: AppColors.sub,
+            ),
             suffixIcon: suffixIcon,
           ),
         ),
@@ -73,22 +85,24 @@ class AppFieldLabel extends StatelessWidget {
     required this.label,
     this.required = false,
     this.fontSize,
+    this.style,
   });
 
   final String label;
   final bool required;
   final double? fontSize;
+  final TextStyle? style;
 
   @override
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: TextStyle(
-          fontSize: fontSize ?? 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.text,
-          fontFamily: 'PlusJakartaSans',
-        ),
+        style: style ??
+            TextStyle(
+              fontSize: fontSize ?? 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+            ),
         children: [
           TextSpan(text: label),
           if (required) const TextSpan(text: ' *', style: TextStyle(color: AppColors.red)),

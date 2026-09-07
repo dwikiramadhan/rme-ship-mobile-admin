@@ -20,8 +20,10 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       if (rememberMe) {
         await _storage.save(session);
+        await _storage.saveRememberEmail(email);
       } else {
         await _storage.clear();
+        await _storage.clearRememberEmail();
       }
     } catch (_) {
       // Session will simply not survive an app restart this time.

@@ -1,5 +1,6 @@
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/utils/diagnosis_helper.dart';
+import 'lab_order.dart';
 import 'patient.dart';
 import 'prescription_item.dart';
 import 'vitals.dart';
@@ -105,7 +106,8 @@ class MedicalHistory {
     }
     patientNik = CleanTextHelper.cleanCode(patientNik);
 
-    final rawCode = json['code'] ??
+    final rawCode =
+        json['code'] ??
         json['register_no'] ??
         json['registration_code'] ??
         json['visit_code'] ??
@@ -161,7 +163,9 @@ class MedicalHistory {
     final String? polName;
     if (json['poliklinik'] is Map) {
       final polMap = Map<String, dynamic>.from(json['poliklinik'] as Map);
-      final c = CleanTextHelper.cleanCode(polMap['code'] ?? polMap['kode'] ?? json['poli_code']);
+      final c = CleanTextHelper.cleanCode(
+        polMap['code'] ?? polMap['kode'] ?? json['poli_code'],
+      );
       final n = CleanTextHelper.cleanName(polMap['name'] ?? polMap['nama']);
       polCode = c.isNotEmpty ? c : null;
       polName = n.isNotEmpty ? n : null;
@@ -214,8 +218,11 @@ class MedicalHistory {
       vitals: effectiveVitals,
       systolic: effectiveVitals.systolic,
       diastolic: effectiveVitals.diastolic,
-      bloodPressure: effectiveVitals.bloodPressure ??
-          (effectiveVitals.tekananDarah.isNotEmpty ? effectiveVitals.tekananDarah : null),
+      bloodPressure:
+          effectiveVitals.bloodPressure ??
+          (effectiveVitals.tekananDarah.isNotEmpty
+              ? effectiveVitals.tekananDarah
+              : null),
       heartRate: effectiveVitals.heartRate,
       temperature: effectiveVitals.temperature,
       respiratoryRate: effectiveVitals.respiratoryRate,
@@ -227,19 +234,22 @@ class MedicalHistory {
   /// Converts or falls back to a [Patient] object for patient detail navigation.
   Patient toPatient() {
     String? effectiveDiagnosa;
-    if (rawJson['diagnoses'] is List && (rawJson['diagnoses'] as List).isNotEmpty) {
+    if (rawJson['diagnoses'] is List &&
+        (rawJson['diagnoses'] as List).isNotEmpty) {
       final formatted = DiagnosisHelper.formatDiagnoses(rawJson['diagnoses']);
       if (formatted.isNotEmpty && formatted != '—') {
         effectiveDiagnosa = formatted;
       }
     }
-    effectiveDiagnosa ??= (diagnosisDetail != null &&
+    effectiveDiagnosa ??=
+        (diagnosisDetail != null &&
             diagnosisDetail!.trim().isNotEmpty &&
             diagnosisDetail != '—' &&
             diagnosisDetail != '-')
         ? diagnosisDetail
         : (diagnosis ?? patient?.diagnosa);
-    final effectiveTindakan = (tindakanDetail != null &&
+    final effectiveTindakan =
+        (tindakanDetail != null &&
             tindakanDetail!.trim().isNotEmpty &&
             tindakanDetail != '—' &&
             tindakanDetail != '-')
@@ -248,7 +258,8 @@ class MedicalHistory {
 
     List<ResepItem> effectiveResep = patient?.resep ?? const [];
     if (effectiveResep.isEmpty) {
-      final rawRx = rawJson['prescription'] ??
+      final rawRx =
+          rawJson['prescription'] ??
           rawJson['prescriptions'] ??
           rawJson['medicines'] ??
           rawJson['resep'];
@@ -263,27 +274,108 @@ class MedicalHistory {
       }
     }
 
-    final cleanPatientName = CleanTextHelper.cleanName(patientName, fallback: 'Pasien');
+    final cleanPatientName = CleanTextHelper.cleanName(
+      patientName,
+      fallback: 'Pasien',
+    );
     final cleanPatientNik = CleanTextHelper.cleanCode(patientNik);
     final cleanCode = CleanTextHelper.cleanCode(code);
 
-    final effectiveStatusPenanganan = statusPenanganan ?? patient?.statusPenanganan;
-    final isSelesai = effectiveStatusPenanganan == 'Selesai' || status == 'Selesai';
+    final effectiveStatusPenanganan =
+        statusPenanganan ?? patient?.statusPenanganan;
+    final isSelesai =
+        effectiveStatusPenanganan == 'Selesai' || status == 'Selesai';
     final effectiveResepStatus = isSelesai
         ? ResepStatus.selesai
         : (effectiveStatusPenanganan == 'Menunggu Obat'
-            ? ResepStatus.baru
-            : (patient?.resepStatus ?? (effectiveResep.isNotEmpty ? ResepStatus.baru : null)));
+              ? ResepStatus.baru
+              : (patient?.resepStatus ??
+                    (effectiveResep.isNotEmpty ? ResepStatus.baru : null)));
+
+    LabOrder? effectiveLabOrder = patient?.labOrder;
+    if (effectiveLabOrder == null) {
+      String labJenis = '';
+      String labCatatan = '';
+      LabOrderStatus labStatus = LabOrderStatus.baru;
+
+      if (rawJson['lab_order'] is Map<String, dynamic>) {
+        final lo = rawJson['lab_order'] as Map<String, dynamic>;
+        labJenis = (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '')
+            .toString();
+        labCatatan = (lo['catatan'] ?? lo['notes'] ?? '').toString();
+        final rawStatus = lo['status']?.toString().toLowerCase() ?? '';
+        if (rawStatus == 'selesai' || rawStatus == 'done') {
+          labStatus = LabOrderStatus.selesai;
+        } else if (rawStatus == 'diproses' || rawStatus == 'process') {
+          labStatus = LabOrderStatus.diproses;
+        }
+      } else if (rawJson['order_lab'] is Map<String, dynamic>) {
+        final lo = rawJson['order_lab'] as Map<String, dynamic>;
+        labJenis = (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '')
+            .toString();
+        labCatatan = (lo['catatan'] ?? lo['notes'] ?? '').toString();
+      }
+
+      final recNotes = (notes ?? '').trim();
+      if (labJenis.isEmpty && recNotes.contains('Order Lab:')) {
+        final rawText = recNotes
+            .substring(recNotes.indexOf('Order Lab:') + 'Order Lab:'.length)
+            .trim();
+        final openParen = rawText.indexOf('(');
+        final closeParen = rawText.lastIndexOf(')');
+        if (openParen != -1 && closeParen != -1 && closeParen > openParen) {
+          labJenis = rawText.substring(0, openParen).trim();
+          labCatatan = rawText.substring(openParen + 1, closeParen).trim();
+        } else {
+          labJenis = rawText;
+        }
+      }
+
+      if (labJenis.isEmpty && effectiveStatusPenanganan == 'Menunggu Lab') {
+        if (tindakanDetail != null &&
+            tindakanDetail!.trim().isNotEmpty &&
+            tindakanDetail != '—' &&
+            tindakanDetail != '-') {
+          labJenis = tindakanDetail!;
+        } else if (treatment != null &&
+            treatment!.trim().isNotEmpty &&
+            treatment != '—' &&
+            treatment != '-' &&
+            treatment != 'Pemeriksaan awal' &&
+            treatment != 'Pemeriksaan Dokter') {
+          labJenis = treatment!;
+        } else {
+          labJenis = 'Pemeriksaan Laboratorium';
+        }
+        if (labCatatan.isEmpty && notes != null && notes!.isNotEmpty) {
+          labCatatan = notes!;
+        }
+      }
+
+      if (labJenis.isNotEmpty) {
+        effectiveLabOrder = LabOrder(
+          id: id,
+          jenis: labJenis,
+          catatan: labCatatan,
+          status: isSelesai ? LabOrderStatus.selesai : labStatus,
+        );
+      }
+    }
 
     if (patient != null) {
       return patient!.copyWith(
         nama: patient!.nama.isNotEmpty
-            ? CleanTextHelper.cleanName(patient!.nama, fallback: cleanPatientName)
+            ? CleanTextHelper.cleanName(
+                patient!.nama,
+                fallback: cleanPatientName,
+              )
             : cleanPatientName,
         nik: patient!.nik.isNotEmpty
             ? CleanTextHelper.cleanCode(patient!.nik, fallback: cleanPatientNik)
             : cleanPatientNik,
-        registerNo: cleanCode.isNotEmpty ? cleanCode : CleanTextHelper.cleanCode(patient!.registerNo),
+        registerNo: cleanCode.isNotEmpty
+            ? cleanCode
+            : CleanTextHelper.cleanCode(patient!.registerNo),
         statusPenanganan: effectiveStatusPenanganan,
         resepStatus: effectiveResepStatus,
         poliName: poliName ?? patient!.poliName,
@@ -293,6 +385,7 @@ class MedicalHistory {
         vitals: !vitals.isEmpty ? vitals : patient!.vitals,
         resep: effectiveResep.isNotEmpty ? effectiveResep : patient!.resep,
         medicalRecordId: id,
+        labOrder: effectiveLabOrder ?? patient!.labOrder,
       );
     }
     return Patient(
@@ -317,7 +410,7 @@ class MedicalHistory {
       tindakan: effectiveTindakan,
       resep: effectiveResep,
       medicalRecordId: id,
+      labOrder: effectiveLabOrder,
     );
   }
 }
-

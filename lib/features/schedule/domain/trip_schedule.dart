@@ -242,22 +242,30 @@ class JadwalPerjalanan extends Equatable {
           DateTime.now().add(const Duration(days: 2));
     } else {
       // Fallback to legacy/flat fields
-      asal = (json['origin_port'] ??
+      asal = (json['origin_port_name'] ??
+              json['origin_port'] ??
               json['origin'] ??
               json['from'] ??
               json['pelabuhan_asal'] ??
               'Pelabuhan Asal')
           .toString();
-      kodeAsal =
-          (json['origin_code'] ?? json['kode_asal'] ?? 'IDP').toString();
-      tujuan = (json['destination_port'] ??
+      kodeAsal = (json['origin_port_code'] ??
+              json['origin_code'] ??
+              json['kode_asal'] ??
+              'IDP')
+          .toString();
+      tujuan = (json['destination_port_name'] ??
+              json['destination_port'] ??
               json['destination'] ??
               json['to'] ??
               json['pelabuhan_tujuan'] ??
               'Pelabuhan Tujuan')
           .toString();
-      kodeTujuan =
-          (json['destination_code'] ?? json['kode_tujuan'] ?? 'IDP').toString();
+      kodeTujuan = (json['destination_port_code'] ??
+              json['destination_code'] ??
+              json['kode_tujuan'] ??
+              'IDP')
+          .toString();
 
       departureDate = parseDate(json['departure_time'] ??
           json['departure_date'] ??

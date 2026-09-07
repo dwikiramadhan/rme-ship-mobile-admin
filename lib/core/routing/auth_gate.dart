@@ -33,7 +33,11 @@ class AuthGate extends ConsumerWidget {
         child: child,
       ),
       child: KeyedSubtree(
-        key: ValueKey(authState.status),
+        key: ValueKey(switch (authState.status) {
+          AuthStatus.unknown => 'splash',
+          AuthStatus.unauthenticated || AuthStatus.authenticating => 'login',
+          AuthStatus.authenticated => 'home_${authState.session?.user.role.name}',
+        }),
         child: switch (authState.status) {
           AuthStatus.unknown => const _SplashScreen(),
           AuthStatus.unauthenticated || AuthStatus.authenticating => const LoginScreen(),

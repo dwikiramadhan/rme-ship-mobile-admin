@@ -1,6 +1,7 @@
 // Smoke test: the app boots to the login screen (no persisted session) and
 // shows the core login form fields. Auth is faked so the test never touches
 // the real secure-storage platform channel (unavailable under flutter test).
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,9 +37,30 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Bayan RME'), findsWidgets);
+    expect(find.text('Bayan Resources'), findsWidgets);
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Masuk'), findsOneWidget);
+
+    // Verify both Bayan and doctorSHARE logos are present
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName == 'assets/images/bayan_logo.png',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/doctorshare_logo.png',
+      ),
+      findsOneWidget,
+    );
   });
 }

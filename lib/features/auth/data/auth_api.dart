@@ -19,6 +19,9 @@ class AuthApi {
         data: {'email': email, 'password': password},
       );
     } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        throw const ApiException('Email atau password salah.', statusCode: 401);
+      }
       throw DioClient.mapError(e);
     }
 

@@ -44,7 +44,8 @@ class ApiConfig {
   static const String doctorsPath = medicalPersonnelPath;
   static const String medicalHistoryPath = '/api/v1/medical-history';
   static const String schedulesPath = '/api/v1/schedules';
-  static String schedulesByShipPath(String shipId) => '/api/v1/schedules/ship/$shipId';
+  static String schedulesByShipPath(String shipCode) =>
+      '/api/v1/schedules/ship/${Uri.encodeComponent(shipCode)}';
   static const String icd10Path = '/api/v1/icd10';
   static const String icd9Path = '/api/v1/icd9cm';
   static const String medicinesPath = '/api/v1/medicines';
@@ -54,6 +55,8 @@ class ApiConfig {
   static const String environmentsPath = '/api/v1/environments';
   static String medicalRecordDispensePath(String medRecId) =>
       '/api/v1/medical-records/$medRecId/dispense';
+  static String medicalRecordLabExaminationsPath(String medRecId) =>
+      '/api/v1/medical-records/$medRecId/lab-examinations';
 }
 
 

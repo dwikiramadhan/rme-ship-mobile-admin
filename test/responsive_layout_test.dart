@@ -26,10 +26,40 @@ class _FakeSchedulesNotifier extends StateNotifier<AsyncValue<List<JadwalPerjala
   _FakeSchedulesNotifier() : super(const AsyncValue.data([]));
 
   @override
-  Future<void> load() async {}
+  Future<void> load({String? search, String? status}) async {}
 
   @override
   Future<void> refresh() async {}
+
+  @override
+  Future<void> loadMore() async {}
+
+  @override
+  Future<void> setSearch(String query) async {}
+
+  @override
+  Future<void> setStatusFilter(String status) async {}
+
+  @override
+  Future<void> resetFilters() async {}
+
+  @override
+  int get currentPage => 1;
+
+  @override
+  bool get hasMore => false;
+
+  @override
+  bool get isLoadingMore => false;
+
+  @override
+  String get searchQuery => '';
+
+  @override
+  String get statusFilter => 'Semua';
+
+  @override
+  int get totalCount => 0;
 }
 
 class _FixedSessionAuthRepository implements AuthRepository {
@@ -70,6 +100,7 @@ Future<void> _pumpRole(WidgetTester tester, UserRole? role, {String email = 'tes
         authRepositoryProvider.overrideWithValue(_FixedSessionAuthRepository(session)),
         patientsProvider.overrideWith((ref) => PatientsNotifier(autoFetch: false)),
         pharmacyPrescriptionHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
+        labOrderHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
         medicalHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
         schedulesNotifierProvider.overrideWith((ref) => _FakeSchedulesNotifier()),
       ],

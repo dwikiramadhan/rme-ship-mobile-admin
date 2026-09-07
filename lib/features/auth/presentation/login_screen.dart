@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
+import '../data/session_storage.dart';
 import 'auth_controller.dart';
 import 'auth_state.dart';
 
@@ -18,8 +21,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _storage = SessionStorage();
   bool _obscurePassword = true;
   bool _rememberMe = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedEmail();
+  }
+
+  Future<void> _loadSavedEmail() async {
+    try {
+      final savedEmail = await _storage.readRememberEmail();
+      if (savedEmail != null && savedEmail.isNotEmpty && mounted) {
+        setState(() {
+          _emailController.text = savedEmail;
+          _rememberMe = true;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -30,10 +53,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() {
+      _errorMessage = null;
+    });
+    final email = _emailController.text.trim();
+    if (_rememberMe) {
+      _storage.saveRememberEmail(email);
+    } else {
+      _storage.clearRememberEmail();
+    }
     ref
         .read(authControllerProvider.notifier)
         .login(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text,
           rememberMe: _rememberMe,
         );
@@ -48,12 +80,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           children: [
             Icon(LucideIcons.helpCircle, color: AppColors.blue, size: 20),
             SizedBox(width: 8),
-            Text('Lupa Password?'),
+            Text('Lupa Password?', style: TextStyle(letterSpacing: 0)),
           ],
         ),
         content: const Text(
           'Silakan hubungi Administrator Sistem atau Bagian TI Rumah Sakit / Kapal Anda untuk mereset kata sandi akun.',
-          style: TextStyle(fontSize: 13, height: 1.4, color: AppColors.text),
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.4,
+            color: AppColors.text,
+            letterSpacing: 0,
+          ),
         ),
         actions: [
           TextButton(
@@ -63,6 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AppColors.blue,
+                letterSpacing: 0,
               ),
             ),
           ),
@@ -79,6 +117,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
       if (next.status == AuthStatus.unauthenticated &&
           next.errorMessage != null) {
+        String displayMsg = next.errorMessage!;
+        final lower = displayMsg.toLowerCase();
+        if (lower.contains('credential') ||
+            lower.contains('unauthorized') ||
+            lower.contains('password') ||
+            lower.contains('401') ||
+            lower.contains('tidak valid') ||
+            lower.contains('salah')) {
+          displayMsg = 'Email atau password salah';
+        }
+
+        setState(() {
+          _errorMessage = displayMsg;
+        });
+
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
@@ -97,10 +150,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      next.errorMessage!,
+                      displayMsg,
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
@@ -115,67 +169,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isTabletLandscape = screenWidth >= 900;
 
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFF8FAFC),
-              Color(0xFFF1F5F9),
-              Color(0xFFEDE9FE),
-              Color(0xFFFFF7ED),
-            ],
-            stops: [0.0, 0.35, 0.7, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: isTabletLandscape ? 860 : 460,
+    return DefaultTextStyle.merge(
+      style: const TextStyle(letterSpacing: 0),
+      child: Scaffold(
+        body: _AnimatedGradientBackground(
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 24,
                 ),
-                child: Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: AppColors.border.withValues(alpha: 0.8),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 36,
-                        offset: const Offset(0, 16),
-                      ),
-                    ],
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: isTabletLandscape ? 860 : 460,
                   ),
-                  child: isTabletLandscape
-                      ? IntrinsicHeight(
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: Container(
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(40),
+                      border: Border.all(
+                        color: AppColors.border.withValues(alpha: 0.8),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 36,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
+                    child: isTabletLandscape
+                        ? IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  flex: 5,
+                                  child: _LoginHero(isWide: true),
+                                ),
+                                Expanded(flex: 6, child: _buildForm(isLoading)),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Expanded(
-                                flex: 5,
-                                child: _LoginHero(isWide: true),
-                              ),
-                              Expanded(flex: 6, child: _buildForm(isLoading)),
+                              _LoginHero(isWide: false),
+                              _buildForm(isLoading),
                             ],
                           ),
-                        )
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _LoginHero(isWide: false),
-                            _buildForm(isLoading),
-                          ],
-                        ),
+                  ),
                 ),
               ),
             ),
@@ -195,27 +240,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-              'Selamat Datang',
+              'Welcome Back',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppColors.text,
+                letterSpacing: 0,
               ),
             ),
             const SizedBox(height: 4),
             const Text(
-              'Masuk untuk mengakses sistem rekam medis',
-              style: TextStyle(fontSize: 13, color: AppColors.sub),
+              'Please sign in to your account to continue',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.sub,
+                letterSpacing: 0,
+              ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 18),
+
+            if (_errorMessage != null) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.red.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      LucideIcons.alertCircle,
+                      color: AppColors.red,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: AppColors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
             // Email Input
             const Text(
               'Email',
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.text,
+                letterSpacing: 0,
               ),
             ),
             const SizedBox(height: 6),
@@ -225,16 +314,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.email],
               style: const TextStyle(
-                fontSize: 13.5,
+                fontSize: 11,
                 color: AppColors.text,
-                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
+                height: 1.2,
               ),
               decoration: InputDecoration(
-                hintText: 'nama@bayan.id atau username',
-                hintStyle: const TextStyle(fontSize: 13, color: AppColors.sub),
+                hintText: 'Masukkan email',
+                hintStyle: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.sub,
+                  letterSpacing: 0,
+                  height: 1.2,
+                ),
+                errorStyle: const TextStyle(fontSize: 11, letterSpacing: 0),
                 prefixIcon: const Icon(
                   LucideIcons.mail,
-                  size: 17,
+                  size: 14,
                   color: AppColors.sub,
                 ),
                 filled: true,
@@ -274,9 +370,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const Text(
                   'Password',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
+                    letterSpacing: 0,
                   ),
                 ),
                 GestureDetector(
@@ -284,9 +381,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: const Text(
                     'Lupa password?',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       color: AppColors.blue,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0,
                     ),
                   ),
                 ),
@@ -300,16 +398,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               autofillHints: const [AutofillHints.password],
               onFieldSubmitted: (_) => _submit(),
               style: const TextStyle(
-                fontSize: 13.5,
+                fontSize: 11,
                 color: AppColors.text,
-                fontWeight: FontWeight.w500,
+                letterSpacing: 0,
+                height: 1.2,
               ),
               decoration: InputDecoration(
                 hintText: 'Masukkan kata sandi',
-                hintStyle: const TextStyle(fontSize: 13, color: AppColors.sub),
+                hintStyle: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.sub,
+                  letterSpacing: 0,
+                  height: 1.2,
+                ),
+                errorStyle: const TextStyle(fontSize: 11, letterSpacing: 0),
                 prefixIcon: const Icon(
                   LucideIcons.lock,
-                  size: 17,
+                  size: 12,
                   color: AppColors.sub,
                 ),
                 filled: true,
@@ -372,11 +477,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(width: 8),
                   const Text(
-                    'Ingat saya',
+                    'Remember me',
                     style: TextStyle(
-                      fontSize: 12.5,
-                      color: AppColors.sub,
+                      fontSize: 11,
+                      color: AppColors.text,
                       fontWeight: FontWeight.w500,
+                      letterSpacing: 0,
                     ),
                   ),
                 ],
@@ -451,34 +557,50 @@ class _LoginHero extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 72,
-                  height: 72,
-                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.25),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset(
+                        'assets/images/bayan_logo.png',
+                        width: 58,
+                        height: 58,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 16),
+                      Container(
+                        width: 1.5,
+                        height: 44,
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                      const SizedBox(width: 16),
+                      Image.asset(
+                        'assets/images/doctorshare_logo.png',
+                        width: 95,
+                        height: 58,
+                        fit: BoxFit.contain,
                       ),
                     ],
-                  ),
-                  child: Image.asset(
-                    'assets/images/bayan_logo.png',
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.contain,
                   ),
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Bayan RME',
+                  'Bayan Resources',
                   style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.w900,
                     color: Colors.white,
+                    letterSpacing: 0,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -497,6 +619,7 @@ class _LoginHero extends StatelessWidget {
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
+                      letterSpacing: 0,
                     ),
                   ),
                 ),
@@ -529,6 +652,7 @@ class _LoginHero extends StatelessWidget {
                                   color: Colors.white,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 12,
+                                  letterSpacing: 0,
                                 ),
                               ),
                             ),
@@ -541,6 +665,7 @@ class _LoginHero extends StatelessWidget {
                             color: Colors.white70,
                             fontSize: 11,
                             height: 1.35,
+                            letterSpacing: 0,
                           ),
                         ),
                       ],
@@ -554,4 +679,165 @@ class _LoginHero extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Background dengan animasi 3 gradasi warna yang bergerak secara dinamis
+class _AnimatedGradientBackground extends StatefulWidget {
+  const _AnimatedGradientBackground({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_AnimatedGradientBackground> createState() =>
+      _AnimatedGradientBackgroundState();
+}
+
+class _AnimatedGradientBackgroundState
+    extends State<_AnimatedGradientBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value;
+
+        // Alignment pergerakan gradasi 3 warna
+        final angle = t * math.pi;
+        final begin = Alignment(
+          -1.0 + 0.6 * math.sin(angle),
+          -1.0 + 0.7 * math.cos(angle),
+        );
+        final end = Alignment(
+          1.0 - 0.6 * math.sin(angle),
+          1.0 - 0.7 * math.cos(angle),
+        );
+
+        // 3 warna gradasi yang harmonis & elegan (Marine Sky Blue, Soft Violet, Warm Peach/Amber)
+        final color1 = Color.lerp(
+          const Color(0xFFDCEEFE), // Sky Blue lembut
+          const Color(0xFFE0E7FF), // Indigo lembut
+          t,
+        )!;
+        final color2 = Color.lerp(
+          const Color(0xFFEDE9FE), // Lavender / Soft Violet
+          const Color(0xFFFCE7F3), // Soft Rose
+          t,
+        )!;
+        final color3 = Color.lerp(
+          const Color(0xFFFFF7ED), // Soft Peach / Orange Bayan
+          const Color(0xFFFEF3C7), // Warm Amber lembut
+          t,
+        )!;
+
+        return Stack(
+          children: [
+            // Lapisan 1: Gradasi 3 warna linier yang bergerak
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: begin,
+                    end: end,
+                    colors: [color1, color2, color3],
+                    stops: [
+                      0.0,
+                      (0.48 + 0.12 * math.sin(t * 2 * math.pi)).clamp(0.2, 0.8),
+                      1.0,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Lapisan 2: 3 titik orb gradasi ambient yang bergerak dinamis di latar belakang
+            Positioned.fill(
+              child: CustomPaint(painter: _MovingOrbsPainter(progress: t)),
+            ),
+            // Lapisan 3: Konten form login utama
+            Positioned.fill(child: child!),
+          ],
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _MovingOrbsPainter extends CustomPainter {
+  const _MovingOrbsPainter({required this.progress});
+
+  final double progress;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final t = progress;
+    final w = size.width;
+    final h = size.height;
+
+    // Orb 1: Biru Bahari (bergerak di area kiri atas - tengah)
+    final center1 = Offset(
+      w * (0.22 + 0.22 * math.sin(t * 2 * math.pi)),
+      h * (0.24 + 0.18 * math.cos(t * 2 * math.pi)),
+    );
+    final radius1 = w * 0.48;
+    final paint1 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFF38BDF8).withValues(alpha: 0.22),
+          const Color(0xFF38BDF8).withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center1, radius: radius1));
+    canvas.drawCircle(center1, radius1, paint1);
+
+    // Orb 2: Violet / Ungu Lembut (bergerak di area kanan atas - tengah bawah)
+    final center2 = Offset(
+      w * (0.78 - 0.22 * math.cos(t * 2 * math.pi)),
+      h * (0.38 + 0.22 * math.sin(t * 2 * math.pi)),
+    );
+    final radius2 = w * 0.52;
+    final paint2 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFF818CF8).withValues(alpha: 0.20),
+          const Color(0xFF818CF8).withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center2, radius: radius2));
+    canvas.drawCircle(center2, radius2, paint2);
+
+    // Orb 3: Aksen Oranye / Peach Hangat (bergerak di area bawah)
+    final center3 = Offset(
+      w * (0.50 + 0.28 * math.cos(t * 2 * math.pi + 1.0)),
+      h * (0.76 + 0.14 * math.sin(t * 2 * math.pi + 1.0)),
+    );
+    final radius3 = w * 0.46;
+    final paint3 = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFB923C).withValues(alpha: 0.18),
+          const Color(0xFFFB923C).withValues(alpha: 0.0),
+        ],
+      ).createShader(Rect.fromCircle(center: center3, radius: radius3));
+    canvas.drawCircle(center3, radius3, paint3);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MovingOrbsPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }

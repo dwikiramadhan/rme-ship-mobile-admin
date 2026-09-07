@@ -942,12 +942,76 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
   }
 
-  void submitLabHasil({required String id, required String catatanHasil, String? fileName}) {
+  Future<void> submitLabExaminations({
+    required String medicalRecordId,
+    required String patientId,
+    required String doctorId,
+    required String labPersonnelId,
+    required String notes,
+    required List<Map<String, dynamic>> items,
+    String? fileName,
+  }) async {
+    final body = <String, dynamic>{
+      'medical_record_id': medicalRecordId,
+      'patient_id': patientId,
+      'doctor_id': doctorId,
+      'lab_personnel_id': labPersonnelId,
+      'notes': notes,
+      'items': items,
+    };
+    debugPrint(
+      '🚀 [submitLabExaminations] POST /api/v1/medical-records/$medicalRecordId/lab-examinations body: $body',
+    );
+    try {
+      await _api.submitLabExaminations(medicalRecordId, body);
+    } catch (e) {
+      debugPrint('⚠️ [submitLabExaminations] API error: $e');
+      rethrow;
+    }
+
+    final parsedItems =
+        items.map((i) => LabExaminationItem.fromJson(i)).toList();
+    _update(patientId, (p) {
+      final order = p.labOrder;
+      if (order == null) return p;
+      return p.copyWith(
+        labOrder: order.copyWith(
+          status: LabOrderStatus.selesai,
+          hasil: LabHasil(
+            catatanHasil: notes,
+            fileName: fileName,
+            items: parsedItems,
+          ),
+        ),
+        dilihatDokterLab: false,
+      );
+    });
+
+    _wsService.send({
+      'type': 'lab_result_ready',
+      'patient_id': patientId,
+      'medical_record_id': medicalRecordId,
+    });
+  }
+
+  void submitLabHasil({
+    required String id,
+    required String catatanHasil,
+    String? fileName,
+    List<LabExaminationItem> items = const [],
+  }) {
     _update(id, (p) {
       final order = p.labOrder;
       if (order == null) return p;
       return p.copyWith(
-        labOrder: order.copyWith(status: LabOrderStatus.selesai, hasil: LabHasil(catatanHasil: catatanHasil, fileName: fileName)),
+        labOrder: order.copyWith(
+          status: LabOrderStatus.selesai,
+          hasil: LabHasil(
+            catatanHasil: catatanHasil,
+            fileName: fileName,
+            items: items,
+          ),
+        ),
         dilihatDokterLab: false,
       );
     });
@@ -1153,7 +1217,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       _hasMore = true;
     }
     _isLoading = true;
-    state = [...state];
+    if (mounted) state = [...state];
     try {
       final res = await _api.getMedicalHistoryPaginated(
         page: 1,
@@ -1167,19 +1231,19 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       _totalPages = res.totalPages;
       _total = res.total;
       _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
-      state = res.data;
+      if (mounted) state = res.data;
     } catch (e) {
       debugPrint('MedicalHistoryNotifier.fetchHistory error: $e');
     } finally {
       _isLoading = false;
-      state = [...state];
+      if (mounted) state = [...state];
     }
   }
 
   Future<void> loadMore() async {
     if (_isLoadingMore || !_hasMore || _isLoading) return;
     _isLoadingMore = true;
-    state = [...state];
+    if (mounted) state = [...state];
     try {
       final nextPage = _currentPage + 1;
       final res = await _api.getMedicalHistoryPaginated(
@@ -1197,12 +1261,12 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       final existingIds = {for (final m in state) m.id};
       final newItems =
           res.data.where((m) => !existingIds.contains(m.id)).toList();
-      state = [...state, ...newItems];
+      if (mounted) state = [...state, ...newItems];
     } catch (e) {
       debugPrint('MedicalHistoryNotifier.loadMore error: $e');
     } finally {
       _isLoadingMore = false;
-      state = [...state];
+      if (mounted) state = [...state];
     }
   }
 
@@ -1247,3 +1311,17 @@ final pharmacyPrescriptionHistoryProvider =
     statusPenanganan: 'Menunggu Obat',
   );
 });
+
+/// Dedicated medical history provider for Lab (Daftar Order Lab) filtered by status_penanganan = 'Menunggu Lab'
+final labOrderHistoryProvider =
+    StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
+  final api = ref.watch(patientApiProvider);
+  final authState = ref.watch(authControllerProvider);
+  final hasSession = authState.session != null;
+  return MedicalHistoryNotifier(
+    api: api,
+    autoFetch: hasSession,
+    statusPenanganan: 'Menunggu Lab',
+  );
+});
+
