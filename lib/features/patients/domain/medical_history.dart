@@ -413,4 +413,32 @@ class MedicalHistory {
       labOrder: effectiveLabOrder,
     );
   }
+
+  /// Creates a [MedicalHistory] from a [Patient] instance so it can be navigated to in Riwayat Kunjungan.
+  static MedicalHistory fromPatient(Patient p) {
+    return MedicalHistory(
+      id: p.medicalRecordId?.isNotEmpty == true ? p.medicalRecordId! : p.id,
+      code: p.registerNo.isNotEmpty ? p.registerNo : p.id,
+      patientId: p.id,
+      patient: p,
+      patientName: p.nama,
+      patientNik: p.nik,
+      doctorId: p.assignedDokterId,
+      doctorName: p.doctorName,
+      poliCode: p.poliCode,
+      poliName: p.poliName,
+      date: p.waktuMasuk,
+      complaint: p.keluhanUtama,
+      diagnosis: p.diagnosa,
+      treatment: p.tindakan,
+      statusPenanganan: p.statusPenanganan,
+      createdAt: p.updatedAt.toIso8601String(),
+      vitals: p.vitals,
+    );
+  }
 }
+
+extension PatientToMedicalHistoryExtension on Patient {
+  MedicalHistory toMedicalHistory() => MedicalHistory.fromPatient(this);
+}
+

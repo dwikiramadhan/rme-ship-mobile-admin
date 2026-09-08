@@ -37,6 +37,7 @@ class ApiConfig {
     return 'ws://$httpUrl/api/v1/ws';
   }
 
+  static const String healthPath = '/health';
   static const String loginPath = '/api/v1/auth/login';
   static const String changePasswordPath = '/api/v1/auth/change-password';
   static const String patientsPath = '/api/v1/patients';
@@ -46,6 +47,8 @@ class ApiConfig {
   static const String schedulesPath = '/api/v1/schedules';
   static String schedulesByShipPath(String shipCode) =>
       '/api/v1/schedules/ship/${Uri.encodeComponent(shipCode)}';
+  static String scheduleCounterPath(String shipCode) =>
+      '/api/v1/schedules/ship/${Uri.encodeComponent(shipCode)}/counter';
   static const String icd10Path = '/api/v1/icd10';
   static const String icd9Path = '/api/v1/icd9cm';
   static const String medicinesPath = '/api/v1/medicines';

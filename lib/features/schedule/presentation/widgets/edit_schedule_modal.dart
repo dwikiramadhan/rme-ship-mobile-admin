@@ -43,10 +43,6 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
   late List<SchedulePersonnelItem> _selectedNurses;
   late List<ScheduleCrewItem> _selectedCrews;
 
-  // Logistics
-  late final TextEditingController _fuelController;
-  late final TextEditingController _waterController;
-
   bool _isSubmitting = false;
   String? _errorMessage;
   OverlayEntry? _activeErrorToast;
@@ -131,18 +127,12 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
     } else {
       _selectedCrews = [];
     }
-
-    // Logistics
-    _fuelController = TextEditingController(text: s.fuelLiters.toString());
-    _waterController = TextEditingController(text: s.waterLiters.toString());
   }
 
   @override
   void dispose() {
     _activeErrorToast?.remove();
     _activeErrorToast = null;
-    _fuelController.dispose();
-    _waterController.dispose();
     super.dispose();
   }
 
@@ -350,8 +340,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
     });
 
     try {
-      final fuelNum = double.tryParse(_fuelController.text.trim()) ?? 0;
-      final waterNum = double.tryParse(_waterController.text.trim()) ?? 0;
+      final fuelNum = widget.schedule.fuelLiters;
+      final waterNum = widget.schedule.waterLiters;
 
       // Build Stops Payload
       final stopsPayload = <Map<String, dynamic>>[];
@@ -589,10 +579,6 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
 
                       // 5. ABK KAPAL (CREW)
                       _buildCrewSection(),
-                      const SizedBox(height: 16),
-
-                      // 6. BAHAN BAKAR & AIR BERSIH
-                      _buildLogisticsSection(),
                     ],
                   ),
                 ),
@@ -1437,166 +1423,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
     );
   }
 
-  Widget _buildLogisticsSection() {
-    return Row(
-      children: [
-        // Bahan Bakar
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(LucideIcons.fuel, size: 15, color: AppColors.orange),
-                  SizedBox(width: 6),
-                  Text(
-                    'BAHAN BAKAR',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Container(
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _fuelController,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      margin: const EdgeInsets.only(right: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: const Text(
-                        'Liter',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 14),
 
-        // Air Bersih
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(
-                    LucideIcons.droplets,
-                    size: 15,
-                    color: Color(0xFF0284C7),
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'AIR BERSIH',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Container(
-                height: 38,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _waterController,
-                        keyboardType: TextInputType.number,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      margin: const EdgeInsets.only(right: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: const Text(
-                        'Liter',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   // ==========================================
   // SHARED PICKERS & HELPERS

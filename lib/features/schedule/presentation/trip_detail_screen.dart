@@ -170,9 +170,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             color: AppColors.text,
           ),
         ),
-        actions: const [
-          SizedBox(width: 8),
-        ],
+        actions: const [SizedBox(width: 8)],
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -316,7 +314,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               // 3. Tab Contents with smooth slider effect
               ClipRect(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
+                  duration: const Duration(milliseconds: 260),
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
                   transitionBuilder: (child, animation) {
@@ -325,11 +323,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         child.key == ValueKey<int>(_selectedTabIndex);
 
                     final inOffset = isForward
-                        ? const Offset(0.35, 0.0)
-                        : const Offset(-0.35, 0.0);
+                        ? const Offset(0.20, 0.0)
+                        : const Offset(-0.20, 0.0);
                     final outOffset = isForward
-                        ? const Offset(-0.35, 0.0)
-                        : const Offset(0.35, 0.0);
+                        ? const Offset(-0.20, 0.0)
+                        : const Offset(0.20, 0.0);
 
                     final offsetTween = Tween<Offset>(
                       begin: isCurrent ? inOffset : outOffset,
@@ -664,7 +662,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.mapPin, size: 16, color: Color(0xFF64748B)),
+              const Icon(
+                LucideIcons.mapPin,
+                size: 16,
+                color: Color(0xFF64748B),
+              ),
               const SizedBox(width: 8),
               const Text(
                 'RUTE PERJALANAN',
@@ -680,10 +682,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 onTap: () => _editSchedule(context, schedule),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.orangeLt,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: AppColors.orange.withValues(alpha: 0.3),
                     ),
@@ -691,12 +696,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
-                      Icon(LucideIcons.pencilLine, size: 13, color: AppColors.orange),
+                      Icon(
+                        LucideIcons.pencilLine,
+                        size: 13,
+                        color: AppColors.orange,
+                      ),
                       SizedBox(width: 5),
                       Text(
                         'Edit Jadwal',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: AppColors.orange,
                         ),
@@ -772,19 +781,53 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           ),
                           const SizedBox(height: 3),
                           if (isFirst) ...[
-                            Text(
-                              'Berangkat: ${_formatFullDateTime(stop.departure ?? schedule.berangkat, stop.departureTz)}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.sub,
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  const TextSpan(
+                                    text: 'Berangkat: ',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.sub,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: _formatFullDateTime(
+                                      stop.departure ?? schedule.berangkat,
+                                      stop.departureTz,
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.text,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ] else if (isLast) ...[
-                            Text(
-                              'Tiba Est: ${_formatFullDateTime(stop.arrival ?? schedule.tiba, stop.arrivalTz)}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.sub,
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  const TextSpan(
+                                    text: 'Tiba Est: ',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.sub,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: _formatFullDateTime(
+                                      stop.arrival ?? schedule.tiba,
+                                      stop.arrivalTz,
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.text,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ] else ...[
@@ -793,19 +836,53 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               runSpacing: 4,
                               children: [
                                 if (stop.departure != null)
-                                  Text(
-                                    'Berangkat: ${_formatFullDateTime(stop.departure, stop.departureTz)}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.sub,
+                                  Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        const TextSpan(
+                                          text: 'Berangkat: ',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.sub,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: _formatFullDateTime(
+                                            stop.departure,
+                                            stop.departureTz,
+                                          ),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.text,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 if (stop.arrival != null)
-                                  Text(
-                                    'Tiba Est: ${_formatFullDateTime(stop.arrival, stop.arrivalTz)}',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.sub,
+                                  Text.rich(
+                                    TextSpan(
+                                      children: [
+                                        const TextSpan(
+                                          text: 'Tiba Est: ',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.sub,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: _formatFullDateTime(
+                                            stop.arrival,
+                                            stop.arrivalTz,
+                                          ),
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.text,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                               ],
@@ -871,11 +948,26 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        'Berangkat: ${_formatFullDateTime(schedule.berangkat)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.sub,
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(
+                              text: 'Berangkat: ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.sub,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            TextSpan(
+                              text: _formatFullDateTime(schedule.berangkat),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.text,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 30),
@@ -888,11 +980,26 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        'Tiba Est: ${_formatFullDateTime(schedule.tiba)}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.sub,
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            const TextSpan(
+                              text: 'Tiba Est: ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.sub,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            TextSpan(
+                              text: _formatFullDateTime(schedule.tiba),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.text,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -1343,7 +1450,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       children: [
         Row(
           children: [
-            const Icon(LucideIcons.building2, size: 16, color: Color(0xFF64748B)),
+            const Icon(
+              LucideIcons.building2,
+              size: 16,
+              color: Color(0xFF64748B),
+            ),
             const SizedBox(width: 8),
             const Text(
               'DAFTAR POLI LAYANAN',
@@ -1359,7 +1470,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               onTap: () => _editClinics(context, schedule),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.orangeLt,
                   borderRadius: BorderRadius.circular(8),
@@ -1370,7 +1484,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: const [
-                    Icon(LucideIcons.pencilLine, size: 13, color: AppColors.orange),
+                    Icon(
+                      LucideIcons.pencilLine,
+                      size: 13,
+                      color: AppColors.orange,
+                    ),
                     SizedBox(width: 5),
                     Text(
                       'Edit Poli',
@@ -1398,7 +1516,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             ),
             child: Column(
               children: [
-                const Icon(LucideIcons.building2, size: 40, color: Color(0xFF94A3B8)),
+                const Icon(
+                  LucideIcons.building2,
+                  size: 40,
+                  color: Color(0xFF94A3B8),
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Belum ada Poli Layanan terdaftar',
@@ -1422,9 +1544,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                   ),
-                  icon: const Icon(LucideIcons.pencilLine, size: 15, color: Colors.white),
+                  icon: const Icon(
+                    LucideIcons.pencilLine,
+                    size: 15,
+                    color: Colors.white,
+                  ),
                   label: const Text(
                     'Atur Poli Layanan',
                     style: TextStyle(
@@ -2079,8 +2208,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         ? latest.water
         : schedule.waterLiters;
 
-    String formatNum(num n) =>
-        n % 1 == 0 ? n.toInt().toString() : n.toString();
+    String formatNum(num n) => n % 1 == 0 ? n.toInt().toString() : n.toString();
 
     final fuelController = TextEditingController();
     final waterController = TextEditingController();
@@ -2094,12 +2222,14 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
             final enteredFuel = double.tryParse(fuelController.text.trim());
-            final isFuelExceeded = currentFuel > 0 &&
+            final isFuelExceeded =
+                currentFuel > 0 &&
                 enteredFuel != null &&
                 enteredFuel > currentFuel;
 
             final enteredWater = double.tryParse(waterController.text.trim());
-            final isWaterExceeded = currentWater > 0 &&
+            final isWaterExceeded =
+                currentWater > 0 &&
                 enteredWater != null &&
                 enteredWater > currentWater;
 
@@ -2114,656 +2244,689 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   vertical: 24,
                 ),
                 titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-              contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7ED),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      LucideIcons.fuel,
-                      color: Color(0xFFEA580C),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
-                          'Catat Sisa Logistik',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Perbarui sisa stok BBM & air bersih',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              content: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: SizedBox(
-                  width: MediaQuery.sizeOf(dialogCtx).width,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Info Note
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 14),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(
-                                LucideIcons.info,
-                                size: 14,
-                                color: Color(0xFF64748B),
-                              ),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Nilai yang dimasukkan tidak boleh lebih dari sisa logistik saat ini.',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: Color(0xFF475569),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        // Fuel Field Header with Current Stock Badge
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Sisa Bahan Bakar (BBM)',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF334155),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2.5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF7ED),
-                                borderRadius: BorderRadius.circular(6),
-                                border:
-                                    Border.all(color: const Color(0xFFFFEDD5)),
-                              ),
-                              child: Text(
-                                'Saat ini: ${formatNum(currentFuel)} L',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFFEA580C),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        TextField(
-                          controller: fuelController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d*\.?\d*'),
-                            ),
-                          ],
-                          onChanged: (_) => setDialogState(() {}),
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            hintStyle: const TextStyle(
-                              color: Color(0xFF94A3B8),
-                              fontSize: 14,
-                            ),
-                            helperText: isFuelExceeded
-                                ? null
-                                : 'Maksimal ${formatNum(currentFuel)} Liter',
-                            helperStyle: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF64748B),
-                            ),
-                            errorText: isFuelExceeded
-                                ? 'Tidak boleh melebihi sisa BBM saat ini (${formatNum(currentFuel)} L)'
-                                : null,
-                            errorStyle: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.red,
-                            ),
-                            prefixIcon: const Icon(
-                              LucideIcons.fuel,
-                              size: 18,
-                              color: Color(0xFFEA580C),
-                            ),
-                            suffixText: 'Liter',
-                            suffixStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isFuelExceeded
-                                    ? AppColors.red
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isFuelExceeded
-                                    ? AppColors.red
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isFuelExceeded
-                                    ? AppColors.red
-                                    : const Color(0xFFEA580C),
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Water Field Header with Current Stock Badge
-                        Row(
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Sisa Air Bersih',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF334155),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2.5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.skyLt,
-                                borderRadius: BorderRadius.circular(6),
-                                border:
-                                    Border.all(color: const Color(0xFFBAE6FD)),
-                              ),
-                              child: Text(
-                                'Saat ini: ${formatNum(currentWater)} L',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.sky,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        TextField(
-                          controller: waterController,
-                          keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true,
-                          ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'^\d*\.?\d*'),
-                            ),
-                          ],
-                          onChanged: (_) => setDialogState(() {}),
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            hintStyle: const TextStyle(
-                              color: Color(0xFF94A3B8),
-                              fontSize: 14,
-                            ),
-                            helperText: isWaterExceeded
-                                ? null
-                                : 'Maksimal ${formatNum(currentWater)} Liter',
-                            helperStyle: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF64748B),
-                            ),
-                            errorText: isWaterExceeded
-                                ? 'Tidak boleh melebihi sisa air saat ini (${formatNum(currentWater)} L)'
-                                : null,
-                            errorStyle: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.red,
-                            ),
-                            prefixIcon: const Icon(
-                              LucideIcons.droplets,
-                              size: 18,
-                              color: AppColors.sky,
-                            ),
-                            suffixText: 'Liter',
-                            suffixStyle: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
-                            ),
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isWaterExceeded
-                                    ? AppColors.red
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isWaterExceeded
-                                    ? AppColors.red
-                                    : const Color(0xFFE2E8F0),
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(
-                                color: isWaterExceeded
-                                    ? AppColors.red
-                                    : AppColors.sky,
-                                width: 1.5,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                    // Optional Coordinates Section
+                contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                title: Row(
+                  children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(10),
                       ),
+                      child: const Icon(
+                        LucideIcons.fuel,
+                        color: Color(0xFFEA580C),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(
-                                LucideIcons.mapPin,
-                                size: 14,
-                                color: Color(0xFF64748B),
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Koordinat Posisi (Opsional)',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF475569),
-                                ),
-                              ),
-                            ],
+                        children: const [
+                          Text(
+                            'Catat Sisa Logistik',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E293B),
+                            ),
                           ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: latController,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                        signed: true,
-                                      ),
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                      RegExp(r'^-?\d*\.?\d*'),
-                                    ),
-                                  ],
-                                  decoration: InputDecoration(
-                                    labelText: 'Latitude',
-                                    labelStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: WidgetStateColor.resolveWith((
-                                        states,
-                                      ) {
-                                        if (states.contains(
-                                          WidgetState.focused,
-                                        )) {
-                                          return AppColors.sky;
-                                        }
-                                        return const Color(0xFF64748B);
-                                      }),
-                                    ),
-                                    floatingLabelStyle: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: WidgetStateColor.resolveWith((
-                                        states,
-                                      ) {
-                                        if (states.contains(
-                                          WidgetState.focused,
-                                        )) {
-                                          return AppColors.sky;
-                                        }
-                                        return const Color(0xFF64748B);
-                                      }),
-                                    ),
-                                    hintText: '-6.1751',
-                                    hintStyle: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFCBD5E1),
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFCBD5E1),
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: AppColors.sky,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: TextField(
-                                  controller: lngController,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                  keyboardType:
-                                      const TextInputType.numberWithOptions(
-                                        decimal: true,
-                                        signed: true,
-                                      ),
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.allow(
-                                      RegExp(r'^-?\d*\.?\d*'),
-                                    ),
-                                  ],
-                                  decoration: InputDecoration(
-                                    labelText: 'Longitude',
-                                    labelStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: WidgetStateColor.resolveWith((
-                                        states,
-                                      ) {
-                                        if (states.contains(
-                                          WidgetState.focused,
-                                        )) {
-                                          return AppColors.sky;
-                                        }
-                                        return const Color(0xFF64748B);
-                                      }),
-                                    ),
-                                    floatingLabelStyle: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: WidgetStateColor.resolveWith((
-                                        states,
-                                      ) {
-                                        if (states.contains(
-                                          WidgetState.focused,
-                                        )) {
-                                          return AppColors.sky;
-                                        }
-                                        return const Color(0xFF64748B);
-                                      }),
-                                    ),
-                                    hintText: '106.8271',
-                                    hintStyle: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
-                                    ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFCBD5E1),
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFCBD5E1),
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: AppColors.sky,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          SizedBox(height: 2),
+                          Text(
+                            'Perbarui sisa stok BBM & air bersih',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.normal,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-          ),
-          actions: [
-            OutlinedButton(
-              onPressed: isSubmitting ? null : () => Navigator.pop(dialogCtx),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                side: const BorderSide(color: Color(0xFFCBD5E1)),
-              ),
-              child: const Text(
-                'Batal',
-                style: TextStyle(
-                  color: Color(0xFF475569),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFEA580C),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              icon: isSubmitting
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+                content: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: SizedBox(
+                    width: MediaQuery.sizeOf(dialogCtx).width,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Info Note
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Row(
+                              children: const [
+                                Icon(
+                                  LucideIcons.info,
+                                  size: 14,
+                                  color: Color(0xFF64748B),
+                                ),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'Nilai yang dimasukkan tidak boleh lebih dari sisa logistik saat ini.',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      color: Color(0xFF475569),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Fuel Field Header with Current Stock Badge
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Sisa Bahan Bakar (BBM)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF7ED),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFEDD5),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Saat ini: ${formatNum(currentFuel)} L',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFFEA580C),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: fuelController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              hintStyle: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 14,
+                              ),
+                              helperText: isFuelExceeded
+                                  ? null
+                                  : 'Maksimal ${formatNum(currentFuel)} Liter',
+                              helperStyle: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                              ),
+                              errorText: isFuelExceeded
+                                  ? 'Tidak boleh melebihi sisa BBM saat ini (${formatNum(currentFuel)} L)'
+                                  : null,
+                              errorStyle: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.red,
+                              ),
+                              prefixIcon: const Icon(
+                                LucideIcons.fuel,
+                                size: 18,
+                                color: Color(0xFFEA580C),
+                              ),
+                              suffixText: 'Liter',
+                              suffixStyle: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFFF8FAFC),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: isFuelExceeded
+                                      ? AppColors.red
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: isFuelExceeded
+                                      ? AppColors.red
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: isFuelExceeded
+                                      ? AppColors.red
+                                      : const Color(0xFFEA580C),
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Water Field Header with Current Stock Badge
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Sisa Air Bersih',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF334155),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.skyLt,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFFBAE6FD),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Saat ini: ${formatNum(currentWater)} L',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.sky,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: waterController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              hintStyle: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 14,
+                              ),
+                              helperText: isWaterExceeded
+                                  ? null
+                                  : 'Maksimal ${formatNum(currentWater)} Liter',
+                              helperStyle: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF64748B),
+                              ),
+                              errorText: isWaterExceeded
+                                  ? 'Tidak boleh melebihi sisa air saat ini (${formatNum(currentWater)} L)'
+                                  : null,
+                              errorStyle: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.red,
+                              ),
+                              prefixIcon: const Icon(
+                                LucideIcons.droplets,
+                                size: 18,
+                                color: AppColors.sky,
+                              ),
+                              suffixText: 'Liter',
+                              suffixStyle: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFFF8FAFC),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: isWaterExceeded
+                                      ? AppColors.red
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: isWaterExceeded
+                                      ? AppColors.red
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: isWaterExceeded
+                                      ? AppColors.red
+                                      : AppColors.sky,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Optional Coordinates Section
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.mapPin,
+                                      size: 14,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Koordinat Posisi (Opsional)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: latController,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                              signed: true,
+                                            ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^-?\d*\.?\d*'),
+                                          ),
+                                        ],
+                                        decoration: InputDecoration(
+                                          labelText: 'Latitude',
+                                          labelStyle: TextStyle(
+                                            fontSize: 12,
+                                            color: WidgetStateColor.resolveWith(
+                                              (states) {
+                                                if (states.contains(
+                                                  WidgetState.focused,
+                                                )) {
+                                                  return AppColors.sky;
+                                                }
+                                                return const Color(0xFF64748B);
+                                              },
+                                            ),
+                                          ),
+                                          floatingLabelStyle: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: WidgetStateColor.resolveWith(
+                                              (states) {
+                                                if (states.contains(
+                                                  WidgetState.focused,
+                                                )) {
+                                                  return AppColors.sky;
+                                                }
+                                                return const Color(0xFF64748B);
+                                              },
+                                            ),
+                                          ),
+                                          hintText: '-6.1751',
+                                          hintStyle: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 10,
+                                              ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: Color(0xFFCBD5E1),
+                                            ),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: Color(0xFFCBD5E1),
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: AppColors.sky,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: lngController,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                              signed: true,
+                                            ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^-?\d*\.?\d*'),
+                                          ),
+                                        ],
+                                        decoration: InputDecoration(
+                                          labelText: 'Longitude',
+                                          labelStyle: TextStyle(
+                                            fontSize: 12,
+                                            color: WidgetStateColor.resolveWith(
+                                              (states) {
+                                                if (states.contains(
+                                                  WidgetState.focused,
+                                                )) {
+                                                  return AppColors.sky;
+                                                }
+                                                return const Color(0xFF64748B);
+                                              },
+                                            ),
+                                          ),
+                                          floatingLabelStyle: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: WidgetStateColor.resolveWith(
+                                              (states) {
+                                                if (states.contains(
+                                                  WidgetState.focused,
+                                                )) {
+                                                  return AppColors.sky;
+                                                }
+                                                return const Color(0xFF64748B);
+                                              },
+                                            ),
+                                          ),
+                                          hintText: '106.8271',
+                                          hintStyle: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          contentPadding:
+                                              const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 10,
+                                              ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: Color(0xFFCBD5E1),
+                                            ),
+                                          ),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: Color(0xFFCBD5E1),
+                                            ),
+                                          ),
+                                          focusedBorder: OutlineInputBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
+                                            borderSide: const BorderSide(
+                                              color: AppColors.sky,
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  : const Icon(LucideIcons.check, size: 16),
-              label: Text(
-                isSubmitting ? 'Menyimpan...' : 'Simpan',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-              ),
-              onPressed: (isSubmitting || isFuelExceeded || isWaterExceeded)
-                  ? null
-                  : () async {
-                      final fuel =
-                          double.tryParse(fuelController.text.trim()) ?? 0;
-                      final water =
-                          double.tryParse(waterController.text.trim()) ?? 0;
-                      final lat = double.tryParse(latController.text.trim());
-                      final lng = double.tryParse(lngController.text.trim());
-
-                      if (fuel <= 0 && water <= 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Masukkan sisa BBM atau Air yang valid',
+                    ),
+                  ),
+                ),
+                actions: [
+                  OutlinedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.pop(dialogCtx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFEA580C),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: isSubmitting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
                             ),
-                          ),
-                        );
-                        return;
-                      }
-
-                      if (currentFuel > 0 && fuel > currentFuel) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Sisa BBM tidak boleh melebihi sisa saat ini (${formatNum(currentFuel)} Liter)',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-
-                      if (currentWater > 0 && water > currentWater) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Sisa Air tidak boleh melebihi sisa saat ini (${formatNum(currentWater)} Liter)',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-
-                      setDialogState(() {
-                        isSubmitting = true;
-                      });
-
-                      try {
-                        await ref
-                            .read(
-                              tripDetailNotifierProvider(
-                                widget.item,
-                              ).notifier,
-                            )
-                            .addProvision(
-                              scheduleCode: schedule.scheduleCode,
-                              fuelOil: fuel,
-                              water: water,
-                              lat: lat,
-                              lng: lng,
+                          )
+                        : const Icon(LucideIcons.check, size: 16),
+                    label: Text(
+                      isSubmitting ? 'Menyimpan...' : 'Simpan',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    onPressed:
+                        (isSubmitting || isFuelExceeded || isWaterExceeded)
+                        ? null
+                        : () async {
+                            final fuel =
+                                double.tryParse(fuelController.text.trim()) ??
+                                0;
+                            final water =
+                                double.tryParse(waterController.text.trim()) ??
+                                0;
+                            final lat = double.tryParse(
+                              latController.text.trim(),
                             );
-                        if (dialogCtx.mounted) {
-                          Navigator.pop(dialogCtx);
-                        }
-                        if (context.mounted) {
-                          _showTopRightSuccessToast(
-                            context,
-                            'Sisa logistik berhasil dicatat',
-                          );
-                        }
-                      } catch (e) {
-                        if (dialogCtx.mounted) {
-                          setDialogState(() {
-                            isSubmitting = false;
-                          });
-                        }
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content:
-                                  Text('Gagal mencatat logistik: $e'),
-                              backgroundColor: Colors.red.shade700,
-                            ),
-                          );
-                        }
-                      }
-                    },
-            ),
-          ],
+                            final lng = double.tryParse(
+                              lngController.text.trim(),
+                            );
+
+                            if (fuel <= 0 && water <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Masukkan sisa BBM atau Air yang valid',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (currentFuel > 0 && fuel > currentFuel) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Sisa BBM tidak boleh melebihi sisa saat ini (${formatNum(currentFuel)} Liter)',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            if (currentWater > 0 && water > currentWater) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Sisa Air tidak boleh melebihi sisa saat ini (${formatNum(currentWater)} Liter)',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            setDialogState(() {
+                              isSubmitting = true;
+                            });
+
+                            try {
+                              await ref
+                                  .read(
+                                    tripDetailNotifierProvider(
+                                      widget.item,
+                                    ).notifier,
+                                  )
+                                  .addProvision(
+                                    scheduleCode: schedule.scheduleCode,
+                                    fuelOil: fuel,
+                                    water: water,
+                                    lat: lat,
+                                    lng: lng,
+                                  );
+                              if (dialogCtx.mounted) {
+                                Navigator.pop(dialogCtx);
+                              }
+                              if (context.mounted) {
+                                _showTopRightSuccessToast(
+                                  context,
+                                  'Sisa logistik berhasil dicatat',
+                                );
+                              }
+                            } catch (e) {
+                              if (dialogCtx.mounted) {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                });
+                              }
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Gagal mencatat logistik: $e',
+                                    ),
+                                    backgroundColor: Colors.red.shade700,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                  ),
+                ],
               ),
             );
           },
@@ -2863,7 +3026,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             issue.description,
                             style: const TextStyle(
-                              fontSize: 14.5,
+                              fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF92400E),
                             ),
@@ -2878,7 +3041,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 ),
                                 style: const TextStyle(
                                   fontSize: 11.5,
-                                  color: Color(0xFF94A3B8),
+                                  color: AppColors.sub,
                                 ),
                               ),
                               if (issue.lat != null && issue.lng != null) ...[
@@ -2886,14 +3049,14 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 const Icon(
                                   LucideIcons.mapPin,
                                   size: 11,
-                                  color: Color(0xFF94A3B8),
+                                  color: AppColors.sub,
                                 ),
                                 const SizedBox(width: 3),
                                 Text(
                                   '${issue.lat!.toStringAsFixed(5)}, ${issue.lng!.toStringAsFixed(5)}',
                                   style: const TextStyle(
                                     fontSize: 11.5,
-                                    color: Color(0xFF94A3B8),
+                                    color: AppColors.sub,
                                   ),
                                 ),
                               ],
@@ -2945,7 +3108,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     Text(
                       'Tambah Kendala',
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFFEA580C),
                       ),
@@ -2968,12 +3131,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final latController = TextEditingController();
     final lngController = TextEditingController();
     DateTime selectedTime = DateTime.now();
+    bool isSubmitting = false;
 
     showDialog(
       context: context,
       builder: (dialogCtx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+          builder: (dialogBuilderCtx, setDialogState) {
             return AlertDialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
@@ -2990,12 +3154,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   Icon(
                     LucideIcons.triangleAlert,
                     color: Color(0xFFEA580C),
-                    size: 20,
+                    size: 18,
                   ),
-                  SizedBox(width: 10),
+                  SizedBox(width: 8),
                   Text(
                     'Tambah Kendala',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                   ),
                 ],
               ),
@@ -3010,73 +3174,112 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         TextField(
                           controller: descController,
                           maxLines: 2,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF1E293B),
+                          ),
                           decoration: InputDecoration(
                             labelText: 'Deskripsi Kendala',
-                            hintText: 'Contoh: Badai katrina di perairan...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(
-                            LucideIcons.calendar,
-                            color: Color(0xFFEA580C),
-                          ),
-                          title: const Text(
-                            'Waktu Kejadian',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          subtitle: Text(
-                            _formatFullDateTime(selectedTime),
-                            style: const TextStyle(
+                            labelStyle: const TextStyle(
                               fontSize: 12,
-                              color: AppColors.sub,
+                              color: Color(0xFF64748B),
+                            ),
+                            floatingLabelStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFEA580C),
+                            ),
+                            hintText: 'Contoh: Badai katrina di perairan...',
+                            hintStyle: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
                             ),
                           ),
-                          trailing: const Icon(
-                            LucideIcons.chevronRight,
-                            size: 16,
-                          ),
-                          onTap: () async {
-                            final pickedDate = await showDatePicker(
-                              context: context,
-                              initialDate: selectedTime,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2030),
-                            );
-                            if (pickedDate != null && context.mounted) {
-                              final pickedTime = await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay.fromDateTime(
-                                  selectedTime,
-                                ),
-                              );
-                              if (pickedTime != null) {
-                                setDialogState(() {
-                                  selectedTime = DateTime(
-                                    pickedDate.year,
-                                    pickedDate.month,
-                                    pickedDate.day,
-                                    pickedTime.hour,
-                                    pickedTime.minute,
-                                  );
-                                });
-                              }
-                            }
-                          },
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 2,
+                            ),
+                            leading: const Icon(
+                              LucideIcons.calendar,
+                              color: Color(0xFFEA580C),
+                              size: 16,
+                            ),
+                            title: const Text(
+                              'Waktu Kejadian',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                            subtitle: Text(
+                              _formatFullDateTime(selectedTime),
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.sub,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              LucideIcons.chevronRight,
+                              size: 15,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            onTap: () async {
+                              final pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: selectedTime,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (pickedDate != null && context.mounted) {
+                                final pickedTime = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.fromDateTime(
+                                    selectedTime,
+                                  ),
+                                );
+                                if (pickedTime != null) {
+                                  setDialogState(() {
+                                    selectedTime = DateTime(
+                                      pickedDate.year,
+                                      pickedDate.month,
+                                      pickedDate.day,
+                                      pickedTime.hour,
+                                      pickedTime.minute,
+                                    );
+                                  });
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Row(
                           children: [
                             Expanded(
                               child: TextField(
                                 controller: latController,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF1E293B),
+                                ),
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
                                       decimal: true,
@@ -3084,9 +3287,26 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                     ),
                                 decoration: InputDecoration(
                                   labelText: 'Latitude',
+                                  labelStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  floatingLabelStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFEA580C),
+                                  ),
                                   hintText: '-6.20880',
+                                  hintStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
@@ -3095,6 +3315,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             Expanded(
                               child: TextField(
                                 controller: lngController,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF1E293B),
+                                ),
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
                                       decimal: true,
@@ -3102,9 +3326,26 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                     ),
                                 decoration: InputDecoration(
                                   labelText: 'Longitude',
+                                  labelStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  floatingLabelStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFEA580C),
+                                  ),
                                   hintText: '106.84560',
+                                  hintStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                               ),
@@ -3125,54 +3366,98 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFEA580C),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
                   ),
-                  onPressed: () async {
-                    final desc = descController.text.trim();
-                    if (desc.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Deskripsi kendala wajib diisi'),
-                        ),
-                      );
-                      return;
-                    }
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final desc = descController.text.trim();
+                          if (desc.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Deskripsi kendala wajib diisi'),
+                              ),
+                            );
+                            return;
+                          }
 
-                    final lat = double.tryParse(latController.text.trim());
-                    final lng = double.tryParse(lngController.text.trim());
-
-                    Navigator.pop(dialogCtx);
-
-                    try {
-                      await ref
-                          .read(
-                            tripDetailNotifierProvider(widget.item).notifier,
-                          )
-                          .addTripIssue(
-                            description: desc,
-                            occurredAt: selectedTime,
-                            lat: lat,
-                            lng: lng,
+                          final lat = double.tryParse(
+                            latController.text.trim(),
                           );
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Kendala berhasil ditambahkan'),
+                          final lng = double.tryParse(
+                            lngController.text.trim(),
+                          );
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+
+                          try {
+                            await ref
+                                .read(
+                                  tripDetailNotifierProvider(
+                                    widget.item,
+                                  ).notifier,
+                                )
+                                .addTripIssue(
+                                  description: desc,
+                                  occurredAt: selectedTime,
+                                  scheduleId: schedule.id.isNotEmpty
+                                      ? schedule.id
+                                      : widget.item.id,
+                                  lat: lat,
+                                  lng: lng,
+                                );
+
+                            if (dialogCtx.mounted) {
+                              Navigator.pop(dialogCtx);
+                            }
+
+                            if (context.mounted) {
+                              _showTopRightSuccessToast(
+                                context,
+                                'Kendala perjalanan berhasil disimpan',
+                              );
+                            }
+                          } catch (e) {
+                            if (dialogCtx.mounted) {
+                              setDialogState(() {
+                                isSubmitting = false;
+                              });
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Gagal menambahkan kendala: $e',
+                                  ),
+                                  backgroundColor: Colors.red.shade700,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
                           ),
-                        );
-                      }
-                    } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Gagal menambahkan kendala: $e'),
+                        )
+                      : const Text(
+                          'Simpan',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
                           ),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Simpan', style: TextStyle(fontSize: 12)),
+                        ),
                 ),
               ],
             );
@@ -3205,14 +3490,18 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     .read(tripDetailNotifierProvider(widget.item).notifier)
                     .deleteTripIssue(id);
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Kendala berhasil dihapus')),
+                  _showTopRightSuccessToast(
+                    context,
+                    'Kendala perjalanan berhasil dihapus',
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal menghapus kendala: $e')),
+                    SnackBar(
+                      content: Text('Gagal menghapus kendala: $e'),
+                      backgroundColor: Colors.red.shade700,
+                    ),
                   );
                 }
               }
@@ -3286,10 +3575,7 @@ class _TopRightToast extends StatefulWidget {
   final String message;
   final VoidCallback onDismiss;
 
-  const _TopRightToast({
-    required this.message,
-    required this.onDismiss,
-  });
+  const _TopRightToast({required this.message, required this.onDismiss});
 
   @override
   State<_TopRightToast> createState() => _TopRightToastState();
@@ -3318,10 +3604,7 @@ class _TopRightToastState extends State<_TopRightToast>
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0.25, -0.25),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _controller.forward();
 
@@ -3355,10 +3638,7 @@ class _TopRightToastState extends State<_TopRightToast>
             position: _slideAnimation,
             child: Container(
               constraints: const BoxConstraints(maxWidth: 340),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: AppColors.green,
                 borderRadius: BorderRadius.circular(10),

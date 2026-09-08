@@ -56,8 +56,18 @@ class SeenNotificationStorage {
     await _storage.write(key: _kDoctorKey, value: jsonEncode(_doctorSeen.toList()));
   }
 
+  Future<void> markAllDoctorSeen(Iterable<String> ids) async {
+    _doctorSeen.addAll(ids);
+    await _storage.write(key: _kDoctorKey, value: jsonEncode(_doctorSeen.toList()));
+  }
+
   Future<void> markDoctorLabSeen(String id) async {
     _doctorLabSeen.add(id);
+    await _storage.write(key: _kDoctorLabKey, value: jsonEncode(_doctorLabSeen.toList()));
+  }
+
+  Future<void> markAllDoctorLabSeen(Iterable<String> ids) async {
+    _doctorLabSeen.addAll(ids);
     await _storage.write(key: _kDoctorLabKey, value: jsonEncode(_doctorLabSeen.toList()));
   }
 
@@ -66,8 +76,18 @@ class SeenNotificationStorage {
     await _storage.write(key: _kPharmacyKey, value: jsonEncode(_pharmacySeen.toList()));
   }
 
+  Future<void> markAllPharmacySeen(Iterable<String> ids) async {
+    _pharmacySeen.addAll(ids);
+    await _storage.write(key: _kPharmacyKey, value: jsonEncode(_pharmacySeen.toList()));
+  }
+
   Future<void> markLabSeen(String id) async {
     _labSeen.add(id);
+    await _storage.write(key: _kLabKey, value: jsonEncode(_labSeen.toList()));
+  }
+
+  Future<void> markAllLabSeen(Iterable<String> ids) async {
+    _labSeen.addAll(ids);
     await _storage.write(key: _kLabKey, value: jsonEncode(_labSeen.toList()));
   }
 

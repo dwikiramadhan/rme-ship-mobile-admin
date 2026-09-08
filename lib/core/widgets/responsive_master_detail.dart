@@ -62,6 +62,7 @@ class ResponsiveMasterDetail extends StatefulWidget {
     this.onSearchChanged,
     this.searchPlaceholder,
     this.searchTrailing,
+    this.selectedId,
   });
 
   final String title;
@@ -82,6 +83,7 @@ class ResponsiveMasterDetail extends StatefulWidget {
   final ValueChanged<String>? onSearchChanged;
   final String? searchPlaceholder;
   final Widget? searchTrailing;
+  final String? selectedId;
 
   @override
   State<ResponsiveMasterDetail> createState() => _ResponsiveMasterDetailState();
@@ -100,6 +102,7 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
   @override
   void initState() {
     super.initState();
+    _selectedId = widget.selectedId;
     _lastEntriesCount = widget.entries.length;
     _scrollController.addListener(_onScroll);
     _searchFocusNode.addListener(() {
@@ -110,6 +113,9 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
   @override
   void didUpdateWidget(covariant ResponsiveMasterDetail oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.selectedId != null && widget.selectedId != oldWidget.selectedId) {
+      _selectedId = widget.selectedId;
+    }
     if (widget.entries.length != _lastEntriesCount) {
       _lastEntriesCount = widget.entries.length;
       if (_internalLoadingMore) {

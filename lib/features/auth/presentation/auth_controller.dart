@@ -1,15 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/dio_client.dart';
+import '../../../core/routing/app_navigator.dart';
 import '../data/auth_repository_impl.dart';
 import '../domain/auth_repository.dart';
 import 'auth_state.dart';
 
 class AuthController extends StateNotifier<AuthState> {
   AuthController(this._repository) : super(const AuthState.unknown()) {
+    DioClient.onUnauthorized = _handleUnauthorized;
     _restore();
   }
 
   final AuthRepository _repository;
+
+  void _handleUnauthorized() {
+    if (state.status == AuthStatus.unauthenticated) return;
+    _repository.logout();
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+    state = const AuthState.unauthenticated(
+      errorMessage: 'Sesi telah berakhir. Silakan login kembali.',
+    );
+  }
 
   Future<void> _restore() async {
     try {
@@ -40,7 +52,16 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (_) {
       // Best-effort clear.
     }
+    rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     state = const AuthState.unauthenticated();
+  }
+
+  @override
+  void dispose() {
+    if (DioClient.onUnauthorized == _handleUnauthorized) {
+      DioClient.onUnauthorized = null;
+    }
+    super.dispose();
   }
 }
 

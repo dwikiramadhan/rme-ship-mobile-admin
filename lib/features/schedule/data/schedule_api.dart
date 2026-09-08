@@ -6,6 +6,28 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../domain/trip_schedule.dart';
 
+class ScheduleCounter {
+  const ScheduleCounter({
+    this.ongoing = 0,
+    this.scheduled = 0,
+    this.completed = 0,
+  });
+
+  final int ongoing;
+  final int scheduled;
+  final int completed;
+
+  int get total => ongoing + scheduled + completed;
+
+  factory ScheduleCounter.fromJson(Map<String, dynamic> json) {
+    return ScheduleCounter(
+      ongoing: (json['ongoing'] as num?)?.toInt() ?? 0,
+      scheduled: (json['scheduled'] as num?)?.toInt() ?? 0,
+      completed: (json['completed'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class SchedulePageResult {
   const SchedulePageResult({
     required this.items,
@@ -726,6 +748,28 @@ class ScheduleApi {
       );
     } on DioException catch (e) {
       debugPrint('ScheduleApi getPoliklinik error: $e');
+      throw DioClient.mapError(e);
+    }
+  }
+
+  /// Fetches schedule counters via GET /api/v1/schedules/ship/:shipCode/counter
+  Future<ScheduleCounter> getScheduleCounter(String shipCode) async {
+    try {
+      final response = await _dio.get(
+        ApiConfig.scheduleCounterPath(shipCode),
+      );
+      final data = response.data;
+      debugPrint('ScheduleApi [GET schedules/ship/$shipCode/counter] response: $data');
+
+      if (data is Map<String, dynamic>) {
+        final result = data['result'] ?? data['data'] ?? data;
+        if (result is Map<String, dynamic>) {
+          return ScheduleCounter.fromJson(result);
+        }
+      }
+      return const ScheduleCounter();
+    } on DioException catch (e) {
+      debugPrint('ScheduleApi getScheduleCounter error: $e');
       throw DioClient.mapError(e);
     }
   }

@@ -580,8 +580,9 @@ void main() {
     expect(find.descendant(of: modalFinder, matching: find.text('Andini Putri Lestari')), findsWidgets);
     expect(find.descendant(of: modalFinder, matching: find.text('ABK KAPAL (CREW)')), findsOneWidget);
     expect(find.descendant(of: modalFinder, matching: find.text('Herman Yulianto')), findsWidgets);
-    expect(find.descendant(of: modalFinder, matching: find.text('BAHAN BAKAR')), findsOneWidget);
-    expect(find.descendant(of: modalFinder, matching: find.text('AIR BERSIH')), findsOneWidget);
+    // Fuel and water fields were removed per user request
+    expect(find.descendant(of: modalFinder, matching: find.text('BAHAN BAKAR')), findsNothing);
+    expect(find.descendant(of: modalFinder, matching: find.text('AIR BERSIH')), findsNothing);
 
     // Clinics section has been removed from EditScheduleModal
     expect(find.descendant(of: modalFinder, matching: find.text('POLI TERSEDIA')), findsNothing);

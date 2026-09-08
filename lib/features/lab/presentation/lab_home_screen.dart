@@ -7,14 +7,11 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_badge.dart';
-import '../../../core/widgets/push_detail_page.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
-import '../../../core/widgets/screen_header.dart';
+import '../../notifications/presentation/notifications_view.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../patients/domain/doctor.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/medical_history.dart';
-import '../../patients/domain/patient.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
@@ -31,6 +28,7 @@ class LabHomeScreen extends ConsumerStatefulWidget {
 
 class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   String _tab = 'notifikasi';
+  String? _selectedLabId;
   StreamSubscription? _wsSub;
 
   @override
@@ -93,7 +91,20 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
     late final Widget content;
     switch (_tab) {
       case 'notifikasi':
-        content = _buildNotifikasi(notifs);
+        content = NotificationsView(
+          role: NotificationRole.lab,
+          onTapItem: (context, p, _) {
+            ref.read(notificationsProvider.notifier).markLabSeen(p.id);
+            ref.read(patientsProvider.notifier).markDilihatLab(p.id);
+            final medHist = p.toMedicalHistory();
+            ref.read(labOrderHistoryProvider.notifier).upsertHistory(medHist);
+            ref.read(patientsProvider.notifier).upsertPatient(p);
+            setState(() {
+              _tab = 'order';
+              _selectedLabId = medHist.id;
+            });
+          },
+        );
       case 'order':
         content = _buildOrder(labHistories);
       default:
@@ -108,133 +119,11 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
     );
   }
 
-  Widget _buildNotifikasi(List<Patient> notifs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ScreenHeader(
-          title: 'Notifikasi',
-          subtitle: '${notifs.length} order baru',
-        ),
-        Expanded(
-          child: notifs.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Tidak ada notifikasi baru',
-                    style: TextStyle(color: AppColors.sub, fontSize: 13),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: notifs.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final p = notifs[index];
-                    final doctorName = (p.doctorName != null &&
-                            p.doctorName!.isNotEmpty)
-                        ? p.doctorName!
-                        : (kDoctors
-                                .where((d) => d.id == p.assignedDokterId)
-                                .map((d) => d.nama)
-                                .firstOrNull ??
-                            '—');
-                    return Material(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(14),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () {
-                          ref
-                              .read(notificationsProvider.notifier)
-                              .markLabSeen(p.id);
-                          ref
-                              .read(patientsProvider.notifier)
-                              .markDilihatLab(p.id);
-                          pushDetailPage(
-                            context,
-                            title: p.nama,
-                            child: LabOrderDetail(
-                              patientId: p.id,
-                              medRecId: p.medicalRecordId,
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(13),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.text
-                                    .withValues(alpha: 0.08),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: AppColors.purpleLt,
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                child: const Icon(
-                                  LucideIcons.flaskConical,
-                                  size: 19,
-                                  color: AppColors.purple,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Order lab: ${p.labOrder!.jenis}',
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.text,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 1),
-                                    Text(
-                                      '${p.nama} · dari $doctorName',
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        color: AppColors.sub,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(
-                                LucideIcons.chevronRight,
-                                size: 16,
-                                color: AppColors.sub,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildOrder(List<MedicalHistory> histories) {
     final notifier = ref.read(labOrderHistoryProvider.notifier);
     return ResponsiveMasterDetail(
       title: 'Antrian Lab',
+      selectedId: _selectedLabId,
       subtitle: notifier.total > 0
           ? '${notifier.total} antrian lab'
           : '${histories.length} antrian lab',
@@ -246,6 +135,7 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
       onSearchChanged: (q) => notifier.searchHistory(q),
       searchPlaceholder: 'Cari nama atau NIK pasien...',
       onEntrySelected: (id) {
+        setState(() => _selectedLabId = id);
         final item = histories.where((h) => h.id == id).firstOrNull;
         final effectivePatientId =
             (item != null && item.patientId.isNotEmpty) ? item.patientId : id;

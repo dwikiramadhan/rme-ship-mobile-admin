@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/websocket_service.dart';
+import '../../../core/notifications/in_app_notification_manager.dart';
+import '../../../core/notifications/in_app_notification_model.dart';
 import '../domain/doctor.dart';
 import '../domain/lab_order.dart';
 import '../domain/medical_history.dart';
@@ -1040,18 +1042,26 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     PatientApi? api,
     SeenNotificationStorage? seenStorage,
     WebSocketService? wsService,
+    this.inAppNotifier,
   })  : _api = api ?? PatientApi(),
         _seenStorage = seenStorage ?? SeenNotificationStorage(),
         _wsService = wsService ?? WebSocketService(),
         super(const []) {
     Future.microtask(() => fetchRecentNotifications());
     _initWebSocket();
+    _initConnectionMonitor();
+    _initPeriodicFallback();
   }
 
   final PatientApi _api;
   final SeenNotificationStorage _seenStorage;
   final WebSocketService _wsService;
+  final InAppNotificationNotifier? inAppNotifier;
+
   StreamSubscription? _wsSubscription;
+  StreamSubscription? _connSubscription;
+  Timer? _fallbackTimer;
+  bool _isFirstLoad = true;
 
   void _initWebSocket() {
     _wsSubscription = _wsService.onEvent.listen((event) async {
@@ -1070,11 +1080,42 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
         await _seenStorage.unmarkLabSeen(patientId);
       }
 
-      await fetchRecentNotifications(targetPatientId: patientId);
+      await fetchRecentNotifications(
+        targetPatientId: patientId,
+        triggerBannerForPatientId: patientId,
+      );
     });
   }
 
-  Future<void> fetchRecentNotifications({String? targetPatientId}) async {
+  void _initConnectionMonitor() {
+    _connSubscription = _wsService.onConnectionChanged.listen((connected) {
+      if (connected) {
+        debugPrint('🔄 [NotificationsNotifier] Reconnected to ship Wi-Fi! Triggering catch-up sync...');
+        fetchRecentNotifications();
+      }
+    });
+  }
+
+  void _initPeriodicFallback() {
+    // 30-second silent background catch-up sync for ship Wi-Fi stability
+    _fallbackTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      fetchRecentNotifications();
+    });
+  }
+
+  /// Triggered manually when tablet screen wakes up / resumes from background
+  Future<void> catchUpSync() async {
+    debugPrint('📱 [NotificationsNotifier] App resumed, performing instant catch-up sync...');
+    if (!_wsService.isConnected) {
+      _wsService.connect();
+    }
+    await fetchRecentNotifications();
+  }
+
+  Future<void> fetchRecentNotifications({
+    String? targetPatientId,
+    String? triggerBannerForPatientId,
+  }) async {
     try {
       await _seenStorage.load();
       // Fetch recent triage/intake patients (page 1 with limit 50)
@@ -1097,8 +1138,66 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
         return isUnreadDoc || isUnreadDocLab || isUnreadPharm || isUnreadLab;
       }).toList();
 
+      // Check for new notifications to trigger floating in-app banner
+      if (inAppNotifier != null) {
+        for (final p in unread) {
+          final wasInState = state.any((old) => old.id == p.id);
+          final isTarget = p.id == triggerBannerForPatientId;
+          if ((!wasInState && !_isFirstLoad) || isTarget) {
+            _dispatchBanner(p);
+            break; // Show top priority banner
+          }
+        }
+      }
+
+      _isFirstLoad = false;
       state = unread;
     } catch (_) {}
+  }
+
+  void _dispatchBanner(Patient p) {
+    final identifier = p.nik.isNotEmpty ? p.nik : p.registerNo;
+    if (p.status == PatientStatus.menungguDokter) {
+      inAppNotifier?.showNotification(
+        InAppNotificationItem(
+          id: 'doc_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Pasien Siap Diperiksa',
+          message: '${p.nama} ($identifier) menunggu di antrian dokter.',
+          type: InAppNotificationType.doctor,
+          patientId: p.id,
+        ),
+      );
+    } else if (p.labOrder?.status == LabOrderStatus.selesai) {
+      inAppNotifier?.showNotification(
+        InAppNotificationItem(
+          id: 'lab_res_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Hasil Lab Selesai',
+          message: 'Hasil pemeriksaan laboratorium untuk ${p.nama} telah selesai.',
+          type: InAppNotificationType.lab,
+          patientId: p.id,
+        ),
+      );
+    } else if (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru) {
+      inAppNotifier?.showNotification(
+        InAppNotificationItem(
+          id: 'pharm_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Order Resep Baru',
+          message: 'Resep obat baru untuk pasien ${p.nama} siap diracik.',
+          type: InAppNotificationType.pharmacy,
+          patientId: p.id,
+        ),
+      );
+    } else if (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) {
+      inAppNotifier?.showNotification(
+        InAppNotificationItem(
+          id: 'lab_ord_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Order Pemeriksaan Lab',
+          message: 'Permintaan lab baru untuk pasien ${p.nama}.',
+          type: InAppNotificationType.lab,
+          patientId: p.id,
+        ),
+      );
+    }
   }
 
   void markDoctorSeen(String id) {
@@ -1111,9 +1210,23 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     state = state.where((p) => !(p.id == id && p.labOrder?.status == LabOrderStatus.selesai)).toList();
   }
 
+  void markAllDoctorSeen() {
+    final docIds = state.where((p) => p.status == PatientStatus.menungguDokter).map((p) => p.id);
+    final labIds = state.where((p) => p.labOrder?.status == LabOrderStatus.selesai).map((p) => p.id);
+    _seenStorage.markAllDoctorSeen(docIds);
+    _seenStorage.markAllDoctorLabSeen(labIds);
+    state = state.where((p) => p.status != PatientStatus.menungguDokter && p.labOrder?.status != LabOrderStatus.selesai).toList();
+  }
+
   void markPharmacySeen(String id) {
     _seenStorage.markPharmacySeen(id);
     state = state.where((p) => p.id != id).toList();
+  }
+
+  void markAllPharmacySeen() {
+    final pharmIds = state.where((p) => p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)).map((p) => p.id);
+    _seenStorage.markAllPharmacySeen(pharmIds);
+    state = state.where((p) => !(p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai))).toList();
   }
 
   void markLabSeen(String id) {
@@ -1121,9 +1234,17 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     state = state.where((p) => !(p.id == id && p.labOrder?.status == LabOrderStatus.baru)).toList();
   }
 
+  void markAllLabSeen() {
+    final labIds = state.where((p) => p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)).map((p) => p.id);
+    _seenStorage.markAllLabSeen(labIds);
+    state = state.where((p) => !(p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru))).toList();
+  }
+
   @override
   void dispose() {
     _wsSubscription?.cancel();
+    _connSubscription?.cancel();
+    _fallbackTimer?.cancel();
     super.dispose();
   }
 }
@@ -1131,7 +1252,8 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<Patient>>((ref) {
   final api = ref.watch(patientApiProvider);
   final ws = ref.watch(webSocketServiceProvider);
-  return NotificationsNotifier(api: api, wsService: ws);
+  final inAppNotifier = ref.watch(inAppNotificationProvider.notifier);
+  return NotificationsNotifier(api: api, wsService: ws, inAppNotifier: inAppNotifier);
 });
 
 final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>((ref) {
@@ -1282,6 +1404,22 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       _currentSearch = trimmed;
       fetchHistory(refresh: true);
     });
+  }
+
+  void upsertHistory(MedicalHistory history) {
+    final idx = state.indexWhere((h) =>
+        h.id == history.id ||
+        (history.patientId.isNotEmpty && h.patientId == history.patientId));
+    if (idx >= 0) {
+      state = [
+        ...state.sublist(0, idx),
+        history,
+        ...state.sublist(idx + 1),
+      ];
+    } else {
+      state = [history, ...state];
+      _total++;
+    }
   }
 
   @override

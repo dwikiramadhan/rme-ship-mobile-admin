@@ -1,5 +1,6 @@
 import 'package:bayan_rme/features/environment/domain/environment_item.dart';
 import 'package:bayan_rme/features/environment/presentation/environment_controller.dart';
+import 'package:bayan_rme/features/environment/presentation/server_connection_controller.dart';
 import 'package:bayan_rme/features/environment/presentation/ship_environment_ribbon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,6 +61,9 @@ void main() {
                 const AsyncValue.data(testEnv),
               ),
             ),
+            serverConnectionProvider.overrideWith(
+              (ref) => _FakeServerConnectionNotifier(true),
+            ),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -85,6 +89,9 @@ void main() {
                 const AsyncValue.loading(),
               ),
             ),
+            serverConnectionProvider.overrideWith(
+              (ref) => _FakeServerConnectionNotifier(true),
+            ),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -96,7 +103,79 @@ void main() {
 
       expect(find.text('Memuat data kapal...'), findsOneWidget);
     });
+
+    testWidgets('renders Disconnected status when server connection is false',
+        (tester) async {
+      const testEnv = EnvironmentItem(
+        id: 'env-1',
+        code: 'KAPAL-01',
+        name: 'KM Bayan 01',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activeEnvironmentProvider.overrideWith(
+              (ref) => _FakeEnvironmentController(
+                const AsyncValue.data(testEnv),
+              ),
+            ),
+            serverConnectionProvider.overrideWith(
+              (ref) => _FakeServerConnectionNotifier(false),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: ShipEnvironmentRibbon(),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Disconnected'), findsOneWidget);
+      expect(find.text('Terhubung'), findsNothing);
+    });
+
+    testWidgets('renders Terhubung status when server connection is true',
+        (tester) async {
+      const testEnv = EnvironmentItem(
+        id: 'env-1',
+        code: 'KAPAL-01',
+        name: 'KM Bayan 01',
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            activeEnvironmentProvider.overrideWith(
+              (ref) => _FakeEnvironmentController(
+                const AsyncValue.data(testEnv),
+              ),
+            ),
+            serverConnectionProvider.overrideWith(
+              (ref) => _FakeServerConnectionNotifier(true),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: ShipEnvironmentRibbon(),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Terhubung'), findsOneWidget);
+      expect(find.text('Disconnected'), findsNothing);
+    });
   });
+}
+
+class _FakeServerConnectionNotifier extends StateNotifier<bool>
+    implements ServerConnectionNotifier {
+  _FakeServerConnectionNotifier(super.state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _FakeEnvironmentController

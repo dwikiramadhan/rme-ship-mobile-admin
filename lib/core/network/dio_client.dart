@@ -14,6 +14,9 @@ class DioClient {
   static Dio? _instance;
   static final SessionStorage _storage = SessionStorage();
 
+  /// Callback triggered when a 401 Unauthorized response is received on a non-login endpoint.
+  static void Function()? onUnauthorized;
+
   static Dio get instance {
     if (_instance != null) return _instance!;
 
@@ -57,7 +60,7 @@ class DioClient {
           print('✅ [API RES] ${response.statusCode} $method $fullUrl');
           return handler.next(response);
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
           final fullUrl = e.requestOptions.uri.toString();
           final method = e.requestOptions.method.toUpperCase();
           final status = e.response?.statusCode ?? 'ERROR';
@@ -67,6 +70,16 @@ class DioClient {
             // ignore: avoid_print
             print('   ⚠️ Error Body: ${e.response?.data}');
           }
+
+          final statusCode = e.response?.statusCode;
+          final isLoginEndpoint = e.requestOptions.path.contains(ApiConfig.loginPath);
+          if (statusCode == 401 && !isLoginEndpoint) {
+            // ignore: avoid_print
+            print('🔒 [API ERR] 401 Unauthorized detected on $fullUrl -> redirecting to login');
+            await _storage.clear();
+            onUnauthorized?.call();
+          }
+
           return handler.next(e);
         },
       ),

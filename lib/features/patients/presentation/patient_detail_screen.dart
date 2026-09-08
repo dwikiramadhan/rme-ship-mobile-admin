@@ -31,6 +31,7 @@ class PatientDetailScreen extends ConsumerStatefulWidget {
 
 class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   int _selectedTabIndex = 0;
+  int _previousTabIndex = 0;
 
   String _formatIndonesianDateTime(dynamic raw) {
     if (raw == null) return '-';
@@ -775,11 +776,53 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
 
           const SizedBox(height: 14),
 
-          // 4. Tab Content
-          if (_selectedTabIndex == 0)
-            _buildMedicalRecordsTab(context, records, name, lastVisit)
-          else
-            _buildProfileTab(data),
+          // 4. Tab Content with smooth slider effect
+          ClipRect(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final isForward = _selectedTabIndex >= _previousTabIndex;
+                final isCurrent =
+                    child.key == ValueKey<int>(_selectedTabIndex);
+
+                final inOffset = isForward
+                    ? const Offset(0.20, 0.0)
+                    : const Offset(-0.20, 0.0);
+                final outOffset = isForward
+                    ? const Offset(-0.20, 0.0)
+                    : const Offset(0.20, 0.0);
+
+                final offsetTween = Tween<Offset>(
+                  begin: isCurrent ? inOffset : outOffset,
+                  end: Offset.zero,
+                );
+
+                return SlideTransition(
+                  position: offsetTween.animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
+                  child: FadeTransition(
+                    opacity: CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOut,
+                    ),
+                    child: child,
+                  ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey<int>(_selectedTabIndex),
+                child: _selectedTabIndex == 0
+                    ? _buildMedicalRecordsTab(context, records, name, lastVisit)
+                    : _buildProfileTab(data),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -834,7 +877,14 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   }) {
     final isSelected = _selectedTabIndex == index;
     return InkWell(
-      onTap: () => setState(() => _selectedTabIndex = index),
+      onTap: () {
+        if (_selectedTabIndex != index) {
+          setState(() {
+            _previousTabIndex = _selectedTabIndex;
+            _selectedTabIndex = index;
+          });
+        }
+      },
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       hoverColor: Colors.transparent,

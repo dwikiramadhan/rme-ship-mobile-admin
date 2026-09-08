@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'environment_controller.dart';
+import 'server_connection_controller.dart';
 
 /// Full-width top ribbon displaying the active ship/vessel environment
 /// the user is currently logged into.
@@ -13,6 +14,7 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final envState = ref.watch(activeEnvironmentProvider);
     final env = envState.valueOrNull;
+    final isConnected = ref.watch(serverConnectionProvider);
 
     return Container(
       width: double.infinity,
@@ -137,11 +139,16 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
                 width: 6.5,
                 height: 6.5,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981),
+                  color: isConnected
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFEF4444),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.6),
+                      color: (isConnected
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444))
+                          .withValues(alpha: 0.6),
                       blurRadius: 4,
                       spreadRadius: 1,
                     ),
@@ -149,20 +156,24 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text(
-                'Terhubung',
+              Text(
+                isConnected ? 'Terhubung' : 'Disconnected',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF34D399),
+                  color: isConnected
+                      ? const Color(0xFF34D399)
+                      : const Color(0xFFF87171),
                   fontFamily: 'PlusJakartaSans',
                 ),
               ),
               const SizedBox(width: 10),
               InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () =>
-                    ref.read(activeEnvironmentProvider.notifier).refresh(),
+                onTap: () {
+                  ref.read(activeEnvironmentProvider.notifier).refresh();
+                  ref.read(serverConnectionProvider.notifier).check();
+                },
                 child: Padding(
                   padding: const EdgeInsets.all(3),
                   child: Icon(

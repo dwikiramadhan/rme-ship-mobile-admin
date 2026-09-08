@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../data/schedule_api.dart';
 import '../data/schedule_repository.dart';
 import '../domain/trip_schedule.dart';
 import 'widgets/trip_schedule_card.dart';
@@ -61,14 +62,16 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
     final selectedFilter = schedulesNotifier.statusFilter;
     final allJadwal = schedulesAsync.valueOrNull ?? [];
 
-    final ongoingCount = allJadwal.where((j) => j.isOngoing).length;
-    final scheduledCount = allJadwal.where((j) => j.isScheduled).length;
-    final completedCount = allJadwal.where((j) => j.isCompleted).length;
+    // Counter from dedicated API endpoint (stable, not affected by pagination/filter)
+    final counterAsync = ref.watch(scheduleCounterProvider);
+    final counter = counterAsync.valueOrNull ?? const ScheduleCounter();
+
+    final ongoingCount = counter.ongoing;
+    final scheduledCount = counter.scheduled;
+    final completedCount = counter.completed;
     final cancelledCount = allJadwal.where((j) => j.isCancelled).length;
 
-    final totalCountDisplay = schedulesNotifier.totalCount > 0
-        ? schedulesNotifier.totalCount
-        : allJadwal.length;
+    final totalCountDisplay = counter.total;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -76,7 +79,7 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
         // Screen Header
         ScreenHeader(
           title: 'Jadwal Perjalanan',
-          subtitle: schedulesAsync.isLoading && allJadwal.isEmpty
+          subtitle: counterAsync.isLoading && allJadwal.isEmpty
               ? 'Memuat data jadwal...'
               : '$ongoingCount Ongoing · $totalCountDisplay Total Jadwal',
         ),
@@ -85,6 +88,7 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
           child: RefreshIndicator(
             color: AppColors.orange,
             onRefresh: () async {
+              ref.invalidate(scheduleCounterProvider);
               await ref.read(schedulesNotifierProvider.notifier).refresh();
             },
             child: NotificationListener<ScrollNotification>(
@@ -166,7 +170,7 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(40),
                       border: Border.all(color: AppColors.border),
                       boxShadow: [
                         BoxShadow(
@@ -187,9 +191,10 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                       decoration: InputDecoration(
                         hintText: 'Cari kapal, rute, pelabuhan, dokter...',
                         hintStyle: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: AppColors.sub,
                           fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
                         ),
                         prefixIcon: const Icon(
                           LucideIcons.search,
@@ -206,7 +211,18 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                                 onPressed: _onClearSearch,
                               )
                             : null,
-                        border: InputBorder.none,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(40),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(40),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(40),
+                          borderSide: BorderSide.none,
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 14,
                           horizontal: 16,
@@ -224,14 +240,12 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                       children: [
                         _M3FilterChip(
                           label: 'Semua',
-                          count: totalCountDisplay,
                           isSelected: selectedFilter == 'Semua',
                           onTap: () => _onFilterSelected('Semua'),
                         ),
                         const SizedBox(width: 8),
                         _M3FilterChip(
                           label: 'Ongoing',
-                          count: ongoingCount,
                           isSelected: selectedFilter == 'Ongoing',
                           color: AppColors.blue,
                           onTap: () => _onFilterSelected('Ongoing'),
@@ -239,7 +253,6 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                         const SizedBox(width: 8),
                         _M3FilterChip(
                           label: 'Scheduled',
-                          count: scheduledCount,
                           isSelected: selectedFilter == 'Scheduled',
                           color: AppColors.yellow,
                           onTap: () => _onFilterSelected('Scheduled'),
@@ -247,7 +260,6 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                         const SizedBox(width: 8),
                         _M3FilterChip(
                           label: 'Completed',
-                          count: completedCount,
                           isSelected: selectedFilter == 'Completed',
                           color: AppColors.green,
                           onTap: () => _onFilterSelected('Completed'),
@@ -257,7 +269,6 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                           const SizedBox(width: 8),
                           _M3FilterChip(
                             label: 'Cancelled',
-                            count: cancelledCount,
                             isSelected: selectedFilter == 'Cancelled',
                             color: AppColors.red,
                             onTap: () => _onFilterSelected('Cancelled'),
@@ -274,7 +285,9 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 48),
                       child: Center(
-                        child: CircularProgressIndicator(color: AppColors.orange),
+                        child: CircularProgressIndicator(
+                          color: AppColors.orange,
+                        ),
                       ),
                     )
                   else if (schedulesAsync.hasError && allJadwal.isEmpty)
@@ -353,9 +366,7 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
             decoration: BoxDecoration(
               color: AppColors.redLt,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.red.withValues(alpha: 0.3),
-              ),
+              border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
             ),
             child: const Icon(
               LucideIcons.alertCircle,
@@ -377,19 +388,13 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
           Text(
             (err ?? '').toString().replaceAll('Exception:', '').trim(),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12.5,
-              color: AppColors.sub,
-            ),
+            style: const TextStyle(fontSize: 11, color: AppColors.sub),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.orange,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -437,11 +442,7 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
           const SizedBox(height: 6),
           const Text(
             'Coba ubah kata kunci pencarian atau sesuaikan filter status pelayaran di atas.',
-            style: TextStyle(
-              fontSize: 12.5,
-              color: AppColors.sub,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 12.5, color: AppColors.sub, height: 1.4),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
@@ -571,14 +572,12 @@ class _M3StatPill extends StatelessWidget {
 class _M3FilterChip extends StatelessWidget {
   const _M3FilterChip({
     required this.label,
-    required this.count,
     required this.isSelected,
     required this.onTap,
     this.color,
   });
 
   final String label;
-  final int count;
   final bool isSelected;
   final VoidCallback onTap;
   final Color? color;
@@ -603,36 +602,13 @@ class _M3FilterChip extends StatelessWidget {
               width: 1,
             ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                  color: isSelected ? Colors.white : AppColors.text,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? Colors.white.withValues(alpha: 0.25)
-                      : AppColors.card2,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
-                    color: isSelected ? Colors.white : AppColors.sub,
-                  ),
-                ),
-              ),
-            ],
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isSelected ? Colors.white : AppColors.text,
+            ),
           ),
         ),
       ),

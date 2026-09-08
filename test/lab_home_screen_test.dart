@@ -44,9 +44,19 @@ class _FakeAuthRepository implements AuthRepository {
 
 class _MockWebSocketService implements WebSocketService {
   final _controller = StreamController<Map<String, dynamic>>.broadcast();
+  final _connController = StreamController<bool>.broadcast();
 
   @override
   Stream<Map<String, dynamic>> get onEvent => _controller.stream;
+
+  @override
+  Stream<bool> get onConnectionChanged => _connController.stream;
+
+  @override
+  bool get isConnected => true;
+
+  @override
+  void connect() {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -54,6 +64,7 @@ class _MockWebSocketService implements WebSocketService {
   @override
   void dispose() {
     _controller.close();
+    _connController.close();
   }
 }
 
@@ -217,7 +228,7 @@ void main() {
     // Tap 'Antrian Lab' tab
     await tester.tap(find.text('Antrian Lab'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
 
     // Verify initial call requested status_penanganan = 'Menunggu Lab'
     expect(mockApi.lastStatusPenanganan, 'Menunggu Lab');
@@ -290,7 +301,7 @@ void main() {
     // Tap 'Antrian Lab' tab
     await tester.tap(find.text('Antrian Lab'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 300));
 
     // Select first patient in list
     await tester.tap(find.text('Budi Darmawan').first);
@@ -301,6 +312,18 @@ void main() {
     expect(find.text('ORDER PEMERIKSAAN'), findsOneWidget);
     expect(find.text('HASIL PEMERIKSAAN'), findsOneWidget);
     expect(find.text('Tambah Parameter Pemeriksaan'), findsOneWidget);
+
+    // Enter parameter name in the first parameter
+    final testNameFields = find.byType(TextField);
+    // Find textfield with placeholder 'cth: Glukosa Sewaktu' or matching controller
+    for (final element in testNameFields.evaluate()) {
+      final widget = element.widget as TextField;
+      if (widget.decoration?.hintText == 'cth: Glukosa Sewaktu') {
+        await tester.enterText(find.byWidget(widget), 'Darah Rutin');
+        await tester.pump();
+        break;
+      }
+    }
 
     // Tap 'Kirim Hasil ke Dokter' button
     final submitBtn = find.text('Kirim Hasil ke Dokter');

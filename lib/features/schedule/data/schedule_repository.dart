@@ -222,6 +222,15 @@ class ScheduleRepository {
       rethrow;
     }
   }
+  /// Fetches schedule status counters from the dedicated counter API
+  Future<ScheduleCounter> fetchScheduleCounter(String shipCode) async {
+    try {
+      return await _api.getScheduleCounter(shipCode);
+    } catch (e) {
+      debugPrint('ScheduleRepository fetchScheduleCounter error: $e');
+      rethrow;
+    }
+  }
 }
 
 final scheduleApiProvider = Provider<ScheduleApi>((ref) => ScheduleApi());
@@ -229,6 +238,13 @@ final scheduleApiProvider = Provider<ScheduleApi>((ref) => ScheduleApi());
 final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
   final api = ref.watch(scheduleApiProvider);
   return ScheduleRepository(api);
+});
+
+/// Provides stable counter data fetched from GET /api/v1/schedules/ship/:shipCode/counter.
+final scheduleCounterProvider = FutureProvider.autoDispose<ScheduleCounter>((ref) async {
+  final shipCode = await resolveLocalStorageShipCode(ref);
+  final repo = ref.watch(scheduleRepositoryProvider);
+  return repo.fetchScheduleCounter(shipCode);
 });
 
 class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
@@ -300,22 +316,42 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
     await refresh();
   }
 
+  static String _formatRfc3339(DateTime dt) {
+    final offset = dt.timeZoneOffset;
+    final hours = offset.inHours.abs().toString().padLeft(2, '0');
+    final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+    final sign = offset.isNegative ? '-' : '+';
+    final offsetStr = '$sign$hours:$minutes';
+
+    final year = dt.year.toString().padLeft(4, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final day = dt.day.toString().padLeft(2, '0');
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final second = dt.second.toString().padLeft(2, '0');
+
+    return '$year-$month-${day}T$hour:$minute:$second$offsetStr';
+  }
+
   Future<void> addTripIssue({
     required String description,
     required DateTime occurredAt,
-    String? occurredAtTz,
+    String? scheduleId,
     double? lat,
     double? lng,
   }) async {
     final current = state.valueOrNull ?? _initial;
-    final body = {
-      'schedule_id': current.id,
+    final schedId = (scheduleId != null && scheduleId.isNotEmpty)
+        ? scheduleId
+        : (current.id.isNotEmpty ? current.id : _initial.id);
+    final body = <String, dynamic>{
+      'schedule_id': schedId,
       'description': description,
-      'occurred_at': occurredAt.toIso8601String(),
-      'occurred_at_tz': ?occurredAtTz,
+      'occurred_at': _formatRfc3339(occurredAt),
       'lat': ?lat,
       'lng': ?lng,
     };
+    debugPrint('ScheduleRepository [POST /api/v1/trip-issues] body: $body');
     await _repository.addTripIssue(body);
     await refresh();
   }

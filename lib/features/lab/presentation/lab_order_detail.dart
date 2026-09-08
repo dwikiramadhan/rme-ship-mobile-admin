@@ -18,7 +18,7 @@ import '../../patients/presentation/patient_info_card.dart';
 class _LabItemForm {
   _LabItemForm({
     String testName = '',
-    String testCategory = 'Kimia Darah',
+    String testCategory = '',
     String unit = '',
     String referenceRange = '',
     String notes = '',
@@ -73,6 +73,9 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.patientId != widget.patientId ||
         oldWidget.medRecId != widget.medRecId) {
+      _items.clear();
+      _generalNotesCtrl.clear();
+      _fileName = null;
       _load();
     }
   }
@@ -90,88 +93,17 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   }
 
   void _initItems(LabOrder? order) {
-    if (_items.isNotEmpty) return;
-    final jenis = order?.jenis ?? '';
-    final defaultCategory = _inferCategory(jenis);
-    _items.add(
-      _LabItemForm(
-        testName: jenis,
-        testCategory: defaultCategory,
-        unit: _inferUnit(jenis),
-        referenceRange: _inferRefRange(jenis),
-      ),
-    );
-    if (_generalNotesCtrl.text.isEmpty) {
-      _generalNotesCtrl.text = (order?.catatan.isNotEmpty == true)
-          ? order!.catatan
-          : (jenis.isNotEmpty ? 'Pemeriksaan $jenis' : '');
+    if (_items.isEmpty) {
+      _items.add(_LabItemForm());
     }
-  }
-
-  String _inferCategory(String test) {
-    final lower = test.toLowerCase();
-    if (lower.contains('darah') ||
-        lower.contains('leukosit') ||
-        lower.contains('hb') ||
-        lower.contains('hemat')) {
-      return 'Hematologi';
-    } else if (lower.contains('urin')) {
-      return 'Urinalisis';
-    } else if (lower.contains('gula') ||
-        lower.contains('glukosa') ||
-        lower.contains('kolesterol') ||
-        lower.contains('lipid') ||
-        lower.contains('asam urat')) {
-      return 'Kimia Darah';
-    } else if (lower.contains('widal') ||
-        lower.contains('antigen') ||
-        lower.contains('hiv') ||
-        lower.contains('hbsag')) {
-      return 'Imunoserologi';
+    if (_generalNotesCtrl.text.isEmpty && order?.catatan.isNotEmpty == true) {
+      _generalNotesCtrl.text = order!.catatan;
     }
-    return 'Kimia Darah';
-  }
-
-  String _inferUnit(String test) {
-    final lower = test.toLowerCase();
-    if (lower.contains('glukosa') ||
-        lower.contains('gula') ||
-        lower.contains('kolesterol') ||
-        lower.contains('asam urat')) {
-      return 'mg/dL';
-    } else if (lower.contains('hb') || lower.contains('hemoglobin')) {
-      return 'g/dL';
-    } else if (lower.contains('leukosit') ||
-        lower.contains('trombosit') ||
-        lower.contains('eritrosit')) {
-      return '/µL';
-    }
-    return '';
-  }
-
-  String _inferRefRange(String test) {
-    final lower = test.toLowerCase();
-    if (lower.contains('glukosa') || lower.contains('gula')) {
-      return '< 200';
-    } else if (lower.contains('kolesterol')) {
-      return '< 200';
-    } else if (lower.contains('hb') || lower.contains('hemoglobin')) {
-      return '12.0 - 16.0';
-    }
-    return '';
   }
 
   void _addItem() {
     setState(() {
-      _items.add(
-        _LabItemForm(
-          testName: '',
-          testCategory: 'Kimia Darah',
-          unit: 'mg/dL',
-          referenceRange: '< 200',
-          notes: '',
-        ),
-      );
+      _items.add(_LabItemForm());
     });
   }
 
@@ -208,9 +140,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
         .map(
           (it) => {
             'test_name': it.testNameCtrl.text.trim(),
-            'test_category': it.testCategoryCtrl.text.trim().isNotEmpty
-                ? it.testCategoryCtrl.text.trim()
-                : 'Kimia Darah',
+            'test_category': it.testCategoryCtrl.text.trim(),
             'unit': it.unitCtrl.text.trim(),
             'reference_range': it.referenceRangeCtrl.text.trim(),
             'notes': it.notesCtrl.text.trim(),
@@ -398,7 +328,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.purpleLt,
+                        color: AppColors.skyLt,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -406,7 +336,27 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                         style: const TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.purple,
+                          color: AppColors.skyBlue,
+                        ),
+                      ),
+                    )
+                  else if (order.hasil?.items != null &&
+                      order.hasil!.items.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.skyLt,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${order.hasil!.items.length} parameter',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.skyBlue,
                         ),
                       ),
                     ),
@@ -622,25 +572,23 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                   ),
                 ],
 
-                OutlinedButton.icon(
-                  onPressed: _addItem,
-                  icon: const Icon(LucideIcons.plus, size: 14),
-                  label: const Text(
-                    'Tambah Parameter Pemeriksaan',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _addItem,
+                    icon: const Icon(LucideIcons.plus, size: 14),
+                    label: const Text(
+                      'Tambah Parameter Pemeriksaan',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.purple,
-                    side: const BorderSide(color: AppColors.purple, width: 1.2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.skyBlue,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                     ),
                   ),
                 ),

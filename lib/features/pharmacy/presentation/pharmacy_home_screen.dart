@@ -7,14 +7,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
-import '../../../core/widgets/push_detail_page.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
-import '../../../core/widgets/screen_header.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
+import '../../notifications/presentation/notifications_view.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../patients/domain/doctor.dart';
 import '../../patients/domain/medical_history.dart';
-import '../../patients/domain/patient.dart';
 import '../../patients/domain/prescription_item.dart';
 import '../../patients/presentation/status_meta.dart';
 import '../../profile/presentation/profile_screen.dart';
@@ -34,6 +31,7 @@ class PharmacyHomeScreen extends ConsumerStatefulWidget {
 class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
   String _tab = 'notifikasi';
   String _statusFilter = 'Menunggu Obat';
+  String? _selectedResepId;
   StreamSubscription? _wsSub;
 
   @override
@@ -154,11 +152,26 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
     late final Widget content;
     switch (_tab) {
       case 'notifikasi':
-        content = _buildNotifikasi(notifs);
+        content = NotificationsView(
+          role: NotificationRole.pharmacy,
+          onTapItem: (context, p, _) {
+            ref.read(notificationsProvider.notifier).markPharmacySeen(p.id);
+            ref.read(patientsProvider.notifier).markDilihatPharmacy(p.id);
+            final medHist = p.toMedicalHistory();
+            ref
+                .read(pharmacyPrescriptionHistoryProvider.notifier)
+                .upsertHistory(medHist);
+            ref.read(patientsProvider.notifier).upsertPatient(p);
+            setState(() {
+              _tab = 'resep';
+              _selectedResepId = medHist.id;
+            });
+          },
+        );
       case 'resep':
         content = _buildResep();
       case 'stok':
-        content = const StokObatScreen(canManage: true);
+        content = const MedicineStockScreen(canManage: true);
       default:
         content = ProfileScreen(name: widget.apotekerName, role: 'Apoteker');
     }
@@ -173,127 +186,6 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
         setState(() => _tab = key);
       },
       child: content,
-    );
-  }
-
-  Widget _buildNotifikasi(List<Patient> notifs) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        ScreenHeader(
-          title: 'Notifikasi',
-          subtitle: '${notifs.length} resep baru',
-        ),
-        Expanded(
-          child: notifs.isEmpty
-              ? const Center(
-                  child: Text(
-                    'Tidak ada notifikasi baru',
-                    style: TextStyle(color: AppColors.sub, fontSize: 13),
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: notifs.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final p = notifs[index];
-                    final doctorName =
-                        kDoctors
-                            .where((d) => d.id == p.assignedDokterId)
-                            .map((d) => d.nama)
-                            .firstOrNull ??
-                        '—';
-                    final cleanPatientName = CleanTextHelper.cleanName(p.nama, fallback: 'Pasien');
-                    final cleanPatientNik = CleanTextHelper.cleanCode(p.nik);
-                    return Material(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(14),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(14),
-                        onTap: () {
-                          ref
-                              .read(notificationsProvider.notifier)
-                              .markPharmacySeen(p.id);
-                          ref
-                              .read(patientsProvider.notifier)
-                              .markDilihatPharmacy(p.id);
-                          pushDetailPage(
-                            context,
-                            title: cleanPatientName,
-                            child: ResepDetail(
-                              patientId: p.id,
-                              medRecId: p.medicalRecordId,
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(13),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.text.withValues(alpha: 0.08),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: AppColors.yellowLt,
-                                  borderRadius: BorderRadius.circular(11),
-                                ),
-                                child: const Icon(
-                                  LucideIcons.fileText,
-                                  size: 19,
-                                  color: AppColors.yellow,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'Resep baru: $cleanPatientName',
-                                      style: const TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.text,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 1),
-                                    Text(
-                                      '$doctorName · ${cleanPatientNik.isNotEmpty ? cleanPatientNik : '—'}',
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        color: AppColors.sub,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const Icon(
-                                LucideIcons.chevronRight,
-                                size: 16,
-                                color: AppColors.sub,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-        ),
-      ],
     );
   }
 
@@ -316,6 +208,7 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
 
     return ResponsiveMasterDetail(
       title: 'Antrian Resep',
+      selectedId: _selectedResepId,
       isLoading: notifier.isLoading,
       hasMore: notifier.hasMore,
       isLoadingMore: notifier.isLoadingMore,
@@ -325,6 +218,7 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
       searchPlaceholder: 'Cari nama atau NIK pasien...',
       searchTrailing: _buildStatusFilterButton(notifier),
       onEntrySelected: (id) {
+        setState(() => _selectedResepId = id);
         final item = displayHistories.where((h) => h.id == id).firstOrNull ??
             histories.where((h) => h.id == id).firstOrNull;
         final effectivePatientId =

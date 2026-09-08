@@ -30,6 +30,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _loadSavedEmail();
+    final authState = ref.read(authControllerProvider);
+    if (authState.status == AuthStatus.unauthenticated &&
+        authState.errorMessage != null) {
+      _errorMessage = _formatErrorMessage(authState.errorMessage!);
+    }
+  }
+
+  String _formatErrorMessage(String message) {
+    final lower = message.toLowerCase();
+    if (lower.contains('sesi') || lower.contains('session')) {
+      return 'Sesi telah berakhir. Silakan login kembali.';
+    } else if (lower.contains('credential') ||
+        lower.contains('unauthorized') ||
+        lower.contains('password') ||
+        lower.contains('401') ||
+        lower.contains('tidak valid') ||
+        lower.contains('salah')) {
+      return 'Email atau password salah';
+    }
+    return message;
   }
 
   Future<void> _loadSavedEmail() async {
@@ -117,17 +137,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     ref.listen<AuthState>(authControllerProvider, (previous, next) {
       if (next.status == AuthStatus.unauthenticated &&
           next.errorMessage != null) {
-        String displayMsg = next.errorMessage!;
-        final lower = displayMsg.toLowerCase();
-        if (lower.contains('credential') ||
-            lower.contains('unauthorized') ||
-            lower.contains('password') ||
-            lower.contains('401') ||
-            lower.contains('tidak valid') ||
-            lower.contains('salah')) {
-          displayMsg = 'Email atau password salah';
-        }
-
+        final displayMsg = _formatErrorMessage(next.errorMessage!);
         setState(() {
           _errorMessage = displayMsg;
         });

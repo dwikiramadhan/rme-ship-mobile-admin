@@ -18,10 +18,13 @@ class WebSocketService {
 
   bool _isConnected = false;
   bool _isDisposed = false;
+  int _reconnectAttempts = 0;
 
   final _eventController = StreamController<Map<String, dynamic>>.broadcast();
+  final _connectionController = StreamController<bool>.broadcast();
 
   Stream<Map<String, dynamic>> get onEvent => _eventController.stream;
+  Stream<bool> get onConnectionChanged => _connectionController.stream;
   bool get isConnected => _isConnected;
 
   void connect() {
@@ -34,7 +37,8 @@ class WebSocketService {
 
       _subscription = _channel!.stream.listen(
         (data) {
-          _isConnected = true;
+          _updateConnection(true);
+          _reconnectAttempts = 0;
           _handleMessage(data);
         },
         onError: (error) {
@@ -48,12 +52,22 @@ class WebSocketService {
         cancelOnError: true,
       );
 
-      _isConnected = true;
+      _updateConnection(true);
+      _reconnectAttempts = 0;
       _startHeartbeat();
       debugPrint('✅ [WebSocket] Connected successfully.');
     } catch (e) {
       debugPrint('⚠️ [WebSocket] Failed to connect: $e');
       _scheduleReconnect();
+    }
+  }
+
+  void _updateConnection(bool connected) {
+    if (_isConnected != connected) {
+      _isConnected = connected;
+      if (!_connectionController.isClosed) {
+        _connectionController.add(connected);
+      }
     }
   }
 
@@ -87,7 +101,7 @@ class WebSocketService {
   }
 
   void _scheduleReconnect() {
-    _isConnected = false;
+    _updateConnection(false);
     _subscription?.cancel();
     _subscription = null;
     _pingTimer?.cancel();
@@ -95,9 +109,15 @@ class WebSocketService {
     if (_isDisposed) return;
 
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(const Duration(seconds: 5), () {
+    // Exponential backoff: 2s, 4s, 8s, up to max 15s to keep ship Wi-Fi healthy
+    final delaySeconds = (_reconnectAttempts < 3)
+        ? (2 * (1 << _reconnectAttempts))
+        : 15;
+    _reconnectAttempts++;
+
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
       if (!_isDisposed && !_isConnected) {
-        debugPrint('🔄 [WebSocket] Attempting reconnect...');
+        debugPrint('🔄 [WebSocket] Attempting reconnect (attempt $_reconnectAttempts)...');
         connect();
       }
     });
@@ -115,11 +135,12 @@ class WebSocketService {
 
   void dispose() {
     _isDisposed = true;
-    _isConnected = false;
+    _updateConnection(false);
     _reconnectTimer?.cancel();
     _pingTimer?.cancel();
     _subscription?.cancel();
     _channel?.sink.close();
     _eventController.close();
+    _connectionController.close();
   }
 }

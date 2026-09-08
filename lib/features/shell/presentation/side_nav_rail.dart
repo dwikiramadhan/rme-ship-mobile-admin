@@ -118,7 +118,9 @@ class _RailButton extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Container(
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
                     width: 48,
                     height: 36,
                     alignment: Alignment.center,
@@ -135,12 +137,12 @@ class _RailButton extends StatelessWidget {
                             )
                           : null,
                       borderRadius: BorderRadius.circular(12),
-                      border: active
-                          ? Border.all(
-                              color: AppColors.orange.withValues(alpha: 0.3),
-                              width: 1.0,
-                            )
-                          : null,
+                      border: Border.all(
+                        color: active
+                            ? AppColors.orange.withValues(alpha: 0.3)
+                            : Colors.transparent,
+                        width: 1.0,
+                      ),
                       boxShadow: active
                           ? [
                               BoxShadow(
@@ -176,10 +178,16 @@ class _RailButton extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                item.label,
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11.5, fontWeight: active ? FontWeight.w700 : FontWeight.w500, color: active ? AppColors.blue : AppColors.sub),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  color: active ? AppColors.blue : AppColors.sub,
+                ),
+                child: Text(item.label),
               ),
             ],
           ),

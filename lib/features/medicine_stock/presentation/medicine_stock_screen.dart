@@ -35,6 +35,7 @@ class MedicineStockScreen extends ConsumerStatefulWidget {
 
 class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
   int _selectedTabIndex = 0;
+  int _previousTabIndex = 0;
   final _stockScrollController = ScrollController();
   final _historyScrollController = ScrollController();
 
@@ -158,12 +159,51 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
         ScreenHeader(title: 'Stok & Transaksi Obat', subtitle: subtitle),
         _buildTabBar(),
         Expanded(
-          child: IndexedStack(
-            index: _selectedTabIndex,
-            children: [
-              _buildInventarisTab(effectiveShipCode, stockState),
-              _buildHistoryTab(effectiveShipCode, historyState),
-            ],
+          child: ClipRect(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final isForward = _selectedTabIndex >= _previousTabIndex;
+                final isCurrent =
+                    child.key == ValueKey<int>(_selectedTabIndex);
+
+                final inOffset = isForward
+                    ? const Offset(0.20, 0.0)
+                    : const Offset(-0.20, 0.0);
+                final outOffset = isForward
+                    ? const Offset(-0.20, 0.0)
+                    : const Offset(0.20, 0.0);
+
+                final offsetTween = Tween<Offset>(
+                  begin: isCurrent ? inOffset : outOffset,
+                  end: Offset.zero,
+                );
+
+                return SlideTransition(
+                  position: offsetTween.animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutCubic,
+                    ),
+                  ),
+                  child: FadeTransition(
+                    opacity: CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOut,
+                    ),
+                    child: child,
+                  ),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey<int>(_selectedTabIndex),
+                child: _selectedTabIndex == 0
+                    ? _buildInventarisTab(effectiveShipCode, stockState)
+                    : _buildHistoryTab(effectiveShipCode, historyState),
+              ),
+            ),
           ),
         ),
       ],
@@ -235,7 +275,10 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
       behavior: HitTestBehavior.opaque,
       onTap: () {
         if (_selectedTabIndex != index) {
-          setState(() => _selectedTabIndex = index);
+          setState(() {
+            _previousTabIndex = _selectedTabIndex;
+            _selectedTabIndex = index;
+          });
         }
       },
       child: Container(
