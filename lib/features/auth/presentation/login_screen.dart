@@ -1,11 +1,15 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/network/api_config.dart';
+import '../../../core/network/server_discovery.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/server_settings_dialog.dart';
 import '../data/session_storage.dart';
 import 'auth_controller.dart';
 import 'auth_state.dart';
@@ -25,16 +29,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = true;
   String? _errorMessage;
+  bool _serverChecking = false;
+  bool _serverOnline = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedEmail();
+    _autoDiscoverServer();
     final authState = ref.read(authControllerProvider);
     if (authState.status == AuthStatus.unauthenticated &&
         authState.errorMessage != null) {
       _errorMessage = _formatErrorMessage(authState.errorMessage!);
     }
+  }
+
+  Future<void> _autoDiscoverServer() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
+    setState(() => _serverChecking = true);
+    final isAlive = await ApiConfig.testConnection(ApiConfig.baseUrl);
+    if (isAlive) {
+      if (mounted) {
+        setState(() {
+          _serverChecking = false;
+          _serverOnline = true;
+        });
+      }
+      return;
+    }
+
+    final found = await ServerDiscovery.autoDiscover();
+    if (!mounted) return;
+    setState(() {
+      _serverChecking = false;
+      _serverOnline = found != null;
+    });
   }
 
   String _formatErrorMessage(String message) {
@@ -249,23 +278,132 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Welcome Back',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: AppColors.text,
-                letterSpacing: 0,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Please sign in to your account to continue',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.sub,
-                letterSpacing: 0,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Welcome Back',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.text,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Please sign in to your account to continue',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.sub,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: () async {
+                          await ServerSettingsDialog.show(context);
+                          if (mounted) _autoDiscoverServer();
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _serverChecking
+                                ? AppColors.skyLt
+                                : (_serverOnline
+                                      ? const Color(0xFFECFDF5)
+                                      : AppColors.redLt),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _serverChecking
+                                  ? AppColors.skyBlue.withValues(alpha: 0.3)
+                                  : (_serverOnline
+                                        ? const Color(0xFF10B981).withValues(alpha: 0.3)
+                                        : AppColors.red.withValues(alpha: 0.3)),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_serverChecking) ...[
+                                const SizedBox(
+                                  width: 9,
+                                  height: 9,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: AppColors.skyBlue,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                const Text(
+                                  'Mencari server di Wi-Fi...',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.skyBlue,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ] else if (_serverOnline) ...[
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'Server Terhubung (${ApiConfig.baseUrl.replaceFirst(RegExp(r'https?://'), '')})',
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF059669),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ] else ...[
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: AppColors.red,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                const Text(
+                                  'Server belum terhubung',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.red,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Pengaturan Server IP',
+                  onPressed: () => ServerSettingsDialog.show(context),
+                  icon: const Icon(LucideIcons.server, size: 18),
+                  color: AppColors.sub,
+                  splashRadius: 20,
+                ),
+              ],
             ),
             const SizedBox(height: 18),
 
