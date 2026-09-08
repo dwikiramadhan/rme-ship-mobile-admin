@@ -268,7 +268,18 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             tindakan = recTreatment;
           }
 
-          if (recComplaint != null && recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
+          if (recComplaint != null && recComplaint.contains('•')) {
+            final parts = recComplaint.split('•');
+            complaint = parts[0].trim();
+            for (final p in parts.skip(1)) {
+              final trimmed = p.trim();
+              if (trimmed.startsWith('Durasi:')) {
+                durasi = trimmed.substring('Durasi:'.length).trim();
+              } else if (trimmed.startsWith('Lokasi:')) {
+                lokasi = trimmed.substring('Lokasi:'.length).trim();
+              }
+            }
+          } else if (recComplaint != null && recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
             complaint = recComplaint;
           } else if (complaint == null && recComplaint != null && recComplaint.isNotEmpty) {
             complaint = recComplaint;
@@ -285,6 +296,25 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             diag = recDiag;
           }
 
+          // 1. Read structured vitals from medical record columns
+          final vs = raw['vital_signs'] is Map ? raw['vital_signs'] as Map : null;
+          final rawBp = raw['blood_pressure']?.toString() ?? vs?['blood_pressure']?.toString() ?? '';
+          final rawHr = raw['heart_rate']?.toString() ?? vs?['heart_rate']?.toString() ?? '';
+          final rawTemp = raw['temperature']?.toString() ?? vs?['temperature']?.toString() ?? '';
+          final rawRr = raw['respiratory_rate']?.toString() ?? vs?['respiratory_rate']?.toString() ?? '';
+          final rawSpo2 = raw['oxygen_saturation']?.toString() ?? vs?['oxygen_saturation']?.toString() ?? '';
+
+          if (rawBp.isNotEmpty || rawHr.isNotEmpty || rawTemp.isNotEmpty || rawRr.isNotEmpty || rawSpo2.isNotEmpty) {
+            parsedVitals = Vitals(
+              tekananDarah: rawBp,
+              nadi: rawHr,
+              suhu: rawTemp,
+              frekuensiNapas: rawRr,
+              spo2: rawSpo2,
+            );
+          }
+
+          // 2. Fallback / supplementary parse from triage notes
           if (notes.contains('[Triage]') || notes.contains('Durasi:') || notes.contains('TD:')) {
             final parts = notes.split('|');
             String td = '';
@@ -294,9 +324,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             String spo2 = '';
             for (final rawPart in parts) {
               final part = rawPart.replaceFirst('[Triage]', '').trim();
-              if (part.startsWith('Durasi:')) {
+              if (part.startsWith('Durasi:') && durasi == '-') {
                 durasi = part.substring('Durasi:'.length).trim();
-              } else if (part.startsWith('Lokasi:')) {
+              } else if (part.startsWith('Lokasi:') && lokasi == '-') {
                 lokasi = part.substring('Lokasi:'.length).trim();
               } else if (part.startsWith('TD:')) {
                 td = part.substring('TD:'.length).trim();
@@ -310,13 +340,15 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
                 spo2 = part.substring('SpO2:'.length).trim();
               }
             }
-            parsedVitals = Vitals(
-              tekananDarah: td,
-              nadi: hr,
-              suhu: temp,
-              frekuensiNapas: rr,
-              spo2: spo2,
-            );
+            if (parsedVitals == null || parsedVitals.isEmpty) {
+              parsedVitals = Vitals(
+                tekananDarah: td,
+                nadi: hr,
+                suhu: temp,
+                frekuensiNapas: rr,
+                spo2: spo2,
+              );
+            }
           }
 
           final rawPrescription = raw['prescription'] ??
@@ -455,15 +487,48 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           finalNotes = 'Triage Awal Perawat';
         }
 
+        int? systolic;
+        int? diastolic;
+        if (patient.vitals.tekananDarah.contains('/')) {
+          final parts = patient.vitals.tekananDarah.split('/');
+          systolic = int.tryParse(parts[0].trim());
+          diastolic = int.tryParse(parts[1].trim());
+        }
+        final heartRate = int.tryParse(patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''));
+        final temperature = double.tryParse(patient.vitals.suhu.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+        final respiratoryRate = int.tryParse(patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''));
+        final oxygenSaturation = double.tryParse(patient.vitals.spo2.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+
+        var formattedComplaint = patient.keluhanUtama.isNotEmpty ? patient.keluhanUtama : 'Pemeriksaan awal';
+        final extraComplaint = <String>[];
+        if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
+          extraComplaint.add('Durasi: ${patient.durasiKeluhan}');
+        }
+        if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
+          extraComplaint.add('Lokasi: ${patient.lokasiKeluhan}');
+        }
+        if (extraComplaint.isNotEmpty) {
+          formattedComplaint = '$formattedComplaint • ${extraComplaint.join(' • ')}';
+        }
+
         await _api.addMedicalRecord(created.id, {
           'doctor_id': patient.assignedDokterId,
           'ship_id': '3a7ff982-e187-49f8-a34e-95f775afda61',
           'port_id': 'f7d71b54-4c2c-4b10-a601-b82a604c7315',
-          'complaint': patient.keluhanUtama.isNotEmpty ? patient.keluhanUtama : 'Pemeriksaan awal',
+          'complaint': formattedComplaint,
           'diagnosis': 'Pemeriksaan Umum',
           'treatment': 'Menunggu Pemeriksaan Dokter',
           'notes': finalNotes,
           'date': DateTime.now().toIso8601String().split('T').first,
+          'status': 'Stable',
+          'status_penanganan': 'Menunggu Dokter',
+          if (patient.vitals.tekananDarah.isNotEmpty) 'blood_pressure': patient.vitals.tekananDarah,
+          if (systolic != null) 'systolic': systolic,
+          if (diastolic != null) 'diastolic': diastolic,
+          if (heartRate != null) 'heart_rate': heartRate,
+          if (temperature != null) 'temperature': temperature,
+          if (respiratoryRate != null) 'respiratory_rate': respiratoryRate,
+          if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
         });
       } catch (e) {
         debugPrint('addPatient medical record error: $e');
@@ -595,17 +660,48 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           finalNotes = 'Update Penugasan Dokter';
         }
 
+        int? systolic;
+        int? diastolic;
+        if (patient.vitals.tekananDarah.contains('/')) {
+          final parts = patient.vitals.tekananDarah.split('/');
+          systolic = int.tryParse(parts[0].trim());
+          diastolic = int.tryParse(parts[1].trim());
+        }
+        final heartRate = int.tryParse(patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''));
+        final temperature = double.tryParse(patient.vitals.suhu.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+        final respiratoryRate = int.tryParse(patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''));
+        final oxygenSaturation = double.tryParse(patient.vitals.spo2.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+
+        var formattedComplaint = patient.keluhanUtama.isNotEmpty ? patient.keluhanUtama : 'Pemeriksaan awal';
+        final extraComplaint = <String>[];
+        if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
+          extraComplaint.add('Durasi: ${patient.durasiKeluhan}');
+        }
+        if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
+          extraComplaint.add('Lokasi: ${patient.lokasiKeluhan}');
+        }
+        if (extraComplaint.isNotEmpty) {
+          formattedComplaint = '$formattedComplaint • ${extraComplaint.join(' • ')}';
+        }
+
         await _api.addMedicalRecord(patient.id, {
           'doctor_id': patient.assignedDokterId,
           'ship_id': '3a7ff982-e187-49f8-a34e-95f775afda61',
           'port_id': 'f7d71b54-4c2c-4b10-a601-b82a604c7315',
-          'complaint': patient.keluhanUtama.isNotEmpty ? patient.keluhanUtama : 'Pemeriksaan awal',
+          'complaint': formattedComplaint,
           'diagnosis': patient.diagnosa ?? 'Pemeriksaan Umum',
           'treatment': patient.resep.isNotEmpty
               ? patient.resep.map((r) => '${r.obat} ${r.dosis} (${r.instruksi})').join(', ')
               : 'Menunggu Pemeriksaan Dokter',
           'notes': finalNotes,
           'date': DateTime.now().toIso8601String().split('T').first,
+          if (patient.vitals.tekananDarah.isNotEmpty) 'blood_pressure': patient.vitals.tekananDarah,
+          if (systolic != null) 'systolic': systolic,
+          if (diastolic != null) 'diastolic': diastolic,
+          if (heartRate != null) 'heart_rate': heartRate,
+          if (temperature != null) 'temperature': temperature,
+          if (respiratoryRate != null) 'respiratory_rate': respiratoryRate,
+          if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
         });
       } catch (e) {
         debugPrint('updatePatient medical record error: $e');

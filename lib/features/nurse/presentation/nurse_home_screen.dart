@@ -61,6 +61,11 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
         _tab = key;
         _showForm = false;
         _editingPatient = null;
+        if (key == 'riwayat') {
+          ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+        } else if (key == 'pasien') {
+          ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+        }
       }),
       child: switch (_tab) {
         'pasien' =>
@@ -71,10 +76,14 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
                     _showForm = false;
                     _editingPatient = null;
                   }),
-                  onSaved: () => setState(() {
-                    _showForm = false;
-                    _editingPatient = null;
-                  }),
+                  onSaved: () {
+                    setState(() {
+                      _showForm = false;
+                      _editingPatient = null;
+                    });
+                    ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+                    ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+                  },
                 )
               : PatientListScreen(
                   onAddPatient: () => setState(() {

@@ -102,7 +102,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     if (p != null) {
       _nama.text = p.nama;
       _nik.text = p.nik;
-      _bloodType = p.bloodType;
+      _bloodType = Patient.normalizeBloodType(p.bloodType);
       _alamat.text = p.alamat;
       _namaWali.text = p.namaWali ?? '';
       _hubunganWali = p.hubunganWali;
@@ -132,7 +132,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _nik.text = '3171012304950001';
       _dob = DateTime(1995, 4, 23);
       _jk = Gender.l;
-      _bloodType = 'O';
+      _bloodType = 'O+';
       _isManualAddress = false;
       _alamat.text = 'Jl. Pelabuhan Semayang No. 12';
       _namaWali.text = 'Siti Rahmawati';
@@ -340,6 +340,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           ? _selectedKelurahan!.kodePos
           : null;
 
+      final normalizedBlood = Patient.normalizeBloodType(_bloodType);
+
       final p = widget.initialPatient;
       if (p != null) {
         final updatedPatient = p.copyWith(
@@ -348,7 +350,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           jk: _jk!,
           umur: umurCalc,
           dob: dobStr,
-          bloodType: _bloodType,
+          bloodType: normalizedBlood,
           alamat: fullAddress,
           namaWali: _namaWali.text.trim().isNotEmpty
               ? _namaWali.text.trim()
@@ -395,7 +397,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 jk: _jk!,
                 umur: umurCalc,
                 dob: dobStr,
-                bloodType: _bloodType,
+                bloodType: normalizedBlood,
                 alamat: fullAddress,
                 namaWali: _namaWali.text.trim().isNotEmpty
                     ? _namaWali.text.trim()
@@ -431,6 +433,33 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
       if (!mounted) return;
       setState(() => _saving = false);
+
+      // Auto refresh providers so other screens/tabs are up-to-date
+      ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+      ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(LucideIcons.checkCircle2, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.isEdit
+                      ? 'Data pasien berhasil diperbarui'
+                      : 'Pasien baru berhasil didaftarkan ke antrian',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.green,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
       widget.onSaved();
     } catch (e) {
       if (!mounted) return;
@@ -860,19 +889,14 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   fontSize: 11.0,
                   labelFontSize: 10.5,
                   options: const [
-                    AppSelectOption(value: 'O-', label: 'O− (O Negatif)'),
-                    AppSelectOption(value: 'O+', label: 'O+ (O Positif)'),
-                    AppSelectOption(value: 'A-', label: 'A− (A Negatif)'),
                     AppSelectOption(value: 'A+', label: 'A+ (A Positif)'),
-                    AppSelectOption(value: 'B-', label: 'B− (B Negatif)'),
+                    AppSelectOption(value: 'A-', label: 'A− (A Negatif)'),
                     AppSelectOption(value: 'B+', label: 'B+ (B Positif)'),
-                    AppSelectOption(value: 'AB-', label: 'AB− (AB Negatif)'),
+                    AppSelectOption(value: 'B-', label: 'B− (B Negatif)'),
                     AppSelectOption(value: 'AB+', label: 'AB+ (AB Positif)'),
-                    AppSelectOption(value: 'O', label: 'O'),
-                    AppSelectOption(value: 'A', label: 'A'),
-                    AppSelectOption(value: 'B', label: 'B'),
-                    AppSelectOption(value: 'AB', label: 'AB'),
-                    AppSelectOption(value: '-', label: 'Tidak Tahu (-)'),
+                    AppSelectOption(value: 'AB-', label: 'AB− (AB Negatif)'),
+                    AppSelectOption(value: 'O+', label: 'O+ (O Positif)'),
+                    AppSelectOption(value: 'O-', label: 'O− (O Negatif)'),
                   ],
                   onChanged: (v) => setState(() => _bloodType = v),
                 ),

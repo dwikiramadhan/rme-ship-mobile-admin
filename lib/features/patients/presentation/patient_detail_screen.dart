@@ -533,6 +533,12 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                             ref.invalidate(
                               patientDetailProvider(widget.patientId),
                             );
+                            ref
+                                .read(patientsProvider.notifier)
+                                .fetchPatients(refresh: true);
+                            ref
+                                .read(medicalHistoryProvider.notifier)
+                                .fetchHistory(refresh: true);
                           },
                         ),
                       ),

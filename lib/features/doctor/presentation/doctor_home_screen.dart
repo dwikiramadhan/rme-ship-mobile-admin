@@ -115,7 +115,14 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     return RoleShell(
       items: tabs,
       activeKey: _tab,
-      onChange: (key) => setState(() => _tab = key),
+      onChange: (key) => setState(() {
+        _tab = key;
+        if (key == 'riwayat') {
+          ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+        } else if (key == 'pasien') {
+          ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+        }
+      }),
       child: content,
     );
   }

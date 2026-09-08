@@ -275,7 +275,18 @@ class Patient extends Equatable {
           tindakan = recTreatment;
         }
 
-        if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
+        if (recComplaint.contains('•')) {
+          final parts = recComplaint.split('•');
+          keluhan = parts[0].trim();
+          for (final p in parts.skip(1)) {
+            final trimmed = p.trim();
+            if (trimmed.startsWith('Durasi:')) {
+              durasi = trimmed.substring('Durasi:'.length).trim();
+            } else if (trimmed.startsWith('Lokasi:')) {
+              lokasi = trimmed.substring('Lokasi:'.length).trim();
+            }
+          }
+        } else if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
           keluhan = recComplaint;
         } else if (keluhan.isEmpty && recComplaint.isNotEmpty) {
           keluhan = recComplaint;
@@ -300,6 +311,25 @@ class Patient extends Equatable {
           status = PatientStatus.diperiksa;
         }
 
+        // 1. Read structured vitals from medical record columns
+        final vs = raw['vital_signs'] is Map ? raw['vital_signs'] as Map : null;
+        final rawBp = raw['blood_pressure']?.toString() ?? vs?['blood_pressure']?.toString() ?? '';
+        final rawHr = raw['heart_rate']?.toString() ?? vs?['heart_rate']?.toString() ?? '';
+        final rawTemp = raw['temperature']?.toString() ?? vs?['temperature']?.toString() ?? '';
+        final rawRr = raw['respiratory_rate']?.toString() ?? vs?['respiratory_rate']?.toString() ?? '';
+        final rawSpo2 = raw['oxygen_saturation']?.toString() ?? vs?['oxygen_saturation']?.toString() ?? '';
+
+        if (rawBp.isNotEmpty || rawHr.isNotEmpty || rawTemp.isNotEmpty || rawRr.isNotEmpty || rawSpo2.isNotEmpty) {
+          parsedVitals = Vitals(
+            tekananDarah: rawBp,
+            nadi: rawHr,
+            suhu: rawTemp,
+            frekuensiNapas: rawRr,
+            spo2: rawSpo2,
+          );
+        }
+
+        // 2. Fallback / supplementary parse from triage notes
         if (recNotes.contains('[Triage]') || recNotes.contains('Durasi:') || recNotes.contains('TD:')) {
           final parts = recNotes.split('|');
           String td = '';
@@ -309,9 +339,9 @@ class Patient extends Equatable {
           String spo2 = '';
           for (final rawPart in parts) {
             final part = rawPart.replaceFirst('[Triage]', '').trim();
-            if (part.startsWith('Durasi:')) {
+            if (part.startsWith('Durasi:') && durasi == '-') {
               durasi = part.substring('Durasi:'.length).trim();
-            } else if (part.startsWith('Lokasi:')) {
+            } else if (part.startsWith('Lokasi:') && lokasi == '-') {
               lokasi = part.substring('Lokasi:'.length).trim();
             } else if (part.startsWith('TD:')) {
               td = part.substring('TD:'.length).trim();
@@ -325,13 +355,15 @@ class Patient extends Equatable {
               spo2 = part.substring('SpO2:'.length).trim();
             }
           }
-          parsedVitals = Vitals(
-            tekananDarah: td,
-            nadi: hr,
-            suhu: temp,
-            frekuensiNapas: rr,
-            spo2: spo2,
-          );
+          if (parsedVitals.isEmpty) {
+            parsedVitals = Vitals(
+              tekananDarah: td,
+              nadi: hr,
+              suhu: temp,
+              frekuensiNapas: rr,
+              spo2: spo2,
+            );
+          }
         }
 
         if (recNotes.startsWith('Order Lab:')) {
@@ -472,6 +504,19 @@ class Patient extends Equatable {
     );
   }
 
+  static String? normalizeBloodType(String? raw) {
+    if (raw == null) return null;
+    final trimmed = raw.trim().toUpperCase();
+    if (trimmed.isEmpty || trimmed == '-' || trimmed == 'TIDAK TAHU') return null;
+    const valid = {'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'};
+    if (valid.contains(trimmed)) return trimmed;
+    if (trimmed == 'A') return 'A+';
+    if (trimmed == 'B') return 'B+';
+    if (trimmed == 'AB') return 'AB+';
+    if (trimmed == 'O') return 'O+';
+    return null;
+  }
+
   Map<String, dynamic> toCreatePatientJson({
     String? dob,
     String? phone,
@@ -486,6 +531,11 @@ class Patient extends Equatable {
         ? nik.trim()
         : '3171${DateTime.now().millisecondsSinceEpoch.toString().padRight(12, '0').substring(0, 12)}';
 
+    final normalizedBlood = normalizeBloodType(bloodType ?? this.bloodType);
+    final normalizedStatus = (statusStr == 'Active' || statusStr == 'Deleted')
+        ? statusStr
+        : ((dbStatus == 'Active' || dbStatus == 'Deleted') ? dbStatus : 'Active');
+
     return {
       'nik': effectiveNik,
       'name': nama,
@@ -493,8 +543,8 @@ class Patient extends Equatable {
       'dob': (dob != null && dob.isNotEmpty) ? dob : (this.dob ?? '1990-01-01'),
       'address': alamat,
       'phone': phone ?? this.phone ?? '08123456789',
-      'blood_type': bloodType ?? this.bloodType ?? 'O',
-      'status': statusStr ?? 'Monitoring',
+      if (normalizedBlood != null) 'blood_type': normalizedBlood,
+      'status': normalizedStatus ?? 'Active',
       if (namaWali != null && namaWali.isNotEmpty) 'nama_wali': namaWali,
       if (hubunganWali != null && hubunganWali.isNotEmpty) 'hubungan_wali': hubunganWali,
       if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
