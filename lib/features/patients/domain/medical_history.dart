@@ -256,22 +256,23 @@ class MedicalHistory {
         ? tindakanDetail
         : (treatment ?? patient?.tindakan);
 
-    List<ResepItem> effectiveResep = patient?.resep ?? const [];
-    if (effectiveResep.isEmpty) {
-      final rawRx =
-          rawJson['prescription'] ??
-          rawJson['prescriptions'] ??
-          rawJson['medicines'] ??
-          rawJson['resep'];
-      if (rawRx is List && rawRx.isNotEmpty) {
-        effectiveResep = rawRx
-            .whereType<Map>()
-            .map((j) => ResepItem.fromJson(Map<String, dynamic>.from(j)))
-            .where((r) => r.obat.isNotEmpty)
-            .toList();
-      } else if (rawRx is String && rawRx.isNotEmpty) {
-        effectiveResep = parseResepString(rawRx);
-      }
+    List<ResepItem> effectiveResep = const [];
+    final rawRx =
+        rawJson['prescription'] ??
+        rawJson['prescriptions'] ??
+        rawJson['medicines'] ??
+        rawJson['resep'];
+    if (rawRx is List && rawRx.isNotEmpty) {
+      effectiveResep = rawRx
+          .whereType<Map>()
+          .map((j) => ResepItem.fromJson(Map<String, dynamic>.from(j)))
+          .where((r) => r.obat.isNotEmpty)
+          .toList();
+    } else if (rawRx is String && rawRx.isNotEmpty) {
+      effectiveResep = parseResepString(rawRx);
+    }
+    if (effectiveResep.isEmpty && patient != null) {
+      effectiveResep = patient!.resep;
     }
 
     final cleanPatientName = CleanTextHelper.cleanName(

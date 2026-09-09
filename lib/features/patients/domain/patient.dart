@@ -254,163 +254,179 @@ class Patient extends Equatable {
 
     LabOrder? labOrder;
     String? tindakan;
+    Map<String, dynamic>? activeRecord;
     if (medRecords is List && medRecords.isNotEmpty) {
-      for (final raw in medRecords) {
-        if (raw is! Map<String, dynamic>) continue;
-        final recComplaint = raw['complaint']?.toString() ?? '';
-        final recDiag = raw['diagnosis']?.toString();
-        final recTreatment = raw['treatment']?.toString() ?? '';
-        final recProcedure = raw['procedure']?.toString() ??
-            raw['tindakan']?.toString() ??
-            raw['icd9']?.toString();
-        final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
-        final recDocName = raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
-        final recNotes = raw['notes']?.toString() ?? '';
+      final validRecords = medRecords.whereType<Map<String, dynamic>>().toList();
+      // Sort newest to oldest so index 0 is always the latest record
+      validRecords.sort((a, b) {
+        final dateA = DateTime.tryParse(a['date']?.toString() ?? a['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateB = DateTime.tryParse(b['date']?.toString() ?? b['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return dateB.compareTo(dateA);
+      });
 
-        if (recProcedure != null && recProcedure.isNotEmpty) {
-          tindakan = recProcedure;
-        } else if (recTreatment.isNotEmpty &&
-            recTreatment != '—' &&
-            recTreatment != '-') {
-          tindakan = recTreatment;
-        }
+      // Prioritize active visit (status_penanganan != 'Selesai'), or fallback to the newest record
+      activeRecord = validRecords.firstWhere(
+        (r) {
+          final s = (r['status_penanganan'] ?? r['status'] ?? '').toString().trim().toLowerCase();
+          return s.isNotEmpty && s != 'selesai';
+        },
+        orElse: () => validRecords.first,
+      );
 
-        if (recComplaint.contains('•')) {
-          final parts = recComplaint.split('•');
-          keluhan = parts[0].trim();
-          for (final p in parts.skip(1)) {
-            final trimmed = p.trim();
-            if (trimmed.startsWith('Durasi:')) {
-              durasi = trimmed.substring('Durasi:'.length).trim();
-            } else if (trimmed.startsWith('Lokasi:')) {
-              lokasi = trimmed.substring('Lokasi:'.length).trim();
-            }
+      final raw = activeRecord;
+      final recComplaint = raw['complaint']?.toString() ?? '';
+      final recDiag = raw['diagnosis']?.toString();
+      final recTreatment = raw['treatment']?.toString() ?? '';
+      final recProcedure = raw['procedure']?.toString() ??
+          raw['tindakan']?.toString() ??
+          raw['icd9']?.toString();
+      final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
+      final recDocName = raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
+      final recNotes = raw['notes']?.toString() ?? '';
+
+      if (recProcedure != null && recProcedure.isNotEmpty) {
+        tindakan = recProcedure;
+      } else if (recTreatment.isNotEmpty &&
+          recTreatment != '—' &&
+          recTreatment != '-') {
+        tindakan = recTreatment;
+      }
+
+      if (recComplaint.contains('•')) {
+        final parts = recComplaint.split('•');
+        keluhan = parts[0].trim();
+        for (final p in parts.skip(1)) {
+          final trimmed = p.trim();
+          if (trimmed.startsWith('Durasi:')) {
+            durasi = trimmed.substring('Durasi:'.length).trim();
+          } else if (trimmed.startsWith('Lokasi:')) {
+            lokasi = trimmed.substring('Lokasi:'.length).trim();
           }
-        } else if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
-          keluhan = recComplaint;
-        } else if (keluhan.isEmpty && recComplaint.isNotEmpty) {
-          keluhan = recComplaint;
         }
+      } else if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
+        keluhan = recComplaint;
+      } else if (keluhan.isEmpty && recComplaint.isNotEmpty) {
+        keluhan = recComplaint;
+      }
 
-        if (recDocId != null && recDocId.isNotEmpty && assignedDoctorId.isEmpty) {
-          assignedDoctorId = recDocId;
-        }
+      if (recDocId != null && recDocId.isNotEmpty && assignedDoctorId.isEmpty) {
+        assignedDoctorId = recDocId;
+      }
 
-        if (recDocName != null && recDocName.isNotEmpty && (doctorName == null || doctorName.isEmpty)) {
-          doctorName = recDocName;
-        }
+      if (recDocName != null && recDocName.isNotEmpty && (doctorName == null || doctorName.isEmpty)) {
+        doctorName = recDocName;
+      }
 
-        final formattedDiag = formatDiagnoses(
-          raw['diagnoses'],
-          fallback: recDiag,
+      final formattedDiag = formatDiagnoses(
+        raw['diagnoses'],
+        fallback: recDiag,
+      );
+      if (formattedDiag != '—' &&
+          formattedDiag.isNotEmpty &&
+          formattedDiag != 'Pemeriksaan Umum') {
+        diagnosa = formattedDiag;
+        status = PatientStatus.diperiksa;
+      }
+
+      // 1. Read structured vitals from medical record columns
+      final vs = raw['vital_signs'] is Map ? raw['vital_signs'] as Map : null;
+      final rawBp = raw['blood_pressure']?.toString() ?? vs?['blood_pressure']?.toString() ?? '';
+      final rawHr = raw['heart_rate']?.toString() ?? vs?['heart_rate']?.toString() ?? '';
+      final rawTemp = raw['temperature']?.toString() ?? vs?['temperature']?.toString() ?? '';
+      final rawRr = raw['respiratory_rate']?.toString() ?? vs?['respiratory_rate']?.toString() ?? '';
+      final rawSpo2 = raw['oxygen_saturation']?.toString() ?? vs?['oxygen_saturation']?.toString() ?? '';
+
+      if (rawBp.isNotEmpty || rawHr.isNotEmpty || rawTemp.isNotEmpty || rawRr.isNotEmpty || rawSpo2.isNotEmpty) {
+        parsedVitals = Vitals(
+          tekananDarah: rawBp,
+          nadi: rawHr,
+          suhu: rawTemp,
+          frekuensiNapas: rawRr,
+          spo2: rawSpo2,
         );
-        if (formattedDiag != '—' &&
-            formattedDiag.isNotEmpty &&
-            formattedDiag != 'Pemeriksaan Umum') {
-          diagnosa = formattedDiag;
-          status = PatientStatus.diperiksa;
+      }
+
+      // 2. Fallback / supplementary parse from triage notes
+      if (recNotes.contains('[Triage]') || recNotes.contains('Durasi:') || recNotes.contains('TD:')) {
+        final parts = recNotes.split('|');
+        String td = '';
+        String hr = '';
+        String temp = '';
+        String rr = '';
+        String spo2 = '';
+        for (final rawPart in parts) {
+          final part = rawPart.replaceFirst('[Triage]', '').trim();
+          if (part.startsWith('Durasi:') && durasi == '-') {
+            durasi = part.substring('Durasi:'.length).trim();
+          } else if (part.startsWith('Lokasi:') && lokasi == '-') {
+            lokasi = part.substring('Lokasi:'.length).trim();
+          } else if (part.startsWith('TD:')) {
+            td = part.substring('TD:'.length).trim();
+          } else if (part.startsWith('Nadi:') || part.startsWith('HR:')) {
+            hr = part.replaceFirst('Nadi:', '').replaceFirst('HR:', '').trim();
+          } else if (part.startsWith('Suhu:') || part.startsWith('Temp:')) {
+            temp = part.replaceFirst('Suhu:', '').replaceFirst('Temp:', '').trim();
+          } else if (part.startsWith('RR:')) {
+            rr = part.substring('RR:'.length).trim();
+          } else if (part.startsWith('SpO2:')) {
+            spo2 = part.substring('SpO2:'.length).trim();
+          }
         }
-
-        // 1. Read structured vitals from medical record columns
-        final vs = raw['vital_signs'] is Map ? raw['vital_signs'] as Map : null;
-        final rawBp = raw['blood_pressure']?.toString() ?? vs?['blood_pressure']?.toString() ?? '';
-        final rawHr = raw['heart_rate']?.toString() ?? vs?['heart_rate']?.toString() ?? '';
-        final rawTemp = raw['temperature']?.toString() ?? vs?['temperature']?.toString() ?? '';
-        final rawRr = raw['respiratory_rate']?.toString() ?? vs?['respiratory_rate']?.toString() ?? '';
-        final rawSpo2 = raw['oxygen_saturation']?.toString() ?? vs?['oxygen_saturation']?.toString() ?? '';
-
-        if (rawBp.isNotEmpty || rawHr.isNotEmpty || rawTemp.isNotEmpty || rawRr.isNotEmpty || rawSpo2.isNotEmpty) {
+        if (parsedVitals.isEmpty) {
           parsedVitals = Vitals(
-            tekananDarah: rawBp,
-            nadi: rawHr,
-            suhu: rawTemp,
-            frekuensiNapas: rawRr,
-            spo2: rawSpo2,
+            tekananDarah: td,
+            nadi: hr,
+            suhu: temp,
+            frekuensiNapas: rr,
+            spo2: spo2,
           );
         }
+      }
 
-        // 2. Fallback / supplementary parse from triage notes
-        if (recNotes.contains('[Triage]') || recNotes.contains('Durasi:') || recNotes.contains('TD:')) {
-          final parts = recNotes.split('|');
-          String td = '';
-          String hr = '';
-          String temp = '';
-          String rr = '';
-          String spo2 = '';
-          for (final rawPart in parts) {
-            final part = rawPart.replaceFirst('[Triage]', '').trim();
-            if (part.startsWith('Durasi:') && durasi == '-') {
-              durasi = part.substring('Durasi:'.length).trim();
-            } else if (part.startsWith('Lokasi:') && lokasi == '-') {
-              lokasi = part.substring('Lokasi:'.length).trim();
-            } else if (part.startsWith('TD:')) {
-              td = part.substring('TD:'.length).trim();
-            } else if (part.startsWith('Nadi:') || part.startsWith('HR:')) {
-              hr = part.replaceFirst('Nadi:', '').replaceFirst('HR:', '').trim();
-            } else if (part.startsWith('Suhu:') || part.startsWith('Temp:')) {
-              temp = part.replaceFirst('Suhu:', '').replaceFirst('Temp:', '').trim();
-            } else if (part.startsWith('RR:')) {
-              rr = part.substring('RR:'.length).trim();
-            } else if (part.startsWith('SpO2:')) {
-              spo2 = part.substring('SpO2:'.length).trim();
-            }
-          }
-          if (parsedVitals.isEmpty) {
-            parsedVitals = Vitals(
-              tekananDarah: td,
-              nadi: hr,
-              suhu: temp,
-              frekuensiNapas: rr,
-              spo2: spo2,
-            );
-          }
+      if (recNotes.startsWith('Order Lab:')) {
+        final rawText = recNotes.replaceFirst('Order Lab:', '').trim();
+        final openParen = rawText.indexOf('(');
+        final closeParen = rawText.lastIndexOf(')');
+        String jenis = rawText;
+        String catatan = '';
+        if (openParen != -1 && closeParen != -1 && closeParen > openParen) {
+          jenis = rawText.substring(0, openParen).trim();
+          catatan = rawText.substring(openParen + 1, closeParen).trim();
         }
+        labOrder = LabOrder(
+          id: raw['id']?.toString() ?? id,
+          jenis: jenis.isNotEmpty ? jenis : 'Pemeriksaan Lab',
+          catatan: catatan,
+          status: LabOrderStatus.baru,
+        );
+      }
 
-        if (recNotes.startsWith('Order Lab:')) {
-          final rawText = recNotes.replaceFirst('Order Lab:', '').trim();
-          final openParen = rawText.indexOf('(');
-          final closeParen = rawText.lastIndexOf(')');
-          String jenis = rawText;
-          String catatan = '';
-          if (openParen != -1 && closeParen != -1 && closeParen > openParen) {
-            jenis = rawText.substring(0, openParen).trim();
-            catatan = rawText.substring(openParen + 1, closeParen).trim();
-          }
-          labOrder = LabOrder(
-            id: raw['id']?.toString() ?? id,
-            jenis: jenis.isNotEmpty ? jenis : 'Pemeriksaan Lab',
-            catatan: catatan,
-            status: LabOrderStatus.baru,
-          );
+      final rawPrescription = raw['prescription'] ??
+          raw['prescriptions'] ??
+          raw['medicines'] ??
+          raw['resep'];
+      if (rawPrescription is List && rawPrescription.isNotEmpty) {
+        resep = rawPrescription
+            .whereType<Map<String, dynamic>>()
+            .map((j) => ResepItem.fromJson(j))
+            .where((r) => r.obat.isNotEmpty)
+            .toList();
+        if (resep.isNotEmpty) resepStatus = ResepStatus.baru;
+      } else if (rawPrescription is String && rawPrescription.isNotEmpty) {
+        final parsed = parseResepString(rawPrescription);
+        if (parsed.isNotEmpty) {
+          resep = parsed;
+          resepStatus = ResepStatus.baru;
         }
-
-        final rawPrescription = raw['prescription'] ??
-            raw['prescriptions'] ??
-            raw['medicines'] ??
-            raw['resep'];
-        if (rawPrescription is List && rawPrescription.isNotEmpty) {
-          resep = rawPrescription
-              .whereType<Map<String, dynamic>>()
-              .map((j) => ResepItem.fromJson(j))
-              .where((r) => r.obat.isNotEmpty)
-              .toList();
-          if (resep.isNotEmpty) resepStatus = ResepStatus.baru;
-        } else if (rawPrescription is String && rawPrescription.isNotEmpty) {
-          final parsed = parseResepString(rawPrescription);
-          if (parsed.isNotEmpty) {
-            resep = parsed;
-            resepStatus = ResepStatus.baru;
-          }
-        } else if (recTreatment.isNotEmpty &&
-            !RegExp(r'^[\d.,\s-]+$').hasMatch(recTreatment) &&
-            recTreatment != 'Pemeriksaan awal' &&
-            recTreatment != 'Menunggu Pemeriksaan Dokter' &&
-            recTreatment != 'Pemeriksaan Dokter') {
-          final parsed = parseResepString(recTreatment);
-          if (parsed.isNotEmpty) {
-            resep = parsed;
-            resepStatus = ResepStatus.baru;
-          }
+      } else if (recTreatment.isNotEmpty &&
+          !RegExp(r'^[\d.,\s-]+$').hasMatch(recTreatment) &&
+          recTreatment != 'Pemeriksaan awal' &&
+          recTreatment != 'Menunggu Pemeriksaan Dokter' &&
+          recTreatment != 'Pemeriksaan Dokter') {
+        final parsed = parseResepString(recTreatment);
+        if (parsed.isNotEmpty) {
+          resep = parsed;
+          resepStatus = ResepStatus.baru;
         }
       }
     }
@@ -454,8 +470,9 @@ class Patient extends Equatable {
             json['medicalRecordId'] ??
             json['med_rec_id'] ??
             (json['medical_record'] is Map ? json['medical_record']['id'] : null) ??
+            activeRecord?['id'] ??
             (json['medical_records'] is List && (json['medical_records'] as List).isNotEmpty
-                ? (json['medical_records'] as List).last['id']
+                ? (json['medical_records'] as List).first['id']
                 : null))
         ?.toString();
 

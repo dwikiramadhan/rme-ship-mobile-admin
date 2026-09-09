@@ -427,6 +427,11 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
         if (r is Map<String, dynamic>) records.add(r);
       }
     }
+    records.sort((a, b) {
+      final timeA = DateTime.tryParse(a['created_at']?.toString() ?? a['date']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final timeB = DateTime.tryParse(b['created_at']?.toString() ?? b['date']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return timeB.compareTo(timeA);
+    });
     final totalVisits = records.isNotEmpty
         ? records.length
         : (widget.initialPatient != null ? 1 : 0);
