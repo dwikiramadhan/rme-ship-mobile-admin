@@ -49,15 +49,11 @@ class _ShipAdminHomeScreenState extends ConsumerState<ShipAdminHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    late final Widget content;
-    switch (_tab) {
-      case 'dashboard':
-        content = _buildDashboard();
-      case 'jadwal':
-        content = const TripScheduleScreen();
-      default:
-        content = ProfileScreen(name: widget.adminName, role: 'Admin Kapal');
-    }
+    final Widget content = switch (_tab) {
+      'dashboard' => _buildDashboard(),
+      'jadwal' => const TripScheduleScreen(),
+      _ => ProfileScreen(name: widget.adminName, role: 'Admin Kapal'),
+    };
 
     return RoleShell(
       items: _tabs,

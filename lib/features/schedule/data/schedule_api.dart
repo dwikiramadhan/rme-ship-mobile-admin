@@ -139,16 +139,13 @@ class ScheduleApi {
         rawList = [];
       }
 
-      int resTotal = 0;
-      if (data['total'] is num) {
-        resTotal = (data['total'] as num).toInt();
-      } else if (data['pagination'] is Map && data['pagination']['total'] is num) {
-        resTotal = (data['pagination']['total'] as num).toInt();
-      } else if (result is Map && result['total'] is num) {
-        resTotal = (result['total'] as num).toInt();
-      } else if (data['meta'] is Map && data['meta']['total'] is num) {
-        resTotal = (data['meta']['total'] as num).toInt();
-      }
+      final int resTotal = switch ((data, result)) {
+        ({'total': final num t}, _) => t.toInt(),
+        ({'pagination': {'total': final num t}}, _) => t.toInt(),
+        ({'meta': {'total': final num t}}, _) => t.toInt(),
+        (_, {'total': final num t}) => t.toInt(),
+        _ => 0,
+      };
 
       final items = rawList
           .whereType<Map<String, dynamic>>()

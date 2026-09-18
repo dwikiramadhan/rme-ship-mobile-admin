@@ -88,10 +88,8 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
       ),
     ];
 
-    late final Widget content;
-    switch (_tab) {
-      case 'notifikasi':
-        content = NotificationsView(
+    final Widget content = switch (_tab) {
+      'notifikasi' => NotificationsView(
           role: NotificationRole.lab,
           onTapItem: (context, p, _) {
             ref.read(notificationsProvider.notifier).markLabSeen(p.id);
@@ -104,12 +102,10 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
               _selectedLabId = medHist.id;
             });
           },
-        );
-      case 'order':
-        content = _buildOrder(labHistories);
-      default:
-        content = ProfileScreen(name: widget.analystName, role: 'Laboratorium');
-    }
+        ),
+      'order' => _buildOrder(labHistories),
+      _ => ProfileScreen(name: widget.analystName, role: 'Laboratorium'),
+    };
 
     return RoleShell(
       items: tabs,

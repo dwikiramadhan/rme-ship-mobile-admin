@@ -799,23 +799,11 @@ class _StockItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    final Color statusColor;
-    final Color statusBg;
-    final String statusLabel;
-
-    if (item.isOutOfStock) {
-      statusColor = AppColors.red;
-      statusBg = AppColors.redLt;
-      statusLabel = 'Habis';
-    } else if (item.isLowStock) {
-      statusColor = AppColors.orange;
-      statusBg = AppColors.orangeLt;
-      statusLabel = 'Menipis';
-    } else {
-      statusColor = AppColors.green;
-      statusBg = AppColors.greenLt;
-      statusLabel = 'Tersedia';
-    }
+    final (statusColor, statusBg, statusLabel) = switch ((item.isOutOfStock, item.isLowStock)) {
+      (true, _) => (AppColors.red, AppColors.redLt, 'Habis'),
+      (false, true) => (AppColors.orange, AppColors.orangeLt, 'Menipis'),
+      _ => (AppColors.green, AppColors.greenLt, 'Tersedia'),
+    };
 
     final unitLabel = item.unitOfMeasurement.isNotEmpty
         ? item.unitOfMeasurement

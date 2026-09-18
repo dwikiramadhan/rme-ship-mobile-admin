@@ -219,12 +219,11 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
     // Parse Vitals
     final sys = int.tryParse(_sistolik.text.trim());
     final dia = int.tryParse(_diastolik.text.trim());
-    String bp = '';
-    if (sys != null && dia != null) {
-      bp = '$sys/$dia';
-    } else if (_sistolik.text.trim().isNotEmpty) {
-      bp = _sistolik.text.trim();
-    }
+    final bp = switch ((sys, dia)) {
+      (final int s, final int d) => '$s/$d',
+      (final int s, _) => '$s',
+      _ => '',
+    };
 
     final hr = int.tryParse(_nadi.text.trim());
     final temp = double.tryParse(_suhu.text.trim().replaceAll(',', '.'));

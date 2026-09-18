@@ -80,10 +80,8 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
       ),
     ];
 
-    late final Widget content;
-    switch (_tab) {
-      case 'notifikasi':
-        content = NotificationsView(
+    final Widget content = switch (_tab) {
+      'notifikasi' => NotificationsView(
           role: NotificationRole.doctor,
           onTapItem: (context, p, isLab) {
             if (isLab) {
@@ -101,16 +99,12 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
               _selectedRiwayatId = medHist.id;
             });
           },
-        );
-      case 'pasien':
-        content = const PatientListScreen();
-      case 'riwayat':
-        content = _buildRiwayatKunjungan();
-      case 'stok':
-        content = const MedicineStockScreen(canManage: false);
-      default:
-        content = ProfileScreen(name: widget.doctorName, role: 'Dokter');
-    }
+        ),
+      'pasien' => const PatientListScreen(),
+      'riwayat' => _buildRiwayatKunjungan(),
+      'stok' => const MedicineStockScreen(canManage: false),
+      _ => ProfileScreen(name: widget.doctorName, role: 'Dokter'),
+    };
 
     return RoleShell(
       items: tabs,
@@ -199,17 +193,17 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
   }
 
   String _formatHistorySubtitle(MedicalHistory m) {
-    final parts = <String>[];
-    if (m.createdAt != null && m.createdAt!.isNotEmpty) {
-      parts.add(DateHelper.formatDateTime(m.createdAt));
-    } else if (m.date != null && m.date!.isNotEmpty) {
-      parts.add(DateHelper.formatDate(m.date));
-    }
-    if (m.poliName != null && m.poliName!.isNotEmpty) {
-      parts.add(m.poliName!);
-    } else if (m.complaint != null && m.complaint!.isNotEmpty) {
-      parts.add(m.complaint!);
-    }
+    final datePart = switch ((m.createdAt, m.date)) {
+      (final String c, _) when c.isNotEmpty => DateHelper.formatDateTime(c),
+      (_, final String d) when d.isNotEmpty => DateHelper.formatDate(d),
+      _ => null,
+    };
+    final detailPart = switch ((m.poliName, m.complaint)) {
+      (final String p, _) when p.isNotEmpty => p,
+      (_, final String c) when c.isNotEmpty => c,
+      _ => null,
+    };
+    final parts = [?datePart, ?detailPart];
     return parts.join(' • ');
   }
 

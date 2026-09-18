@@ -230,25 +230,18 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
         ? r.instruksi.trim()
         : '-';
 
-    final String qtyText;
     final unitOfMeasurement = r.unitOfMeasurement?.trim().isNotEmpty == true
         ? r.unitOfMeasurement!.trim()
         : r.satuan?.trim();
 
-    if (r.jumlah != null && r.jumlah.toString().trim().isNotEmpty) {
-      final jStr = r.jumlah.toString().trim();
-      if (jStr.contains(' ')) {
-        qtyText = jStr;
-      } else {
-        qtyText = (unitOfMeasurement != null && unitOfMeasurement.isNotEmpty)
-            ? '$jStr $unitOfMeasurement'
-            : jStr;
-      }
-    } else if (unitOfMeasurement != null && unitOfMeasurement.isNotEmpty) {
-      qtyText = unitOfMeasurement;
-    } else {
-      qtyText = '-';
-    }
+    final jStr = r.jumlah?.toString().trim();
+    final qtyText = switch ((jStr, unitOfMeasurement)) {
+      (final String j, _) when j.isNotEmpty && j.contains(' ') => j,
+      (final String j, final String u) when j.isNotEmpty && u.isNotEmpty => '$j $u',
+      (final String j, _) when j.isNotEmpty => j,
+      (_, final String u) when u.isNotEmpty => u,
+      _ => '-',
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

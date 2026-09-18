@@ -363,19 +363,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     );
   }
 
-  Widget _buildCurrentTab(JadwalPerjalanan schedule) {
-    switch (_selectedTabIndex) {
-      case 0:
-        return _buildTabInfoJadwal(schedule);
-      case 1:
-        return _buildTabPoliLayanan(schedule);
-      case 2:
-        return _buildTabPersediaan(schedule);
-      case 3:
-      default:
-        return _buildTabKendala(schedule);
-    }
-  }
+  Widget _buildCurrentTab(JadwalPerjalanan schedule) => switch (_selectedTabIndex) {
+        0 => _buildTabInfoJadwal(schedule),
+        1 => _buildTabPoliLayanan(schedule),
+        2 => _buildTabPersediaan(schedule),
+        _ => _buildTabKendala(schedule),
+      };
 
   // ==========================================
   // TAB BAR WIDGET

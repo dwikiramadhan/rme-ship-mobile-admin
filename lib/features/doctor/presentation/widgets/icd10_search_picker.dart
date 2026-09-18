@@ -31,11 +31,23 @@ class Icd10MultiSearchPicker extends ConsumerStatefulWidget {
 
 class _Icd10MultiSearchPickerState
     extends ConsumerState<Icd10MultiSearchPicker> {
+  @override
+  void initState() {
+    super.initState();
+    // Warm up ICD-10 initial data so opening the picker is instantaneous (0ms delay)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(icd10ApiProvider).prefetchInitial(limit: 25);
+      }
+    });
+  }
+
   void _openSearchSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: false,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _Icd10MultiSearchBottomSheet(
         initialSelected: widget.selectedItems,
@@ -68,13 +80,14 @@ class _Icd10MultiSearchPickerState
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                   color: AppColors.text,
+                  letterSpacing: 0,
                 ),
                 children: [
                   TextSpan(text: widget.label),
                   if (widget.required)
                     const TextSpan(
                       text: ' *',
-                      style: TextStyle(color: AppColors.red),
+                      style: TextStyle(color: AppColors.red, letterSpacing: 0),
                     ),
                 ],
               ),
@@ -84,7 +97,10 @@ class _Icd10MultiSearchPickerState
                 onTap: () => _openSearchSheet(context),
                 borderRadius: BorderRadius.circular(6),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.blueLt,
                     borderRadius: BorderRadius.circular(6),
@@ -92,7 +108,11 @@ class _Icd10MultiSearchPickerState
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(LucideIcons.plus, size: 11, color: AppColors.blue),
+                      const Icon(
+                        LucideIcons.plus,
+                        size: 11,
+                        color: AppColors.blue,
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         '$count Diagnosa',
@@ -100,6 +120,7 @@ class _Icd10MultiSearchPickerState
                           fontSize: 9.5,
                           fontWeight: FontWeight.w700,
                           color: AppColors.blue,
+                          letterSpacing: 0,
                         ),
                       ),
                     ],
@@ -137,6 +158,7 @@ class _Icd10MultiSearchPickerState
                         fontSize: 11.0,
                         color: AppColors.sub,
                         fontWeight: FontWeight.w400,
+                        letterSpacing: 0,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -164,7 +186,10 @@ class _Icd10MultiSearchPickerState
               final isPrimary = index == 0;
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4.5,
+                ),
                 decoration: BoxDecoration(
                   color: isPrimary
                       ? AppColors.blueLt.withValues(alpha: 0.35)
@@ -194,9 +219,10 @@ class _Icd10MultiSearchPickerState
                       child: Text(
                         isPrimary ? 'Utama' : 'Sekunder',
                         style: TextStyle(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 9.0,
+                          fontWeight: FontWeight.w600,
                           color: isPrimary ? Colors.white : AppColors.sub,
+                          letterSpacing: 0,
                         ),
                       ),
                     ),
@@ -207,15 +233,20 @@ class _Icd10MultiSearchPickerState
                       Text(
                         item.code,
                         style: const TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 10.0,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.blue,
+                          letterSpacing: 0,
                         ),
                       ),
                       const SizedBox(width: 5),
                       const Text(
                         '•',
-                        style: TextStyle(fontSize: 9.5, color: AppColors.sub),
+                        style: TextStyle(
+                          fontSize: 10.0,
+                          color: AppColors.sub,
+                          letterSpacing: 0,
+                        ),
                       ),
                       const SizedBox(width: 5),
                     ],
@@ -225,9 +256,10 @@ class _Icd10MultiSearchPickerState
                       child: Text(
                         item.display,
                         style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w400,
                           color: AppColors.text,
+                          letterSpacing: 0,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -274,6 +306,7 @@ class _Icd10MultiSearchPickerState
                         fontSize: 10.0,
                         fontWeight: FontWeight.w600,
                         color: AppColors.blue,
+                        letterSpacing: 0,
                       ),
                     ),
                   ],
@@ -307,6 +340,7 @@ class _Icd10MultiSearchBottomSheetState
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   late List<Icd10Item> _selectedList;
+  final Set<String> _selectedCodes = {};
   Timer? _debounceTimer;
 
   List<Icd10Item> _results = [];
@@ -321,8 +355,30 @@ class _Icd10MultiSearchBottomSheetState
   void initState() {
     super.initState();
     _selectedList = List<Icd10Item>.from(widget.initialSelected);
-    _fetchPage(1, reset: true);
+    _syncSelectedCodes();
+    final cached = Icd10Api.getCachedInitial();
+    if (cached != null && cached.data.isNotEmpty) {
+      // Instant render with 0ms delay from warm cache
+      _results = cached.data;
+      _total = cached.total;
+      _hasMore = cached.hasMore;
+      _loading = false;
+      // Re-fetch in background silently without blocking the user
+      _fetchPage(1, reset: false, silent: true);
+    } else {
+      _fetchPage(1, reset: true);
+    }
     _scrollController.addListener(_onScroll);
+  }
+
+  void _syncSelectedCodes() {
+    _selectedCodes
+      ..clear()
+      ..addAll(
+        _selectedList
+            .where((s) => s.code.isNotEmpty)
+            .map((s) => s.code.toLowerCase().trim()),
+      );
   }
 
   @override
@@ -348,14 +404,21 @@ class _Icd10MultiSearchBottomSheetState
     });
   }
 
-  Future<void> _fetchPage(int page, {String query = '', bool reset = false}) async {
+  Future<void> _fetchPage(
+    int page, {
+    String query = '',
+    bool reset = false,
+    bool silent = false,
+  }) async {
     if (reset) {
       setState(() {
-        _loading = true;
+        _loading = !silent;
         _currentPage = 1;
         _hasMore = true;
         _currentQuery = query;
       });
+    } else if (silent) {
+      // Silent refresh; don't trigger loading spinners
     } else {
       if (_loadingMore || !_hasMore) return;
       setState(() => _loadingMore = true);
@@ -371,12 +434,16 @@ class _Icd10MultiSearchBottomSheetState
 
       if (!mounted) return;
       setState(() {
-        if (reset) {
+        if (reset || silent) {
           _results = paginated.data;
         } else {
-          final existingCodes = _results.map((i) => i.code.toLowerCase().trim()).toSet();
+          final existingCodes = _results
+              .map((i) => i.code.toLowerCase().trim())
+              .toSet();
           final newItems = paginated.data
-              .where((i) => !existingCodes.contains(i.code.toLowerCase().trim()))
+              .where(
+                (i) => !existingCodes.contains(i.code.toLowerCase().trim()),
+              )
               .toList();
           _results = [..._results, ...newItems];
         }
@@ -401,20 +468,28 @@ class _Icd10MultiSearchBottomSheetState
   }
 
   bool _isSelected(Icd10Item item) {
-    return _selectedList.any((s) =>
-        s.code.toLowerCase().trim() == item.code.toLowerCase().trim() &&
-        s.code.isNotEmpty);
+    if (item.code.isEmpty) {
+      return _selectedList.any(
+        (s) => s.display.toLowerCase().trim() == item.display.toLowerCase().trim(),
+      );
+    }
+    return _selectedCodes.contains(item.code.toLowerCase().trim());
   }
 
   void _toggleItem(Icd10Item item) {
     setState(() {
-      final idx = _selectedList.indexWhere((s) =>
-          s.code.toLowerCase().trim() == item.code.toLowerCase().trim() &&
-          s.code.isNotEmpty);
+      final codeKey = item.code.toLowerCase().trim();
+      final idx = _selectedList.indexWhere(
+        (s) =>
+            s.code.toLowerCase().trim() == codeKey &&
+            s.code.isNotEmpty,
+      );
       if (idx >= 0) {
         _selectedList.removeAt(idx);
+        if (codeKey.isNotEmpty) _selectedCodes.remove(codeKey);
       } else {
         _selectedList.add(item);
+        if (codeKey.isNotEmpty) _selectedCodes.add(codeKey);
       }
     });
   }
@@ -423,8 +498,11 @@ class _Icd10MultiSearchBottomSheetState
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
     setState(() {
-      if (!_selectedList.any((s) => s.display.toLowerCase() == trimmed.toLowerCase())) {
+      if (!_selectedList.any(
+        (s) => s.display.toLowerCase() == trimmed.toLowerCase(),
+      )) {
         _selectedList.add(Icd10Item(code: '', display: trimmed));
+        _syncSelectedCodes();
       }
       _searchController.clear();
       _fetchPage(1, query: '', reset: true);
@@ -498,6 +576,7 @@ class _Icd10MultiSearchBottomSheetState
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.text,
+                                        letterSpacing: 0,
                                       ),
                                     ),
                                     if (_total > 0) ...[
@@ -509,7 +588,9 @@ class _Icd10MultiSearchBottomSheetState
                                         ),
                                         decoration: BoxDecoration(
                                           color: AppColors.blueLt,
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                         child: Text(
                                           '$_total Item',
@@ -517,6 +598,7 @@ class _Icd10MultiSearchBottomSheetState
                                             fontSize: 9.5,
                                             fontWeight: FontWeight.w700,
                                             color: AppColors.blue,
+                                            letterSpacing: 0,
                                           ),
                                         ),
                                       ),
@@ -528,6 +610,7 @@ class _Icd10MultiSearchBottomSheetState
                                   style: TextStyle(
                                     fontSize: 10.0,
                                     color: AppColors.sub,
+                                    letterSpacing: 0,
                                   ),
                                 ),
                               ],
@@ -562,6 +645,7 @@ class _Icd10MultiSearchBottomSheetState
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           color: AppColors.text,
+                          letterSpacing: 0,
                         ),
                         decoration: InputDecoration(
                           hintText:
@@ -570,6 +654,7 @@ class _Icd10MultiSearchBottomSheetState
                             fontSize: 11.0,
                             color: AppColors.sub,
                             fontWeight: FontWeight.w400,
+                            letterSpacing: 0,
                           ),
                           prefixIcon: const Icon(
                             LucideIcons.search,
@@ -628,8 +713,9 @@ class _Icd10MultiSearchBottomSheetState
                                         : item.display,
                                     style: const TextStyle(
                                       fontSize: 10.0,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w600,
                                       color: AppColors.blue,
+                                      letterSpacing: 0,
                                     ),
                                   ),
                                   const SizedBox(width: 2),
@@ -678,6 +764,13 @@ class _Icd10MultiSearchBottomSheetState
                     ? _buildEmptyState()
                     : ListView.separated(
                         controller: _scrollController,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
+                        // ignore: deprecated_member_use
+                        cacheExtent: 600,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 6,
@@ -716,8 +809,7 @@ class _Icd10MultiSearchBottomSheetState
                               child: Row(
                                 children: [
                                   // Checkbox indicator
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 150),
+                                  Container(
                                     width: 18,
                                     height: 18,
                                     decoration: BoxDecoration(
@@ -755,8 +847,7 @@ class _Icd10MultiSearchBottomSheetState
                                       borderRadius: BorderRadius.circular(5),
                                       border: Border.all(
                                         color: isSelected
-                                            ? AppColors.blue
-                                                .withValues(alpha: 0.3)
+                                            ? const Color(0x4D2563EB)
                                             : AppColors.border,
                                         width: 0.8,
                                       ),
@@ -764,11 +855,12 @@ class _Icd10MultiSearchBottomSheetState
                                     child: Text(
                                       item.code,
                                       style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
+                                        fontSize: 10.0,
+                                        fontWeight: FontWeight.w600,
                                         color: isSelected
                                             ? AppColors.blue
                                             : AppColors.text,
+                                        letterSpacing: 0,
                                       ),
                                     ),
                                   ),
@@ -779,14 +871,15 @@ class _Icd10MultiSearchBottomSheetState
                                     child: Text(
                                       item.display,
                                       style: TextStyle(
-                                        fontSize: 11.0,
+                                        fontSize: 12.0,
                                         fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
                                         color: isSelected
                                             ? AppColors.blue
                                             : AppColors.text,
                                         height: 1.25,
+                                        letterSpacing: 0,
                                       ),
                                     ),
                                   ),
@@ -836,6 +929,7 @@ class _Icd10MultiSearchBottomSheetState
                                 fontSize: 11.0,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.orange,
+                                letterSpacing: 0,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -864,11 +958,14 @@ class _Icd10MultiSearchBottomSheetState
                           },
                           style: TextButton.styleFrom(
                             foregroundColor: AppColors.sub,
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                           ),
                           child: const Text(
                             'Reset',
-                            style: TextStyle(fontSize: 11.5),
+                            style: TextStyle(fontSize: 11.0, letterSpacing: 0),
                           ),
                         ),
                       const Spacer(),
@@ -882,8 +979,8 @@ class _Icd10MultiSearchBottomSheetState
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
+                            horizontal: 16,
+                            vertical: 9,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -894,8 +991,9 @@ class _Icd10MultiSearchBottomSheetState
                               ? 'Tutup'
                               : 'Simpan (${_selectedList.length} Diagnosa)',
                           style: const TextStyle(
-                            fontSize: 12.0,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: 0,
                           ),
                         ),
                       ),
@@ -935,13 +1033,18 @@ class _Icd10MultiSearchBottomSheetState
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
               color: AppColors.text,
+              letterSpacing: 0,
             ),
           ),
           const SizedBox(height: 4),
           const Text(
             'Anda dapat mengetik dan menambahkan diagnosa kustom di bawah.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 10.5, color: AppColors.sub),
+            style: TextStyle(
+              fontSize: 10.5,
+              color: AppColors.sub,
+              letterSpacing: 0,
+            ),
           ),
         ],
       ),
@@ -974,12 +1077,14 @@ class Icd10SearchPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final List<Icd10Item> items = [];
     if (selectedCode.isNotEmpty) {
-      items.add(Icd10Item(
-        code: selectedCode,
-        display: displayLabel?.isNotEmpty == true
-            ? displayLabel!
-            : selectedCode,
-      ));
+      items.add(
+        Icd10Item(
+          code: selectedCode,
+          display: displayLabel?.isNotEmpty == true
+              ? displayLabel!
+              : selectedCode,
+        ),
+      );
     }
 
     return Icd10MultiSearchPicker(

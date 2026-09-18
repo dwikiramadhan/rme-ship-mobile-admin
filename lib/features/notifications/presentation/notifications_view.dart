@@ -30,27 +30,22 @@ class NotificationsView extends ConsumerStatefulWidget {
 }
 
 class _NotificationsViewState extends ConsumerState<NotificationsView> {
-  List<Patient> _filterRolePatients(List<Patient> all) {
-    switch (widget.role) {
-      case NotificationRole.doctor:
-        return all.where((p) {
-          final isWaitingDoc = p.status == PatientStatus.menungguDokter;
-          final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
-          return isWaitingDoc || isLabReady;
-        }).toList();
-      case NotificationRole.pharmacy:
-        return all.where((p) {
-          return p.statusPenanganan == 'Menunggu Obat' ||
-              p.resepStatus == ResepStatus.baru ||
-              (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai);
-        }).toList();
-      case NotificationRole.lab:
-        return all.where((p) {
-          return p.statusPenanganan == 'Menunggu Lab' ||
-              (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru);
-        }).toList();
-    }
-  }
+  List<Patient> _filterRolePatients(List<Patient> all) => switch (widget.role) {
+        NotificationRole.doctor => all.where((p) {
+            final isWaitingDoc = p.status == PatientStatus.menungguDokter;
+            final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
+            return isWaitingDoc || isLabReady;
+          }).toList(),
+        NotificationRole.pharmacy => all.where((p) {
+            return p.statusPenanganan == 'Menunggu Obat' ||
+                p.resepStatus == ResepStatus.baru ||
+                (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai);
+          }).toList(),
+        NotificationRole.lab => all.where((p) {
+            return p.statusPenanganan == 'Menunggu Lab' ||
+                (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru);
+          }).toList(),
+      };
 
   void _markAllRead() {
     switch (widget.role) {
@@ -84,16 +79,12 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> {
     );
   }
 
-  bool _isUnread(Patient p, bool isLab) {
-    switch (widget.role) {
-      case NotificationRole.doctor:
-        return isLab ? !p.dilihatDokterLab : !p.dilihatDokter;
-      case NotificationRole.pharmacy:
-        return !p.dilihatPharmacy;
-      case NotificationRole.lab:
-        return !p.dilihatLab;
-    }
-  }
+  bool _isUnread(Patient p, bool isLab) => switch ((widget.role, isLab)) {
+        (NotificationRole.doctor, true) => !p.dilihatDokterLab,
+        (NotificationRole.doctor, false) => !p.dilihatDokter,
+        (NotificationRole.pharmacy, _) => !p.dilihatPharmacy,
+        (NotificationRole.lab, _) => !p.dilihatLab,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -262,34 +253,32 @@ class _NotificationCard extends StatelessWidget {
     final cleanName = CleanTextHelper.cleanName(patient.nama, fallback: 'Pasien');
     final rm = patient.registerNo.isNotEmpty ? patient.registerNo : patient.nik;
 
-    Color themeColor;
-    Color themeBg;
-    IconData themeIcon;
-    String statusLabel;
-
-    if (role == NotificationRole.doctor) {
-      if (isLabResult) {
-        themeColor = AppColors.purple;
-        themeBg = AppColors.purpleLt;
-        themeIcon = LucideIcons.flaskConical;
-        statusLabel = 'Hasil Lab Selesai';
-      } else {
-        themeColor = AppColors.blue;
-        themeBg = AppColors.blueLt;
-        themeIcon = LucideIcons.stethoscope;
-        statusLabel = 'Menunggu Dokter';
-      }
-    } else if (role == NotificationRole.pharmacy) {
-      themeColor = AppColors.orange;
-      themeBg = AppColors.orangeLt;
-      themeIcon = LucideIcons.pill;
-      statusLabel = 'Resep Baru';
-    } else {
-      themeColor = AppColors.purple;
-      themeBg = AppColors.purpleLt;
-      themeIcon = LucideIcons.flaskConical;
-      statusLabel = 'Order Lab';
-    }
+    final (themeColor, themeBg, themeIcon, statusLabel) = switch ((role, isLabResult)) {
+      (NotificationRole.doctor, true) => (
+          AppColors.purple,
+          AppColors.purpleLt,
+          LucideIcons.flaskConical,
+          'Hasil Lab Selesai',
+        ),
+      (NotificationRole.doctor, false) => (
+          AppColors.blue,
+          AppColors.blueLt,
+          LucideIcons.stethoscope,
+          'Menunggu Dokter',
+        ),
+      (NotificationRole.pharmacy, _) => (
+          AppColors.orange,
+          AppColors.orangeLt,
+          LucideIcons.pill,
+          'Resep Baru',
+        ),
+      (NotificationRole.lab, _) => (
+          AppColors.purple,
+          AppColors.purpleLt,
+          LucideIcons.flaskConical,
+          'Order Lab',
+        ),
+    };
 
     final hasVitals = !patient.vitals.isEmpty;
     final hasComplaint = patient.keluhanUtama.isNotEmpty;

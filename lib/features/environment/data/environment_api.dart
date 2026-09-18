@@ -33,17 +33,12 @@ class EnvironmentApi {
         return await _storage.read();
       }
 
-      final result = data['data'] ?? data['result'] ?? data['items'];
-      final List rawList;
-      if (result is List) {
-        rawList = result;
-      } else if (result is Map<String, dynamic> && result['data'] is List) {
-        rawList = result['data'] as List;
-      } else if (result is Map<String, dynamic> && result['items'] is List) {
-        rawList = result['items'] as List;
-      } else {
-        rawList = [];
-      }
+      final List rawList = switch (data['data'] ?? data['result'] ?? data['items']) {
+        final List list => list,
+        {'data': final List list} => list,
+        {'items': final List list} => list,
+        _ => const [],
+      };
 
       if (rawList.isEmpty) {
         debugPrint('EnvironmentApi: environments list is empty');

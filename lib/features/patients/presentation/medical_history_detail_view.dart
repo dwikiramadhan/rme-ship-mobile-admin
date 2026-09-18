@@ -13,6 +13,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../doctor/data/icd10_api.dart';
 import '../../doctor/data/icd9_api.dart';
 import '../../doctor/presentation/widgets/examination_input_modal.dart';
+import '../domain/lab_order.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
 import '../domain/vitals.dart';
@@ -43,10 +44,12 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     final statusPenanganan =
         (history.statusPenanganan ?? patientObj.statusPenanganan ?? '').trim();
     final lowerStatus = statusPenanganan.toLowerCase();
-    final isMenungguDokter = lowerStatus == 'menunggu dokter' ||
+    final isMenungguDokter =
+        lowerStatus == 'menunggu dokter' ||
         lowerStatus == 'antrian' ||
         lowerStatus == 'waiting';
-    final hasDiagnosis = (history.diagnosis != null &&
+    final hasDiagnosis =
+        (history.diagnosis != null &&
             history.diagnosis!.trim().isNotEmpty &&
             history.diagnosis != '—' &&
             history.diagnosis != '-') ||
@@ -56,389 +59,652 @@ class MedicalHistoryDetailView extends ConsumerWidget {
             history.diagnosisDetail != '-');
     final isDiagnosed = !isMenungguDokter && hasDiagnosis;
 
+    final hasTreatment =
+        (history.treatment != null &&
+            history.treatment!.trim().isNotEmpty &&
+            history.treatment != '—' &&
+            history.treatment != '-') ||
+        (history.tindakanDetail != null &&
+            history.tindakanDetail!.trim().isNotEmpty &&
+            history.tindakanDetail != '—' &&
+            history.tindakanDetail != '-');
+
     final isMenungguLab = lowerStatus.contains('lab');
-    final isSelesai = lowerStatus.contains('selesai') ||
+    final isSelesai =
+        lowerStatus.contains('selesai') ||
         lowerStatus == 'completed' ||
         lowerStatus == 'done';
-    final isMenungguObat = lowerStatus.contains('obat') ||
+    final isMenungguObat =
+        lowerStatus.contains('obat') ||
         lowerStatus.contains('farmasi') ||
         lowerStatus.contains('resep');
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. Patient Info Summary Card
-        PatientInfoCard(patient: patientObj),
-        const SizedBox(height: 12),
+    // Operation info
+    final opVal = (history.operation ??
+            history.rawJson['operation']?.toString() ??
+            history.rawJson['Operation']?.toString() ??
+            '')
+        .trim();
+    final hasOperation =
+        opVal.isNotEmpty && opVal != '-' && opVal != '—';
+    final isMajorOp = opVal.toLowerCase() == 'major';
+    final isMinorOp = opVal.toLowerCase() == 'minor';
 
-        // 2. Detail Kunjungan & Pemeriksaan Medis
-        AppCard(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Card
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+    // Lab info
+    final labOrder = patientObj.labOrder;
+    String labJenisText = labOrder?.jenis ?? '';
+    if (labJenisText.isEmpty && history.rawJson['lab_order'] is Map) {
+      final lo = history.rawJson['lab_order'] as Map;
+      labJenisText =
+          (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '').toString();
+    }
+    if (labJenisText.isEmpty && history.rawJson['order_lab'] is Map) {
+      final lo = history.rawJson['order_lab'] as Map;
+      labJenisText =
+          (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '').toString();
+    }
+    if (labJenisText.isEmpty && isMenungguLab) {
+      labJenisText = 'Rujukan Lab';
+    }
+
+    String labCatatanText = labOrder?.catatan ?? '';
+    if (labCatatanText.isEmpty && history.rawJson['lab_order'] is Map) {
+      final lo = history.rawJson['lab_order'] as Map;
+      labCatatanText = (lo['catatan'] ?? lo['notes'] ?? '').toString();
+    }
+
+    final hasLab = labJenisText.trim().isNotEmpty || isMenungguLab;
+
+    Widget? labStatusBadge;
+    if (hasLab) {
+      final labStatus = labOrder?.status;
+      final statusLabel = labStatus == LabOrderStatus.selesai
+          ? 'Selesai'
+          : (labStatus == LabOrderStatus.diproses
+              ? 'Diproses'
+              : (isMenungguLab ? 'Menunggu Lab' : null));
+      if (statusLabel != null) {
+        final isDone = statusLabel == 'Selesai';
+        labStatusBadge = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: isDone ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            statusLabel,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: isDone ? const Color(0xFF166534) : const Color(0xFF92400E),
+              letterSpacing: 0,
+            ),
+          ),
+        );
+      }
+    }
+
+    return DefaultTextStyle.merge(
+      style: const TextStyle(letterSpacing: 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Patient Info Summary Card
+          PatientInfoCard(patient: patientObj),
+          const SizedBox(height: 12),
+
+          // 2. Status Penanganan Info Banner (Card Terpisah)
+          if (!isDiagnosed) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 11,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+              ),
+              child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.blueLt,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      LucideIcons.stethoscope,
-                      size: 18,
-                      color: AppColors.blue,
-                    ),
+                  const Icon(
+                    LucideIcons.alertCircle,
+                    size: 18,
+                    color: Color(0xFFD97706),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'DETAIL',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                            color: AppColors.blue,
-                          ),
-                        ),
-                        if (history.code.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            history.code,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
-                            ),
-                          ),
-                        ],
-                      ],
+                    child: Text(
+                      isDoctor
+                          ? 'Pasien belum memiliki diagnosa klinis. Klik tombol di bawah untuk memeriksa dan mengisi rekam medis.'
+                          : 'Pasien dalam status Menunggu Dokter untuk pemeriksaan klinis.',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0,
+                        color: Color(0xFF92400E),
+                      ),
                     ),
-                  ),
-                  AppBadge(
-                    label: meta.label,
-                    color: meta.color,
-                    background: meta.background,
                   ),
                 ],
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 14),
-                child: Divider(height: 1, color: AppColors.border),
+            ),
+            const SizedBox(height: 12),
+          ] else if (isMenungguLab) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 11,
               ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBAE6FD)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    LucideIcons.flaskConical,
+                    size: 18,
+                    color: Color(0xFF0284C7),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Pasien dalam status Menunggu Lab. Menunggu pemeriksaan atau hasil laboratorium selesai diproses.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0,
+                        color: Color(0xFF0369A1),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ] else if (isMenungguObat) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 11,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF9C3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFEF08A)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    LucideIcons.pill,
+                    size: 18,
+                    color: Color(0xFFCA8A04),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Pasien dalam status Menunggu Obat. Resep obat sedang diproses oleh bagian farmasi.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0,
+                        color: Color(0xFF854D0E),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ] else if (isSelesai) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 11,
+              ),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(
+                    LucideIcons.checkCircle2,
+                    size: 18,
+                    color: Color(0xFF16A34A),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Status Pelayanan Selesai. Seluruh tahapan pemeriksaan dan pelayanan pasien telah selesai.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        letterSpacing: 0,
+                        color: Color(0xFF166534),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
-              // Detail Info Grid / Rows
-              _buildInfoRow(
-                icon: LucideIcons.calendar,
-                label: 'Waktu Kunjungan',
-                value:
-                    (history.createdAt != null && history.createdAt!.isNotEmpty)
-                    ? DateHelper.formatDateTime(history.createdAt)
-                    : (history.date ?? '-'),
-              ),
-              const SizedBox(height: 10),
-              _buildInfoRow(
-                icon: LucideIcons.building,
-                label: 'Poliklinik',
-                value: history.poliName?.isNotEmpty == true
-                    ? history.poliName!
-                    : (history.poliCode ?? 'Poli Umum'),
-              ),
-              const SizedBox(height: 10),
-              _buildInfoRow(
-                icon: LucideIcons.userCheck,
-                label: 'Dokter Pemeriksa',
-                value: history.doctorName?.isNotEmpty == true
-                    ? history.doctorName!
-                    : '-',
-                extra: history.doctorSip?.isNotEmpty == true
-                    ? 'SIP: ${history.doctorSip}'
-                    : null,
-              ),
-              if (history.shipName?.isNotEmpty == true ||
-                  history.portName?.isNotEmpty == true) ...[
+          // 3. Detail Kunjungan & Pemeriksaan Medis
+          AppCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header Card
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.blueLt,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        LucideIcons.stethoscope,
+                        size: 18,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'DETAIL',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0,
+                              color: AppColors.blue,
+                            ),
+                          ),
+                          if (history.code.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              history.code,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0,
+                                color: AppColors.text,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    AppBadge(
+                      label: meta.label,
+                      color: meta.color,
+                      background: meta.background,
+                    ),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Divider(height: 1, color: AppColors.border),
+                ),
+
+                // Detail Info Grid / Rows
+                _buildInfoRow(
+                  icon: LucideIcons.calendar,
+                  label: 'Waktu Kunjungan',
+                  value:
+                      (history.createdAt != null &&
+                          history.createdAt!.isNotEmpty)
+                      ? DateHelper.formatDateTime(history.createdAt)
+                      : (history.date ?? '-'),
+                ),
                 const SizedBox(height: 10),
                 _buildInfoRow(
-                  icon: LucideIcons.ship,
-                  label: 'Kapal & Pelabuhan',
-                  value: [
-                    if (history.shipName?.isNotEmpty == true) history.shipName!,
-                    if (history.portName?.isNotEmpty == true) history.portName!,
-                  ].join(' • '),
+                  icon: LucideIcons.building,
+                  label: 'Poliklinik',
+                  value: history.poliName?.isNotEmpty == true
+                      ? history.poliName!
+                      : (history.poliCode ?? 'Poli Umum'),
                 ),
-              ],
-
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 14),
-                child: Divider(height: 1, color: AppColors.border),
-              ),
-
-              // Tanda-Tanda Vital
-              _buildSectionTitle('Tanda-Tanda Vital Pemeriksaan'),
-              const SizedBox(height: 10),
-              _buildVitalsGrid(history.vitals),
-
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 14),
-                child: Divider(height: 1, color: AppColors.border),
-              ),
-
-              // Hasil Pemeriksaan Klinis
-              _buildSectionTitle('Hasil Pemeriksaan & Catatan Medis'),
-              const SizedBox(height: 10),
-
-              _buildDetailBox(
-                label: 'Keluhan Pasien',
-                value: history.complaint?.isNotEmpty == true
-                    ? history.complaint!
-                    : 'Tidak ada keluhan tercatat',
-                icon: LucideIcons.messageSquare,
-              ),
-              const SizedBox(height: 8),
-
-              _buildDetailBox(
-                label: 'Diagnosa',
-                customContent: _DiagnosaDetailValue(history: history),
-                icon: LucideIcons.activity,
-                isHighlight: hasDiagnosis,
-              ),
-              const SizedBox(height: 8),
-
-              _buildDetailBox(
-                label: 'Tindakan / Terapi',
-                customContent: _TindakanDetailValue(history: history),
-                icon: LucideIcons.fileCheck,
-              ),
-
-              if (history.notes != null &&
-                  history.notes!.trim().isNotEmpty) ...[
-                const SizedBox(height: 8),
-                _buildDetailBox(
-                  label: 'Catatan Khusus / Riwayat Alergi',
-                  value: history.notes!,
-                  icon: LucideIcons.alertTriangle,
-                  isWarning: true,
+                const SizedBox(height: 10),
+                _buildInfoRow(
+                  icon: LucideIcons.userCheck,
+                  label: 'Dokter Pemeriksa',
+                  value: history.doctorName?.isNotEmpty == true
+                      ? history.doctorName!
+                      : '-',
+                  extra: history.doctorSip?.isNotEmpty == true
+                      ? 'SIP: ${history.doctorSip}'
+                      : null,
                 ),
-              ],
+                if (history.shipName?.isNotEmpty == true ||
+                    history.portName?.isNotEmpty == true) ...[
+                  const SizedBox(height: 10),
+                  _buildInfoRow(
+                    icon: LucideIcons.ship,
+                    label: 'Kapal & Pelabuhan',
+                    value: [
+                      if (history.shipName?.isNotEmpty == true)
+                        history.shipName!,
+                      if (history.portName?.isNotEmpty == true)
+                        history.portName!,
+                    ].join(' • '),
+                  ),
+                ],
 
-              // Status Penanganan Info Banner
-              if (!isDiagnosed) ...[
-                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Divider(height: 1, color: AppColors.border),
+                ),
+
+                // Tanda-Tanda Vital
+                _buildSectionTitle('Tanda-Tanda Vital Pemeriksaan'),
+                const SizedBox(height: 10),
+                _buildVitalsGrid(history.vitals),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Divider(height: 1, color: AppColors.border),
+                ),
+
+                // Hasil Pemeriksaan Klinis
+                _buildSectionTitle('Hasil Pemeriksaan & Catatan Medis'),
+                const SizedBox(height: 10),
+
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,
-                    vertical: 10,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
+                    color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFDE68A)),
+                    border: Border.all(
+                      color: const Color(0xFFE2E8F0),
+                      width: 0.8,
+                    ),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(
-                        LucideIcons.alertCircle,
-                        size: 17,
-                        color: Color(0xFFD97706),
+                      _buildClinicalItem(
+                        icon: LucideIcons.messageSquare,
+                        label: 'Keluhan Pasien',
+                        value: history.complaint?.isNotEmpty == true
+                            ? history.complaint!
+                            : 'Tidak ada keluhan tercatat',
+                        isMuted: history.complaint?.isNotEmpty != true,
                       ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          isDoctor
-                              ? 'Pasien belum memiliki diagnosa klinis. Klik tombol di bawah untuk memeriksa dan mengisi rekam medis.'
-                              : 'Pasien dalam status Menunggu Dokter untuk pemeriksaan klinis.',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF92400E),
-                          ),
-                        ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      ),
+                      _buildClinicalItem(
+                        icon: LucideIcons.activity,
+                        label: 'Diagnosa',
+                        customContent: _DiagnosaDetailValue(history: history),
+                        labelColor: hasDiagnosis ? AppColors.blue : null,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      ),
+                      _buildClinicalItem(
+                        icon: LucideIcons.fileCheck,
+                        label: 'Tindakan / Terapi',
+                        customContent: _TindakanDetailValue(history: history),
+                        labelColor: hasTreatment
+                            ? const Color(0xFF0D9488)
+                            : null,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      ),
+                      _buildClinicalItem(
+                        icon: LucideIcons.scissors,
+                        label: 'Operasi (Operation)',
+                        value: hasOperation
+                            ? '$opVal${isMajorOp ? " (Operasi Besar)" : isMinorOp ? " (Operasi Kecil)" : ""}'
+                            : 'Tidak ada tindakan operasi',
+                        isMuted: !hasOperation,
+                        labelColor: hasOperation
+                            ? (isMajorOp
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF0284C7))
+                            : null,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      ),
+                      _buildClinicalItem(
+                        icon: LucideIcons.flaskConical,
+                        label: 'Pemeriksaan Laboratorium',
+                        customContent: hasLab
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF0F9FF),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: const Color(0xFFBAE6FD),
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                              LucideIcons.flaskConical,
+                                              size: 12,
+                                              color: Color(0xFF0284C7),
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              labJenisText,
+                                              style: const TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF0369A1),
+                                                letterSpacing: 0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (labStatusBadge != null) ...[
+                                        const SizedBox(width: 6),
+                                        labStatusBadge,
+                                      ],
+                                    ],
+                                  ),
+                                  if (labCatatanText.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Catatan: $labCatatanText',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.sub,
+                                        fontStyle: FontStyle.italic,
+                                        letterSpacing: 0,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              )
+                            : const Text(
+                                'Tidak ada rujukan laboratorium',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                  fontStyle: FontStyle.italic,
+                                  color: AppColors.sub,
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                        labelColor: hasLab ? const Color(0xFF0284C7) : null,
                       ),
                     ],
                   ),
                 ),
-              ] else if (isMenungguLab) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0F9FF),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFBAE6FD)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        LucideIcons.flaskConical,
-                        size: 17,
-                        color: Color(0xFF0284C7),
-                      ),
-                      SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          'Pasien dalam status Menunggu Lab. Menunggu pemeriksaan atau hasil laboratorium selesai diproses.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF0369A1),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else if (isMenungguObat) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF9C3),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFEF08A)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        LucideIcons.pill,
-                        size: 17,
-                        color: Color(0xFFCA8A04),
-                      ),
-                      SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          'Pasien dalam status Menunggu Obat. Resep obat sedang diproses oleh bagian farmasi.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF854D0E),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ] else if (isSelesai) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFBBF7D0)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        LucideIcons.checkCircle2,
-                        size: 17,
-                        color: Color(0xFF16A34A),
-                      ),
-                      SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          'Status Pelayanan Selesai. Seluruh tahapan pemeriksaan dan pelayanan pasien telah selesai.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF166534),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
 
-              const SizedBox(height: 16),
+                // if (history.notes != null &&
+                //     history.notes!.trim().isNotEmpty) ...[
+                //   const SizedBox(height: 10),
+                //   Container(
+                //     width: double.infinity,
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 14,
+                //       vertical: 10,
+                //     ),
+                //     decoration: BoxDecoration(
+                //       color: const Color(0xFFFFFBEB),
+                //       borderRadius: BorderRadius.circular(10),
+                //       border: Border.all(color: const Color(0xFFFDE68A)),
+                //     ),
+                //     child: Row(
+                //       crossAxisAlignment: CrossAxisAlignment.start,
+                //       children: [
+                //         const Icon(
+                //           LucideIcons.alertTriangle,
+                //           size: 16,
+                //           color: Color(0xFFD97706),
+                //         ),
+                //         const SizedBox(width: 9),
+                //         Expanded(
+                //           child: Column(
+                //             crossAxisAlignment: CrossAxisAlignment.start,
+                //             children: [
+                //               const Text(
+                //                 'Catatan Khusus / Riwayat Alergi',
+                //                 style: TextStyle(
+                //                   fontSize: 11.5,
+                //                   fontWeight: FontWeight.w700,
+                //                   color: Color(0xFFB45309),
+                //                 ),
+                //               ),
+                //               const SizedBox(height: 3),
+                //               Text(
+                //                 history.notes!,
+                //                 style: const TextStyle(
+                //                   fontSize: 13,
+                //                   fontWeight: FontWeight.w500,
+                //                   color: Color(0xFF92400E),
+                //                   height: 1.35,
+                //                 ),
+                //               ),
+                //             ],
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // ],
 
-              // Button 1: Doctor Examination / Medical Record Form (Hanya jika belum didiagnosa)
-              if (isDoctor && !isDiagnosed) ...[
+                const SizedBox(height: 16),
+
+                // Button 1: Doctor Examination / Medical Record Form (Hanya jika belum didiagnosa)
+                if (isDoctor && !isDiagnosed) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _openDoctorExamination(
+                        context,
+                        ref,
+                        history,
+                        patientObj,
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0284C7),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 1,
+                      ),
+                      icon: const Icon(
+                        LucideIcons.stethoscope,
+                        size: 17,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Periksa Pasien / Input Rekam Medis',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+
+                // Button 2: View full patient medical history
                 SizedBox(
                   width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openDoctorExamination(
-                      context,
-                      ref,
-                      history,
-                      patientObj,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0284C7),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final targetId = history.patientId.isNotEmpty
+                          ? history.patientId
+                          : history.id;
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PatientDetailScreen(
+                            patientId: targetId,
+                            initialPatient: patientObj,
+                          ),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      foregroundColor: AppColors.blue,
+                      side: const BorderSide(color: AppColors.blue, width: 1.2),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      elevation: 1,
                     ),
-                    icon: const Icon(
-                      LucideIcons.stethoscope,
-                      size: 17,
-                      color: Colors.white,
-                    ),
+                    icon: const Icon(LucideIcons.fileText, size: 16),
                     label: const Text(
-                      'Periksa Pasien / Input Rekam Medis',
+                      'Buka Rekam Medis Lengkap Pasien',
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
               ],
-
-              // Button 2: View full patient medical history
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    final targetId = history.patientId.isNotEmpty
-                        ? history.patientId
-                        : history.id;
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PatientDetailScreen(
-                          patientId: targetId,
-                          initialPatient: patientObj,
-                        ),
-                      ),
-                    );
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    foregroundColor: AppColors.blue,
-                    side: const BorderSide(color: AppColors.blue, width: 1.2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(LucideIcons.fileText, size: 16),
-                  label: const Text(
-                    'Buka Rekam Medis Lengkap Pasien',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -448,11 +714,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     MedicalHistory history,
     Patient patientObj,
   ) {
-    showExaminationInputModal(
-      context,
-      patient: patientObj,
-      history: history,
-    );
+    showExaminationInputModal(context, patient: patientObj, history: history);
   }
 
   Widget _buildSectionTitle(String title) {
@@ -460,9 +722,9 @@ class MedicalHistoryDetailView extends ConsumerWidget {
       title,
       style: const TextStyle(
         fontSize: 12,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         color: AppColors.sub,
-        letterSpacing: 0.3,
+        letterSpacing: 0,
       ),
     );
   }
@@ -486,6 +748,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
               fontSize: 12,
               color: AppColors.sub,
               fontWeight: FontWeight.w500,
+              letterSpacing: 0,
             ),
           ),
         ),
@@ -500,12 +763,17 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                   color: AppColors.text,
+                  letterSpacing: 0,
                 ),
               ),
               if (extra != null)
                 Text(
                   extra,
-                  style: const TextStyle(fontSize: 11, color: AppColors.sub),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.sub,
+                    letterSpacing: 0,
+                  ),
                 ),
             ],
           ),
@@ -514,68 +782,47 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     );
   }
 
-  Widget _buildDetailBox({
+  Widget _buildClinicalItem({
+    required IconData icon,
     required String label,
     String? value,
     Widget? customContent,
-    required IconData icon,
-    bool isHighlight = false,
-    bool isWarning = false,
+    Color? labelColor,
+    bool isMuted = false,
   }) {
-    final bgColor = isWarning
-        ? AppColors.orangeLt
-        : (isHighlight ? AppColors.blueLt : AppColors.card2);
-    final borderColor = isWarning
-        ? AppColors.orange.withValues(alpha: 0.3)
-        : (isHighlight
-              ? AppColors.blue.withValues(alpha: 0.3)
-              : AppColors.border);
-    final iconColor = isWarning
-        ? AppColors.orange
-        : (isHighlight ? AppColors.blue : AppColors.sub);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor, width: 0.8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 15, color: iconColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: iconColor,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                if (customContent != null)
-                  customContent
-                else
-                  Text(
-                    value ?? '',
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.text,
-                    ),
-                  ),
-              ],
+    final effectiveColor = labelColor ?? AppColors.sub;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 14, color: effectiveColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 0,
+                fontWeight: FontWeight.w600,
+                color: effectiveColor,
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        customContent ??
+            Text(
+              value ?? '-',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isMuted ? FontWeight.w400 : FontWeight.w500,
+                fontStyle: isMuted ? FontStyle.italic : FontStyle.normal,
+                color: isMuted ? AppColors.sub : AppColors.text,
+                height: 1.35,
+                letterSpacing: 0,
+              ),
+            ),
+      ],
     );
   }
 
@@ -691,9 +938,11 @@ class _DiagnosaDetailValue extends ConsumerWidget {
         return Text(
           formatted,
           style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w500,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
             color: AppColors.text,
+            height: 1.35,
+            letterSpacing: 0,
           ),
         );
       }
@@ -701,17 +950,16 @@ class _DiagnosaDetailValue extends ConsumerWidget {
 
     // 2. Gunakan diagnosisDetail jika ada dan memuat nama
     final detail = history.diagnosisDetail?.trim();
-    if (detail != null &&
-        detail.isNotEmpty &&
-        detail != '—' &&
-        detail != '-') {
+    if (detail != null && detail.isNotEmpty && detail != '—' && detail != '-') {
       if (!_isJustCode(detail)) {
         return Text(
           detail,
           style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w500,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
             color: AppColors.text,
+            height: 1.35,
+            letterSpacing: 0,
           ),
         );
       }
@@ -729,9 +977,11 @@ class _DiagnosaDetailValue extends ConsumerWidget {
       return const Text(
         'Belum ada diagnosa dokter',
         style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w500,
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          fontStyle: FontStyle.italic,
           color: AppColors.sub,
+          letterSpacing: 0,
         ),
       );
     }
@@ -741,9 +991,11 @@ class _DiagnosaDetailValue extends ConsumerWidget {
       return Text(
         rawCodes,
         style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w500,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
           color: AppColors.text,
+          height: 1.35,
+          letterSpacing: 0,
         ),
       );
     }
@@ -759,9 +1011,11 @@ class _DiagnosaDetailValue extends ConsumerWidget {
       return Text(
         rawCodes,
         style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w500,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
           color: AppColors.text,
+          height: 1.35,
+          letterSpacing: 0,
         ),
       );
     }
@@ -771,10 +1025,7 @@ class _DiagnosaDetailValue extends ConsumerWidget {
 }
 
 class _Icd10CodesResolver extends ConsumerWidget {
-  const _Icd10CodesResolver({
-    required this.codes,
-    required this.fallback,
-  });
+  const _Icd10CodesResolver({required this.codes, required this.fallback});
 
   final List<String> codes;
   final String fallback;
@@ -812,9 +1063,11 @@ class _Icd10CodesResolver extends ConsumerWidget {
       return Text(
         anyLoading ? 'Memuat diagnosa ($fallback)...' : fallback,
         style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w500,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
           color: AppColors.text,
+          height: 1.35,
+          letterSpacing: 0,
         ),
       );
     }
@@ -822,9 +1075,11 @@ class _Icd10CodesResolver extends ConsumerWidget {
     return Text(
       results.join(', '),
       style: const TextStyle(
-        fontSize: 12.5,
-        fontWeight: FontWeight.w500,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
         color: AppColors.text,
+        height: 1.35,
+        letterSpacing: 0,
       ),
     );
   }
@@ -845,9 +1100,11 @@ class _TindakanDetailValue extends ConsumerWidget {
         return Text(
           formatted,
           style: const TextStyle(
-            fontSize: 12.5,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
             color: AppColors.text,
+            height: 1.35,
+            letterSpacing: 0,
           ),
         );
       }
@@ -855,17 +1112,16 @@ class _TindakanDetailValue extends ConsumerWidget {
 
     // 2. Gunakan tindakanDetail jika ada dan memuat nama
     final detail = history.tindakanDetail?.trim();
-    if (detail != null &&
-        detail.isNotEmpty &&
-        detail != '—' &&
-        detail != '-') {
+    if (detail != null && detail.isNotEmpty && detail != '—' && detail != '-') {
       if (!_isJustCode(detail)) {
         return Text(
           detail,
           style: const TextStyle(
-            fontSize: 12.5,
+            fontSize: 13,
             fontWeight: FontWeight.w500,
             color: AppColors.text,
+            height: 1.35,
+            letterSpacing: 0,
           ),
         );
       }
@@ -883,9 +1139,11 @@ class _TindakanDetailValue extends ConsumerWidget {
       return const Text(
         'Tidak ada tindakan klinis',
         style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w500,
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          fontStyle: FontStyle.italic,
           color: AppColors.sub,
+          letterSpacing: 0,
         ),
       );
     }
@@ -895,9 +1153,11 @@ class _TindakanDetailValue extends ConsumerWidget {
       return Text(
         rawCodes,
         style: const TextStyle(
-          fontSize: 12.5,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
           color: AppColors.text,
+          height: 1.35,
+          letterSpacing: 0,
         ),
       );
     }
@@ -913,9 +1173,11 @@ class _TindakanDetailValue extends ConsumerWidget {
       return Text(
         rawCodes,
         style: const TextStyle(
-          fontSize: 12.5,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
           color: AppColors.text,
+          height: 1.35,
+          letterSpacing: 0,
         ),
       );
     }
@@ -925,10 +1187,7 @@ class _TindakanDetailValue extends ConsumerWidget {
 }
 
 class _Icd9CodesResolver extends ConsumerWidget {
-  const _Icd9CodesResolver({
-    required this.codes,
-    required this.fallback,
-  });
+  const _Icd9CodesResolver({required this.codes, required this.fallback});
 
   final List<String> codes;
   final String fallback;
@@ -966,9 +1225,11 @@ class _Icd9CodesResolver extends ConsumerWidget {
       return Text(
         anyLoading ? 'Memuat tindakan ($fallback)...' : fallback,
         style: const TextStyle(
-          fontSize: 12.5,
+          fontSize: 13,
           fontWeight: FontWeight.w500,
           color: AppColors.text,
+          height: 1.35,
+          letterSpacing: 0,
         ),
       );
     }
@@ -976,9 +1237,11 @@ class _Icd9CodesResolver extends ConsumerWidget {
     return Text(
       results.join(', '),
       style: const TextStyle(
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: FontWeight.w500,
         color: AppColors.text,
+        height: 1.35,
+        letterSpacing: 0,
       ),
     );
   }

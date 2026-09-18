@@ -405,29 +405,30 @@ class Patient extends Equatable {
           raw['prescriptions'] ??
           raw['medicines'] ??
           raw['resep'];
-      if (rawPrescription is List && rawPrescription.isNotEmpty) {
-        resep = rawPrescription
-            .whereType<Map<String, dynamic>>()
-            .map((j) => ResepItem.fromJson(j))
-            .where((r) => r.obat.isNotEmpty)
-            .toList();
-        if (resep.isNotEmpty) resepStatus = ResepStatus.baru;
-      } else if (rawPrescription is String && rawPrescription.isNotEmpty) {
-        final parsed = parseResepString(rawPrescription);
-        if (parsed.isNotEmpty) {
-          resep = parsed;
-          resepStatus = ResepStatus.baru;
-        }
-      } else if (recTreatment.isNotEmpty &&
-          !RegExp(r'^[\d.,\s-]+$').hasMatch(recTreatment) &&
-          recTreatment != 'Pemeriksaan awal' &&
-          recTreatment != 'Menunggu Pemeriksaan Dokter' &&
-          recTreatment != 'Pemeriksaan Dokter') {
-        final parsed = parseResepString(recTreatment);
-        if (parsed.isNotEmpty) {
-          resep = parsed;
-          resepStatus = ResepStatus.baru;
-        }
+      switch (rawPrescription) {
+        case final List list when list.isNotEmpty:
+          resep = list
+              .whereType<Map<String, dynamic>>()
+              .map((j) => ResepItem.fromJson(j))
+              .where((r) => r.obat.isNotEmpty)
+              .toList();
+          if (resep.isNotEmpty) resepStatus = ResepStatus.baru;
+        case final String s when s.isNotEmpty:
+          final parsed = parseResepString(s);
+          if (parsed.isNotEmpty) {
+            resep = parsed;
+            resepStatus = ResepStatus.baru;
+          }
+        case _ when recTreatment.isNotEmpty &&
+            !RegExp(r'^[\d.,\s-]+$').hasMatch(recTreatment) &&
+            recTreatment != 'Pemeriksaan awal' &&
+            recTreatment != 'Menunggu Pemeriksaan Dokter' &&
+            recTreatment != 'Pemeriksaan Dokter':
+          final parsed = parseResepString(recTreatment);
+          if (parsed.isNotEmpty) {
+            resep = parsed;
+            resepStatus = ResepStatus.baru;
+          }
       }
     }
 
@@ -524,14 +525,14 @@ class Patient extends Equatable {
   static String? normalizeBloodType(String? raw) {
     if (raw == null) return null;
     final trimmed = raw.trim().toUpperCase();
-    if (trimmed.isEmpty || trimmed == '-' || trimmed == 'TIDAK TAHU') return null;
-    const valid = {'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'};
-    if (valid.contains(trimmed)) return trimmed;
-    if (trimmed == 'A') return 'A+';
-    if (trimmed == 'B') return 'B+';
-    if (trimmed == 'AB') return 'AB+';
-    if (trimmed == 'O') return 'O+';
-    return null;
+    return switch (trimmed) {
+      'A+' || 'A-' || 'B+' || 'B-' || 'AB+' || 'AB-' || 'O+' || 'O-' => trimmed,
+      'A' => 'A+',
+      'B' => 'B+',
+      'AB' => 'AB+',
+      'O' => 'O+',
+      _ => null,
+    };
   }
 
   Map<String, dynamic> toCreatePatientJson({

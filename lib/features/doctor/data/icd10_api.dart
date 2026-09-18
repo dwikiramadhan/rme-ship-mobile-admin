@@ -29,12 +29,40 @@ class Icd10Api {
 
   final Dio _dio;
 
+  static final Map<String, PaginatedIcd10> _cache = {};
+
+  /// Retrieves cached initial page (unfiltered) if available.
+  static PaginatedIcd10? getCachedInitial() => _cache[''];
+
+  /// Clears in-memory cache.
+  static void clearCache() => _cache.clear();
+
+  /// Prefetches the initial page in background so pickers open instantly.
+  Future<void> prefetchInitial({int limit = 25}) async {
+    if (_cache.containsKey('')) return;
+    try {
+      final res = await fetchIcd10Paginated(
+        query: '',
+        page: 1,
+        limit: limit,
+        useCache: false,
+      );
+      _cache[''] = res;
+    } catch (_) {}
+  }
+
   /// Fetches paginated ICD-10 diagnosis codes via GET /api/v1/icd10?page=1&limit=20&search=...
   Future<PaginatedIcd10> fetchIcd10Paginated({
     String query = '',
     int page = 1,
     int limit = 20,
+    bool useCache = true,
   }) async {
+    final cacheKey = '${query.trim().toLowerCase()}_${page}_$limit';
+    if (useCache && _cache.containsKey(cacheKey)) {
+      return _cache[cacheKey]!;
+    }
+
     try {
       final response = await _dio.get(
         ApiConfig.icd10Path,
@@ -90,7 +118,7 @@ class Icd10Api {
           .map((j) => Icd10Item.fromJson(j))
           .toList();
 
-      return PaginatedIcd10(
+      final paginated = PaginatedIcd10(
         data: list,
         total: total,
         page: currentPage,
@@ -98,6 +126,13 @@ class Icd10Api {
         totalPages: totalPages,
         hasMore: hasMore,
       );
+
+      _cache[cacheKey] = paginated;
+      if (query.trim().isEmpty && page == 1) {
+        _cache[''] = paginated;
+      }
+
+      return paginated;
     } on DioException catch (e) {
       debugPrint('Icd10Api fetchIcd10Paginated DioException: $e');
       return const PaginatedIcd10(

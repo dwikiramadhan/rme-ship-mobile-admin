@@ -12,6 +12,8 @@ import '../../../patients/domain/lab_order.dart';
 import '../../../patients/domain/medical_history.dart';
 import '../../../patients/domain/patient.dart';
 import '../../../patients/domain/prescription_item.dart';
+import '../../data/icd10_api.dart';
+import '../../data/icd9_api.dart';
 import '../../domain/icd10_item.dart';
 import '../../domain/icd9_item.dart';
 import 'icd10_search_picker.dart';
@@ -40,11 +42,7 @@ const List<String> _kAturanPakaiList = [
 ];
 
 /// Status kondisi pasien options
-const List<String> _kStatusKondisiList = [
-  'Stable',
-  'Kritis',
-  'Monitoring',
-];
+const List<String> _kStatusKondisiList = ['Stable', 'Kritis', 'Monitoring'];
 
 class _ResepRowData {
   String? obat;
@@ -62,8 +60,8 @@ class _ResepRowData {
   String get instruksi {
     final base = aturanPakai == 'Input manual'
         ? (customInstruksiCtrl.text.trim().isNotEmpty
-            ? customInstruksiCtrl.text.trim()
-            : 'Sesuai anjuran')
+              ? customInstruksiCtrl.text.trim()
+              : 'Sesuai anjuran')
         : aturanPakai;
     return '$jumlah $satuan ($dosis, $base)';
   }
@@ -73,7 +71,6 @@ class _ResepRowData {
     customInstruksiCtrl.dispose();
   }
 }
-
 
 /// Helper to show the Examination Input Modal
 Future<bool?> showExaminationInputModal(
@@ -86,10 +83,7 @@ Future<bool?> showExaminationInputModal(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     useSafeArea: true,
-    builder: (ctx) => ExaminationInputModal(
-      patient: patient,
-      history: history,
-    ),
+    builder: (ctx) => ExaminationInputModal(patient: patient, history: history),
   );
 }
 
@@ -114,9 +108,12 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   final _tindakanFreetext = TextEditingController();
 
   // Lab referral
-  bool? _needLab;
+  bool _needLab = false;
   String? _jenisLab;
   final _catatanLab = TextEditingController();
+
+  // Operation (Major / Minor / null)
+  String? _operation;
 
   // Prescriptions
   final List<_ResepRowData> _resep = [_ResepRowData()];
@@ -125,6 +122,24 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   String _statusKondisi = 'Stable';
 
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final rawOp = widget.history.operation ??
+        widget.history.rawJson['operation'] ??
+        widget.history.rawJson['Operation'];
+    if (rawOp is String && rawOp.isNotEmpty) {
+      _operation = rawOp;
+    }
+    // Warm up ICD-10 and ICD-9 caches eagerly so pickers open with 0ms delay
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(icd10ApiProvider).prefetchInitial(limit: 25);
+        ref.read(icd9ApiProvider).prefetchInitial(limit: 25);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -140,8 +155,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     final effectiveShipCode = widget.patient.serviceShipCode?.isNotEmpty == true
         ? widget.patient.serviceShipCode!
         : (widget.history.shipCode?.isNotEmpty == true
-            ? widget.history.shipCode!
-            : (ref.read(authControllerProvider).session?.user.shipId ?? ''));
+              ? widget.history.shipCode!
+              : (ref.read(authControllerProvider).session?.user.shipId ?? ''));
 
     showModalBottomSheet(
       context: context,
@@ -181,8 +196,10 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       return;
     }
 
-    final validResep = _resep.where((r) => r.obat != null && r.obat!.isNotEmpty).toList();
-    if (validResep.isEmpty) {
+    final validResep = _needLab
+        ? <_ResepRowData>[]
+        : _resep.where((r) => r.obat != null && r.obat!.isNotEmpty).toList();
+    if (!_needLab && validResep.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Resep obat pasien wajib diisi minimal 1 item obat!'),
@@ -195,8 +212,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     final patientId = widget.patient.id.isNotEmpty
         ? widget.patient.id
         : (widget.history.patientId.isNotEmpty
-            ? widget.history.patientId
-            : widget.history.rawJson['patient_id']?.toString() ?? '');
+              ? widget.history.patientId
+              : widget.history.rawJson['patient_id']?.toString() ?? '');
 
     final recordId = widget.history.id.isNotEmpty
         ? widget.history.id
@@ -227,11 +244,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     try {
       final resepItems = [
         for (final r in validResep)
-          ResepItem(
-            obat: r.obat!,
-            dosis: r.dosis,
-            instruksi: r.instruksi,
-          ),
+          ResepItem(obat: r.obat!, dosis: r.dosis, instruksi: r.instruksi),
       ];
 
       LabOrder? labOrder;
@@ -256,18 +269,22 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       final tindakanFormatted = allTindakan.join(', ');
 
       final noteText = _tindakanFreetext.text.trim();
-      final statusPenanganan = (_needLab == true) ? 'Menunggu Lab' : 'Menunggu Obat';
+      final statusPenanganan = (_needLab == true)
+          ? 'Menunggu Lab'
+          : 'Menunggu Obat';
 
       final prescriptionsPayload = [
         for (final r in validResep)
           {
-            'sku': (r.sku != null && r.sku!.isNotEmpty) ? r.sku! : (r.obat ?? ''),
+            'sku': (r.sku != null && r.sku!.isNotEmpty)
+                ? r.sku!
+                : (r.obat ?? ''),
             'quantity': r.jumlah,
             'dosage': r.dosis,
             'instructions': r.aturanPakai == 'Input manual'
                 ? (r.customInstruksiCtrl.text.trim().isNotEmpty
-                    ? r.customInstruksiCtrl.text.trim()
-                    : 'Sesuai anjuran')
+                      ? r.customInstruksiCtrl.text.trim()
+                      : 'Sesuai anjuran')
                 : r.aturanPakai,
           },
       ];
@@ -275,13 +292,17 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       final body = <String, dynamic>{
         'diagnosis': diagnosaFormatted,
         'treatment': tindakanFormatted,
+        if (_operation != null && _operation!.isNotEmpty)
+          'operation': _operation,
         'note': noteText,
         'status': _statusKondisi,
         'status_penanganan': statusPenanganan,
         'prescriptions': prescriptionsPayload,
       };
 
-      await ref.read(patientsProvider.notifier).patchMedicalRecord(
+      await ref
+          .read(patientsProvider.notifier)
+          .patchMedicalRecord(
             patientId: patientId,
             recordId: recordId,
             body: body,
@@ -318,603 +339,748 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
 
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: 780,
-          maxHeight: mediaQuery.size.height * 0.92,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 20,
-                offset: Offset(0, -4),
-              ),
-            ],
+    return DefaultTextStyle.merge(
+      style: const TextStyle(letterSpacing: 0),
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 780,
+            maxHeight: mediaQuery.size.height * 0.92,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 1. Drag Handle
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  margin: const EdgeInsets.only(top: 12, bottom: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 20,
+                  offset: Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Drag Handle
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
                 ),
-              ),
 
-              // 2. Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.orangeLt,
-                            borderRadius: BorderRadius.circular(8),
+                // 2. Header
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: AppColors.orangeLt,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              LucideIcons.stethoscope,
+                              size: 16,
+                              color: AppColors.orange,
+                            ),
                           ),
-                          child: const Icon(
-                            LucideIcons.stethoscope,
-                            size: 16,
-                            color: AppColors.orange,
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Form Input Rekam Medis',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.text,
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${widget.patient.nama} • RM: ${widget.patient.registerNo.isNotEmpty ? widget.patient.registerNo : widget.patient.id}',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  color: AppColors.sub,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      CircleIconButton(
+                        icon: LucideIcons.x,
+                        size: 32,
+                        background: AppColors.card2,
+                        foreground: AppColors.sub,
+                        onPressed: () => Navigator.of(context).pop(false),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+
+                // 3. Scrollable Form Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      left: 20,
+                      right: 20,
+                      top: 18,
+                      bottom: mediaQuery.viewInsets.bottom + 20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Section 1: Diagnosa Klinis (ICD-10)
+                        Icd10MultiSearchPicker(
+                          label: 'Diagnosa Klinis (ICD-10 / Nama Penyakit)',
+                          required: true,
+                          selectedItems: _diagnosaList,
+                          hint: 'Pilih atau cari diagnosa ICD-10...',
+                          onChanged: (items) {
+                            setState(() {
+                              _diagnosaList
+                                ..clear()
+                                ..addAll(items);
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Section 2: Tindakan Medis (ICD-9-CM)
+                        Icd9MultiSearchPicker(
+                          label: 'Tindakan Medis (ICD-9-CM / Prosedur)',
+                          required: false,
+                          selectedItems: _tindakanList,
+                          hint:
+                              'Pilih atau cari tindakan ICD-9-CM (opsional)...',
+                          onChanged: (items) {
+                            setState(() {
+                              _tindakanList
+                                ..clear()
+                                ..addAll(items);
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Section 3: Catatan Tambahan
+                        const Text(
+                          'Catatan Tambahan',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                            letterSpacing: 0,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Form Input Rekam Medis',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.text,
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _tindakanFreetext,
+                          maxLines: 2,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.text,
+                            letterSpacing: 0,
+                          ),
+                          decoration: InputDecoration(
+                            hintText:
+                                'Tuliskan tindakan/prosedur klinis manual jika tidak ada di list ICD-9...',
+                            hintStyle: const TextStyle(
+                              fontSize: 10.5,
+                              color: AppColors.sub,
+                              letterSpacing: 0,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.inputBg,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: AppColors.border,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '${widget.patient.nama} • RM: ${widget.patient.registerNo.isNotEmpty ? widget.patient.registerNo : widget.patient.id}',
-                              style: const TextStyle(
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: AppColors.orange,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Section: Operation (Opsional)
+                        Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.scissors,
+                              size: 14,
+                              color: Color(0xFF0D9488),
+                            ),
+                            const SizedBox(width: 7),
+                            const Text(
+                              'Operation',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            const Text(
+                              '(Opsional)',
+                              style: TextStyle(
                                 fontSize: 10.5,
+                                fontWeight: FontWeight.w400,
                                 color: AppColors.sub,
-                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            if (_operation != null) ...[
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => setState(() => _operation = null),
+                                child: const Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.x,
+                                      size: 12,
+                                      color: AppColors.red,
+                                    ),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'Reset',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.red,
+                                        letterSpacing: 0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _operationToggleButton(
+                                label: 'Major',
+                                value: 'Major',
+                                icon: LucideIcons.activity,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _operationToggleButton(
+                                label: 'Minor',
+                                value: 'Minor',
+                                icon: LucideIcons.scissors,
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                    CircleIconButton(
-                      icon: LucideIcons.x,
-                      size: 32,
-                      background: AppColors.card2,
-                      foreground: AppColors.sub,
-                      onPressed: () => Navigator.of(context).pop(false),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1, color: AppColors.border),
+                        const SizedBox(height: 16),
 
-              // 3. Scrollable Form Content
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.only(
-                    left: 20,
-                    right: 20,
-                    top: 18,
-                    bottom: mediaQuery.viewInsets.bottom + 20,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Section 1: Diagnosa Klinis (ICD-10)
-                      Icd10MultiSearchPicker(
-                        label: 'Diagnosa Klinis (ICD-10 / Nama Penyakit)',
-                        required: true,
-                        selectedItems: _diagnosaList,
-                        hint: 'Pilih atau cari diagnosa ICD-10...',
-                        onChanged: (items) {
-                          setState(() {
-                            _diagnosaList
-                              ..clear()
-                              ..addAll(items);
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Section 2: Tindakan Medis (ICD-9-CM)
-                      Icd9MultiSearchPicker(
-                        label: 'Tindakan Medis (ICD-9-CM / Prosedur)',
-                        required: false,
-                        selectedItems: _tindakanList,
-                        hint: 'Pilih atau cari tindakan ICD-9-CM (opsional)...',
-                        onChanged: (items) {
-                          setState(() {
-                            _tindakanList
-                              ..clear()
-                              ..addAll(items);
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Section 3: Catatan Tambahan
-                      const Text(
-                        'Catatan Tambahan',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.text,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _tindakanFreetext,
-                        maxLines: 2,
-                        style: const TextStyle(fontSize: 11.5, color: AppColors.text),
-                        decoration: InputDecoration(
-                          hintText:
-                              'Tuliskan tindakan/prosedur klinis manual jika tidak ada di list ICD-9...',
-                          hintStyle: const TextStyle(
-                            fontSize: 10.5,
-                            color: AppColors.sub,
-                          ),
-                          filled: true,
-                          fillColor: AppColors.inputBg,
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(color: AppColors.orange),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Section 4: Perlu Pemeriksaan Laboratorium?
-                      Row(
-                        children: const [
-                          Icon(
-                            LucideIcons.flaskConical,
-                            size: 14,
-                            color: Color(0xFF0284C7),
-                          ),
-                          SizedBox(width: 7),
-                          Text(
-                            'Perlu Pemeriksaan Laboratorium?',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
+                        // Section 4: Perlu Pemeriksaan Laboratorium?
+                        Row(
+                          children: const [
+                            Icon(
+                              LucideIcons.flaskConical,
+                              size: 14,
+                              color: Color(0xFF0284C7),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _labToggleButton(
-                              label: 'Ya, Perlu Rujukan Lab',
-                              value: true,
-                              icon: LucideIcons.flaskConical,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _labToggleButton(
-                              label: 'Tidak Perlu Lab',
-                              value: false,
-                              icon: LucideIcons.xCircle,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      if (_needLab == true) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF0F9FF),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: const Color(0xFF0284C7).withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Label: Jenis Pemeriksaan Laboratorium
-                              Row(
-                                children: const [
-                                  Text(
-                                    'Jenis Pemeriksaan Laboratorium',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.text,
-                                    ),
-                                  ),
-                                  Text(
-                                    ' *',
-                                    style: TextStyle(
-                                      fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.red,
-                                    ),
-                                  ),
-                                ],
+                            SizedBox(width: 7),
+                            Text(
+                              'Perlu Pemeriksaan Laboratorium?',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                                letterSpacing: 0,
                               ),
-                              const SizedBox(height: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: AppColors.border),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    isExpanded: true,
-                                    value: _jenisLab,
-                                    hint: const Text(
-                                      'Pilih jenis pemeriksaan lab...',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _labToggleButton(
+                                label: 'Tidak Perlu Lab',
+                                value: false,
+                                icon: LucideIcons.xCircle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _labToggleButton(
+                                label: 'Ya, Perlu Rujukan Lab',
+                                value: true,
+                                icon: LucideIcons.flaskConical,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        if (_needLab == true) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0F9FF),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF0284C7,
+                                ).withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Label: Jenis Pemeriksaan Laboratorium
+                                Row(
+                                  children: const [
+                                    Text(
+                                      'Jenis Pemeriksaan Laboratorium',
                                       style: TextStyle(
-                                        fontSize: 11.0,
-                                        color: AppColors.sub,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.text,
+                                        letterSpacing: 0,
                                       ),
                                     ),
-                                    dropdownColor: Colors.white,
-                                    icon: const Icon(
-                                      LucideIcons.chevronDown,
-                                      size: 14,
-                                      color: AppColors.sub,
+                                    Text(
+                                      ' *',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.red,
+                                        letterSpacing: 0,
+                                      ),
                                     ),
-                                    items: [
-                                      for (final j in kJenisLab)
-                                        DropdownMenuItem(
-                                          value: j,
-                                          child: Text(
-                                            j,
-                                            style: const TextStyle(
-                                              fontSize: 11.5,
-                                              fontWeight: FontWeight.w600,
-                                              color: AppColors.text,
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppColors.border),
+                                  ),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: _jenisLab,
+                                      hint: const Text(
+                                        'Pilih jenis pemeriksaan lab...',
+                                        style: TextStyle(
+                                          fontSize: 11.0,
+                                          color: AppColors.sub,
+                                          letterSpacing: 0,
+                                        ),
+                                      ),
+                                      dropdownColor: Colors.white,
+                                      icon: const Icon(
+                                        LucideIcons.chevronDown,
+                                        size: 14,
+                                        color: AppColors.sub,
+                                      ),
+                                      items: [
+                                        for (final j in kJenisLab)
+                                          DropdownMenuItem(
+                                            value: j,
+                                            child: Text(
+                                              j,
+                                              style: const TextStyle(
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w400,
+                                                color: AppColors.text,
+                                                letterSpacing: 0,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                    ],
-                                    onChanged: (v) => setState(() => _jenisLab = v),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-
-                              // Label: Catatan Khusus untuk Analis Lab
-                              const Text(
-                                'Catatan Khusus untuk Analis Lab',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              TextField(
-                                controller: _catatanLab,
-                                maxLines: 2,
-                                style: const TextStyle(
-                                  fontSize: 11.5,
-                                  color: AppColors.text,
-                                ),
-                                decoration: InputDecoration(
-                                  hintText:
-                                      'cth: Cek Hemoglobin, Trombosit & Leukosit cito',
-                                  hintStyle: const TextStyle(
-                                    fontSize: 10.5,
-                                    color: AppColors.sub,
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.white,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 8,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(
-                                      color: AppColors.border,
-                                    ),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(
-                                      color: Color(0xFF0284C7),
+                                      ],
+                                      onChanged: (v) =>
+                                          setState(() => _jenisLab = v),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 18),
+                                const SizedBox(height: 10),
 
-                      // Section 5: Resep Obat Pasien *
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: const [
-                              Icon(
-                                LucideIcons.pill,
-                                size: 14,
-                                color: AppColors.orange,
-                              ),
-                              SizedBox(width: 7),
-                              Text(
-                                'Resep Obat Pasien',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              Text(
-                                ' *',
-                                style: TextStyle(
-                                  color: AppColors.red,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.orangeLt,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: AppColors.orange.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Text(
-                              '${_resep.length} Item Obat',
-                              style: const TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.orange,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // List of Resep Cards
-                      for (int i = 0; i < _resep.length; i++) _buildResepCard(i),
-
-                      // Button: + Tambah Obat Lainnya (Simple inline link)
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: InkWell(
-                          onTap: () => setState(() => _resep.add(_ResepRowData())),
-                          borderRadius: BorderRadius.circular(4),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(LucideIcons.plus, size: 11, color: AppColors.orange),
-                                SizedBox(width: 3),
-                                Text(
-                                  'Tambah obat lainnya',
+                                // Label: Catatan Khusus untuk Analis Lab
+                                const Text(
+                                  'Catatan Khusus untuk Analis Lab',
                                   style: TextStyle(
-                                    fontSize: 10.0,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.orange,
+                                    color: AppColors.text,
+                                    letterSpacing: 0,
+                                  ),
+                                ),
+                                const SizedBox(height: 5),
+                                TextField(
+                                  controller: _catatanLab,
+                                  maxLines: 2,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.text,
+                                    letterSpacing: 0,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        'cth: Cek Hemoglobin, Trombosit & Leukosit cito',
+                                    hintStyle: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: AppColors.sub,
+                                      letterSpacing: 0,
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(
+                                        color: AppColors.border,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF0284C7),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Section 6: Status Kondisi Pasien *
-                      Row(
-                        children: const [
-                          Icon(
-                            LucideIcons.activity,
-                            size: 14,
-                            color: AppColors.orange,
-                          ),
-                          SizedBox(width: 7),
-                          Text(
-                            'Status Kondisi Pasien',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          Text(
-                            ' *',
-                            style: TextStyle(
-                              color: AppColors.red,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
                         ],
-                      ),
-                      const SizedBox(height: 6),
+                        const SizedBox(height: 18),
 
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.inputBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            isExpanded: true,
-                            value: _statusKondisi,
-                            dropdownColor: AppColors.card,
-                            icon: const Icon(
-                              LucideIcons.chevronDown,
-                              size: 14,
-                              color: AppColors.sub,
-                            ),
-                            items: [
-                              for (final s in _kStatusKondisiList)
-                                DropdownMenuItem(
-                                  value: s,
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        LucideIcons.activity,
-                                        size: 14,
-                                        color: AppColors.sub,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        s,
-                                        style: const TextStyle(
-                                          fontSize: 11.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.text,
-                                        ),
-                                      ),
-                                    ],
+                        // Section 5: Resep Obat Pasien * (disembunyikan jika rujukan lab)
+                        if (!_needLab) ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: const [
+                                  Icon(
+                                    LucideIcons.pill,
+                                    size: 14,
+                                    color: AppColors.orange,
+                                  ),
+                                  SizedBox(width: 7),
+                                  Text(
+                                    'Resep Obat Pasien',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.text,
+                                      letterSpacing: 0,
+                                    ),
+                                  ),
+                                  Text(
+                                    ' *',
+                                    style: TextStyle(
+                                      color: AppColors.red,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.orangeLt,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: AppColors.orange.withValues(
+                                      alpha: 0.3,
+                                    ),
                                   ),
                                 ),
+                                child: Text(
+                                  '${_resep.length} Item Obat',
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.orange,
+                                    letterSpacing: 0,
+                                  ),
+                                ),
+                              ),
                             ],
-                            onChanged: (v) {
-                              if (v != null) {
-                                setState(() => _statusKondisi = v);
-                              }
-                            },
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Pilih status kondisi pasien: Stable, Kritis, atau Monitoring.',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          color: AppColors.sub,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+                          const SizedBox(height: 10),
 
-                      // Section 7: Action Buttons (Batal & Simpan)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _saving ? null : () => Navigator.of(context).pop(false),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 11),
-                                side: const BorderSide(color: AppColors.border, width: 1.0),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(100),
+                          // List of Resep Cards
+                          for (int i = 0; i < _resep.length; i++)
+                            _buildResepCard(i),
+
+                          // Button: + Tambah Obat Lainnya (Simple inline link)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: InkWell(
+                              onTap: () =>
+                                  setState(() => _resep.add(_ResepRowData())),
+                              borderRadius: BorderRadius.circular(4),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  vertical: 2,
+                                  horizontal: 2,
                                 ),
-                              ),
-                              child: const Text(
-                                'Batal',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 2,
-                            child: ElevatedButton(
-                              onPressed: _saving ? null : _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.orange,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 11),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(100),
-                                ),
-                                elevation: 0.5,
-                              ),
-                              child: _saving
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Simpan Rekam Medis',
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      LucideIcons.plus,
+                                      size: 11,
+                                      color: AppColors.orange,
+                                    ),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'Tambah obat lainnya',
                                       style: TextStyle(
-                                        fontSize: 12.0,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white,
+                                        fontSize: 10.0,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.orange,
+                                        letterSpacing: 0,
                                       ),
                                     ),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
+                          const SizedBox(height: 18),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+
+                        // Section 6: Status Kondisi Pasien *
+                        Row(
+                          children: const [
+                            Icon(
+                              LucideIcons.activity,
+                              size: 14,
+                              color: AppColors.orange,
+                            ),
+                            SizedBox(width: 7),
+                            Text(
+                              'Status Kondisi Pasien',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            Text(
+                              ' *',
+                              style: TextStyle(
+                                color: AppColors.red,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: AppColors.inputBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: _statusKondisi,
+                              dropdownColor: AppColors.card,
+                              icon: const Icon(
+                                LucideIcons.chevronDown,
+                                size: 14,
+                                color: AppColors.sub,
+                              ),
+                              items: [
+                                for (final s in _kStatusKondisiList)
+                                  DropdownMenuItem(
+                                    value: s,
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          LucideIcons.activity,
+                                          size: 12,
+                                          color: AppColors.sub,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          s,
+                                          style: const TextStyle(
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.w400,
+                                            color: AppColors.text,
+                                            letterSpacing: 0,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _statusKondisi = v);
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Pilih status kondisi pasien: Stable, Kritis, atau Monitoring.',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            color: AppColors.sub,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Section 7: Action Buttons (Batal & Simpan)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _saving
+                                    ? null
+                                    : () => Navigator.of(context).pop(false),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 11,
+                                  ),
+                                  side: const BorderSide(
+                                    color: AppColors.border,
+                                    width: 1.0,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(100),
+                                  ),
+                                ),
+                                child: const Text(
+                                  'Batal',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.text,
+                                    letterSpacing: 0,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                onPressed: _saving ? null : _submit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.orange,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 11,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(100),
+                                  ),
+                                  elevation: 0.5,
+                                ),
+                                child: _saving
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        'Simpan Rekam Medis',
+                                        style: TextStyle(
+                                          fontSize: 12.0,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 0,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _labToggleButton({
+  Widget _operationToggleButton({
     required String label,
-    required bool value,
+    required String value,
     required IconData icon,
   }) {
-    final active = _needLab == value;
-    final activeColor = value ? const Color(0xFF0284C7) : const Color(0xFF059669);
-    final activeBg = value ? const Color(0xFFF0F9FF) : const Color(0xFFECFDF5);
-    final activeBorder = value ? const Color(0xFF0284C7) : const Color(0xFF059669);
+    final active = _operation == value;
+    final activeColor = value == 'Major'
+        ? const Color(0xFFDC2626)
+        : const Color(0xFF2563EB);
+    final activeBg = value == 'Major'
+        ? const Color(0xFFFEF2F2)
+        : const Color(0xFFEFF6FF);
+    final activeBorder = activeColor;
 
     final color = active ? activeColor : AppColors.text;
     final iconColor = active ? activeColor : AppColors.sub;
@@ -923,16 +1089,18 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
 
     return InkWell(
       borderRadius: BorderRadius.circular(8),
-      onTap: () => setState(() => _needLab = value),
+      onTap: () {
+        setState(() {
+          // Toggle off if clicked while already selected
+          _operation = (_operation == value) ? null : value;
+        });
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: border,
-            width: active ? 1.2 : 1.0,
-          ),
+          border: Border.all(color: border, width: active ? 1.2 : 1.0),
           boxShadow: active
               ? [
                   BoxShadow(
@@ -954,6 +1122,69 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                 fontSize: 11,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 color: color,
+                letterSpacing: 0,
+              ),
+            ),
+            if (active) ...[
+              const SizedBox(width: 4),
+              Icon(LucideIcons.check, size: 12, color: activeColor),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _labToggleButton({
+    required String label,
+    required bool value,
+    required IconData icon,
+  }) {
+    final active = _needLab == value;
+    final activeColor = value
+        ? const Color(0xFF0284C7)
+        : const Color(0xFF059669);
+    final activeBg = value ? const Color(0xFFF0F9FF) : const Color(0xFFECFDF5);
+    final activeBorder = value
+        ? const Color(0xFF0284C7)
+        : const Color(0xFF059669);
+
+    final color = active ? activeColor : AppColors.text;
+    final iconColor = active ? activeColor : AppColors.sub;
+    final bg = active ? activeBg : Colors.white;
+    final border = active ? activeBorder : AppColors.border;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => setState(() => _needLab = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: border, width: active ? 1.2 : 1.0),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 13.5, color: iconColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+                letterSpacing: 0,
               ),
             ),
           ],
@@ -1001,6 +1232,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
@@ -1011,6 +1243,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       color: AppColors.text,
+                      letterSpacing: 0,
                     ),
                   ),
                 ],
@@ -1025,7 +1258,11 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                     padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Row(
                       children: [
-                        Icon(LucideIcons.trash2, size: 12, color: AppColors.red),
+                        Icon(
+                          LucideIcons.trash2,
+                          size: 12,
+                          color: AppColors.red,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Hapus',
@@ -1033,6 +1270,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                             fontSize: 9.5,
                             fontWeight: FontWeight.w600,
                             color: AppColors.red,
+                            letterSpacing: 0,
                           ),
                         ),
                       ],
@@ -1052,6 +1290,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AppColors.text,
+                  letterSpacing: 0,
                 ),
               ),
               Text(
@@ -1060,6 +1299,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: AppColors.red,
+                  letterSpacing: 0,
                 ),
               ),
             ],
@@ -1092,7 +1332,10 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                       style: TextStyle(
                         fontSize: 11.5,
                         color: hasMedicine ? AppColors.text : AppColors.sub,
-                        fontWeight: hasMedicine ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: hasMedicine
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                        letterSpacing: 0,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1107,7 +1350,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
               ),
             ),
           ),
-          if (hasMedicine && (row.stock != null || (row.category != null && row.category!.isNotEmpty))) ...[
+          if (hasMedicine &&
+              (row.stock != null ||
+                  (row.category != null && row.category!.isNotEmpty))) ...[
             const SizedBox(height: 5),
             Wrap(
               spacing: 6,
@@ -1115,12 +1360,19 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
               children: [
                 if (row.stock != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
-                      color: (row.stock! > 0) ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                      color: (row.stock! > 0)
+                          ? const Color(0xFFECFDF5)
+                          : const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
-                        color: (row.stock! > 0) ? const Color(0xFFA7F3D0) : const Color(0xFFFECACA),
+                        color: (row.stock! > 0)
+                            ? const Color(0xFFA7F3D0)
+                            : const Color(0xFFFECACA),
                       ),
                     ),
                     child: Row(
@@ -1129,7 +1381,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         Icon(
                           LucideIcons.package,
                           size: 10,
-                          color: (row.stock! > 0) ? const Color(0xFF059669) : AppColors.red,
+                          color: (row.stock! > 0)
+                              ? const Color(0xFF059669)
+                              : AppColors.red,
                         ),
                         const SizedBox(width: 3.5),
                         Text(
@@ -1137,7 +1391,10 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w600,
-                            color: (row.stock! > 0) ? const Color(0xFF059669) : AppColors.red,
+                            color: (row.stock! > 0)
+                                ? const Color(0xFF059669)
+                                : AppColors.red,
+                            letterSpacing: 0,
                           ),
                         ),
                       ],
@@ -1145,7 +1402,10 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                   ),
                 if (row.category != null && row.category!.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF3F4F6),
                       borderRadius: BorderRadius.circular(4),
@@ -1157,6 +1417,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         fontSize: 9.5,
                         fontWeight: FontWeight.w500,
                         color: AppColors.sub,
+                        letterSpacing: 0,
                       ),
                     ),
                   ),
@@ -1181,6 +1442,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.text,
+                        letterSpacing: 0,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1194,14 +1456,18 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           InkWell(
                             borderRadius: BorderRadius.circular(4),
                             onTap: () {
-                              final cur = int.tryParse(row.jumlahCtrl.text.trim()) ?? 1;
+                              final cur =
+                                  int.tryParse(row.jumlahCtrl.text.trim()) ?? 1;
                               if (cur > 1) {
                                 row.jumlahCtrl.text = (cur - 1).toString();
                                 setState(() {});
                               }
                             },
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 3,
+                                vertical: 6,
+                              ),
                               child: Icon(
                                 LucideIcons.minus,
                                 size: 12,
@@ -1214,17 +1480,22 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                             child: TextField(
                               controller: row.jumlahCtrl,
                               keyboardType: TextInputType.number,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
                               textAlign: TextAlign.center,
                               cursorColor: AppColors.orange,
                               style: const TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.text,
+                                letterSpacing: 0,
                               ),
                               decoration: const InputDecoration(
                                 isDense: true,
-                                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 focusedBorder: InputBorder.none,
@@ -1233,6 +1504,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                   fontSize: 13,
                                   color: AppColors.sub,
                                   fontWeight: FontWeight.normal,
+                                  letterSpacing: 0,
                                 ),
                               ),
                             ),
@@ -1241,12 +1513,16 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           InkWell(
                             borderRadius: BorderRadius.circular(4),
                             onTap: () {
-                              final cur = int.tryParse(row.jumlahCtrl.text.trim()) ?? 1;
+                              final cur =
+                                  int.tryParse(row.jumlahCtrl.text.trim()) ?? 1;
                               row.jumlahCtrl.text = (cur + 1).toString();
                               setState(() {});
                             },
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 3,
+                                vertical: 6,
+                              ),
                               child: Icon(
                                 LucideIcons.plus,
                                 size: 12,
@@ -1274,6 +1550,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.text,
+                        letterSpacing: 0,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -1305,6 +1582,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                     fontSize: 11,
                                     color: AppColors.text,
                                     fontWeight: FontWeight.w600,
+                                    letterSpacing: 0,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1333,6 +1611,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.text,
+                        letterSpacing: 0,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -1364,6 +1643,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                     fontSize: 11,
                                     color: AppColors.text,
                                     fontWeight: FontWeight.w500,
+                                    letterSpacing: 0,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -1390,18 +1670,30 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
                 color: AppColors.text,
+                letterSpacing: 0,
               ),
             ),
             const SizedBox(height: 4),
             TextField(
               controller: row.customInstruksiCtrl,
-              style: const TextStyle(fontSize: 11, color: AppColors.text),
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.text,
+                letterSpacing: 0,
+              ),
               decoration: InputDecoration(
                 hintText: 'Tuliskan aturan pakai khusus obat...',
-                hintStyle: const TextStyle(fontSize: 10, color: AppColors.sub),
+                hintStyle: const TextStyle(
+                  fontSize: 10,
+                  color: AppColors.sub,
+                  letterSpacing: 0,
+                ),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.border),
@@ -1418,4 +1710,3 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     );
   }
 }
-

@@ -149,10 +149,8 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
       ),
     ];
 
-    late final Widget content;
-    switch (_tab) {
-      case 'notifikasi':
-        content = NotificationsView(
+    final Widget content = switch (_tab) {
+      'notifikasi' => NotificationsView(
           role: NotificationRole.pharmacy,
           onTapItem: (context, p, _) {
             ref.read(notificationsProvider.notifier).markPharmacySeen(p.id);
@@ -167,14 +165,11 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
               _selectedResepId = medHist.id;
             });
           },
-        );
-      case 'resep':
-        content = _buildResep();
-      case 'stok':
-        content = const MedicineStockScreen(canManage: true);
-      default:
-        content = ProfileScreen(name: widget.apotekerName, role: 'Apoteker');
-    }
+        ),
+      'resep' => _buildResep(),
+      'stok' => const MedicineStockScreen(canManage: true),
+      _ => ProfileScreen(name: widget.apotekerName, role: 'Apoteker'),
+    };
 
     return RoleShell(
       items: tabs,
@@ -381,11 +376,12 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
     if (cleanNik.isNotEmpty) {
       parts.add(cleanNik);
     }
-    if (m.createdAt != null && m.createdAt!.isNotEmpty) {
-      parts.add(DateHelper.formatDateTime(m.createdAt));
-    } else if (m.date != null && m.date!.isNotEmpty) {
-      parts.add(DateHelper.formatDate(m.date));
-    }
+    final datePart = switch ((m.createdAt, m.date)) {
+      (final String c, _) when c.isNotEmpty => DateHelper.formatDateTime(c),
+      (_, final String d) when d.isNotEmpty => DateHelper.formatDate(d),
+      _ => null,
+    };
+    if (datePart != null) parts.add(datePart);
     if (parts.isEmpty) return '—';
     return parts.join(' • ');
   }

@@ -16,38 +16,35 @@ enum TripStatus {
   final Color color;
   final Color containerColor;
 
-  static TripStatus fromString(String val) {
-    switch (val.trim().toLowerCase()) {
-      case 'ongoing':
-      case 'berlayar':
-      case 'sedang berlayar':
-      case 'in progress':
-      case 'sailing':
-      case 'active':
-        return TripStatus.ongoing;
-      case 'scheduled':
-      case 'terjadwal':
-      case 'upcoming':
-      case 'pending':
-      case 'planned':
-        return TripStatus.scheduled;
-      case 'completed':
-      case 'selesai':
-      case 'done':
-      case 'finished':
-      case 'arrived':
-        return TripStatus.completed;
-      case 'cancelled':
-      case 'canceled':
-      case 'tertunda':
-      case 'delayed':
-      case 'batal':
-      case 'dibatalkan':
-        return TripStatus.cancelled;
-      default:
-        return TripStatus.scheduled;
-    }
-  }
+  static TripStatus fromString(String val) => switch (val.trim().toLowerCase()) {
+        'ongoing' ||
+        'berlayar' ||
+        'sedang berlayar' ||
+        'in progress' ||
+        'sailing' ||
+        'active' =>
+          TripStatus.ongoing,
+        'scheduled' ||
+        'terjadwal' ||
+        'upcoming' ||
+        'pending' ||
+        'planned' =>
+          TripStatus.scheduled,
+        'completed' ||
+        'selesai' ||
+        'done' ||
+        'finished' ||
+        'arrived' =>
+          TripStatus.completed,
+        'cancelled' ||
+        'canceled' ||
+        'tertunda' ||
+        'delayed' ||
+        'batal' ||
+        'dibatalkan' =>
+          TripStatus.cancelled,
+        _ => TripStatus.scheduled,
+      };
 }
 
 /// A stop / port in a sailing schedule
@@ -563,15 +560,11 @@ class JadwalPerjalanan extends Equatable {
   }
 
   factory JadwalPerjalanan.fromApiJson(Map<String, dynamic> json) {
-    DateTime parseDate(dynamic value) {
-      if (value is String && value.isNotEmpty) {
-        final parsed = DateTime.tryParse(value);
-        if (parsed != null) return parsed.toLocal();
-      } else if (value is int) {
-        return DateTime.fromMillisecondsSinceEpoch(value).toLocal();
-      }
-      return DateTime.now();
-    }
+    DateTime parseDate(dynamic value) => switch (value) {
+      final String s when s.isNotEmpty => DateTime.tryParse(s)?.toLocal() ?? DateTime.now(),
+      final int ms => DateTime.fromMillisecondsSinceEpoch(ms).toLocal(),
+      _ => DateTime.now(),
+    };
 
     // 1. Parse Ship
     final shipObj = json['ship'] is Map<String, dynamic>

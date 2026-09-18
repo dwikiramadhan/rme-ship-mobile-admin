@@ -94,30 +94,30 @@ class DioClient {
   static ApiException mapError(DioException error) {
     final statusCode = error.response?.statusCode;
     final url = error.requestOptions.uri.toString();
-    switch (error.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return ApiException('Koneksi timeout ke $url. Periksa jaringan Anda.');
-      case DioExceptionType.connectionError:
-        return ApiException('Tidak dapat terhubung ke server ($url).', statusCode: statusCode);
 
-      case DioExceptionType.badResponse:
-        final data = error.response?.data;
-        String? serverMessage;
-        if (data is Map && data['message'] is String) {
-          serverMessage = data['message'] as String;
-        } else if (data is Map && data['error'] is String) {
-          serverMessage = data['error'] as String;
-        }
-        if (statusCode == 401) {
-          return ApiException(serverMessage ?? 'Email atau password salah.', statusCode: statusCode);
-        }
-        return ApiException(serverMessage ?? 'Terjadi kesalahan pada server (${statusCode ?? '-'}).', statusCode: statusCode);
-      case DioExceptionType.cancel:
-        return const ApiException('Permintaan dibatalkan.');
-      default:
-        return const ApiException('Terjadi kesalahan yang tidak terduga.');
-    }
+    return switch (error.type) {
+      DioExceptionType.connectionTimeout ||
+      DioExceptionType.sendTimeout ||
+      DioExceptionType.receiveTimeout =>
+        ApiException('Koneksi timeout ke $url. Periksa jaringan Anda.'),
+      DioExceptionType.connectionError =>
+        ApiException('Tidak dapat terhubung ke server ($url).', statusCode: statusCode),
+      DioExceptionType.badResponse => () {
+          final serverMessage = switch (error.response?.data) {
+            {'message': final String msg} => msg,
+            {'error': final String err} => err,
+            _ => null,
+          };
+          if (statusCode == 401) {
+            return ApiException(serverMessage ?? 'Email atau password salah.', statusCode: statusCode);
+          }
+          return ApiException(
+            serverMessage ?? 'Terjadi kesalahan pada server (${statusCode ?? '-'}).',
+            statusCode: statusCode,
+          );
+        }(),
+      DioExceptionType.cancel => const ApiException('Permintaan dibatalkan.'),
+      _ => const ApiException('Terjadi kesalahan yang tidak terduga.'),
+    };
   }
 }

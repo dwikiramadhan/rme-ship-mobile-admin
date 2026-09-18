@@ -78,24 +78,29 @@ class PatientApi {
       }
 
       final result = data['result'];
-      final List rawList;
-      int resPage = page;
-      int resLimit = limit;
-      int resTotal = 0;
-      int resTotalPages = 1;
-
-      if (result is Map<String, dynamic>) {
-        rawList = result['data'] is List ? result['data'] as List : [];
-        resPage = (result['page'] as num?)?.toInt() ?? page;
-        resLimit = (result['limit'] as num?)?.toInt() ?? limit;
-        resTotal = (result['total'] as num?)?.toInt() ?? rawList.length;
-        resTotalPages = (result['total_pages'] as num?)?.toInt() ?? (resTotal > 0 ? (resTotal / resLimit).ceil() : 1);
-      } else if (result is List) {
-        rawList = result;
-        resTotal = rawList.length;
-      } else {
-        rawList = [];
-      }
+      final (rawList, resPage, resLimit, resTotal, resTotalPages) = switch (result) {
+        {'data': final List list} => (
+            list,
+            (result['page'] as num?)?.toInt() ?? page,
+            (result['limit'] as num?)?.toInt() ?? limit,
+            (result['total'] as num?)?.toInt() ?? list.length,
+            (result['total_pages'] as num?)?.toInt() ??
+                (((result['total'] as num?)?.toInt() ?? list.length) > 0
+                    ? (((result['total'] as num?)?.toInt() ?? list.length) /
+                            ((result['limit'] as num?)?.toInt() ?? limit))
+                        .ceil()
+                    : 1),
+          ),
+        final Map<String, dynamic> m => (
+            const [],
+            (m['page'] as num?)?.toInt() ?? page,
+            (m['limit'] as num?)?.toInt() ?? limit,
+            (m['total'] as num?)?.toInt() ?? 0,
+            (m['total_pages'] as num?)?.toInt() ?? 1,
+          ),
+        final List list => (list, page, limit, list.length, 1),
+        _ => (const [], page, limit, 0, 1),
+      };
 
       final patients = rawList
           .whereType<Map<String, dynamic>>()
@@ -119,8 +124,8 @@ class PatientApi {
     try {
       final response = await _dio.get('${ApiConfig.patientsPath}/$patientId/medical-records');
       final data = response.data;
-      if (data is Map<String, dynamic> && data['result'] is List) {
-        return (data['result'] as List).whereType<Map<String, dynamic>>().toList();
+      if (data case {'result': final List list}) {
+        return list.whereType<Map<String, dynamic>>().toList();
       }
       return [];
     } on DioException catch (e) {
@@ -150,11 +155,10 @@ class PatientApi {
   Future<Patient> getPatient(String id) async {
     try {
       final response = await _dio.get('${ApiConfig.patientsPath}/$id');
-      final data = response.data;
-      if (data is! Map<String, dynamic> || data['result'] is! Map<String, dynamic>) {
-        throw const ApiException('Data pasien tidak ditemukan.');
+      if (response.data case {'result': final Map<String, dynamic> result}) {
+        return Patient.fromApiJson(result);
       }
-      return Patient.fromApiJson(data['result'] as Map<String, dynamic>);
+      throw const ApiException('Data pasien tidak ditemukan.');
     } on DioException catch (e) {
       throw DioClient.mapError(e);
     }
@@ -164,11 +168,10 @@ class PatientApi {
   Future<Map<String, dynamic>> getPatientDetailRaw(String id) async {
     try {
       final response = await _dio.get('${ApiConfig.patientsPath}/$id');
-      final data = response.data;
-      if (data is! Map<String, dynamic> || data['result'] is! Map<String, dynamic>) {
-        throw const ApiException('Data pasien tidak ditemukan.');
+      if (response.data case {'result': final Map<String, dynamic> result}) {
+        return result;
       }
-      return data['result'] as Map<String, dynamic>;
+      throw const ApiException('Data pasien tidak ditemukan.');
     } on DioException catch (e) {
       throw DioClient.mapError(e);
     }

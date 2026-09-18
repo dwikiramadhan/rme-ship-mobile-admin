@@ -28,6 +28,7 @@ class MedicalHistory {
     this.diagnosisDetail,
     this.treatment,
     this.tindakanDetail,
+    this.operation,
     this.notes,
     this.status,
     this.statusPenanganan,
@@ -64,6 +65,7 @@ class MedicalHistory {
   final String? diagnosisDetail;
   final String? treatment;
   final String? tindakanDetail;
+  final String? operation;
   final String? notes;
   final String? status;
   final String? statusPenanganan;
@@ -210,6 +212,7 @@ class MedicalHistory {
       diagnosisDetail: json['diagnosis_detail']?.toString(),
       treatment: json['treatment']?.toString(),
       tindakanDetail: json['tindakan_detail']?.toString(),
+      operation: json['operation']?.toString(),
       notes: json['notes']?.toString(),
       status: json['status']?.toString(),
       statusPenanganan: json['status_penanganan']?.toString(),
