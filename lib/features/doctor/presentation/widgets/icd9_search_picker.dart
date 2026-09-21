@@ -320,6 +320,8 @@ class _Icd9MultiSearchBottomSheetState
   late List<Icd9Item> _selectedList;
   final Set<String> _selectedCodes = {};
   Timer? _debounceTimer;
+  Timer? _initialFetchTimer;
+  bool _hasFetchedInitial = false;
 
   List<Icd9Item> _results = [];
   int _currentPage = 1;
@@ -334,19 +336,55 @@ class _Icd9MultiSearchBottomSheetState
     super.initState();
     _selectedList = List<Icd9Item>.from(widget.initialSelected);
     _syncSelectedCodes();
+    _scrollController.addListener(_onScroll);
+
+    // Open modal first with smooth animation, render loader in content,
+    // then fetch data after the bottom sheet transition animation completes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final modalRoute = ModalRoute.of(context);
+      if (modalRoute?.animation != null) {
+        if (modalRoute!.animation!.isCompleted) {
+          _triggerInitialFetch();
+        } else {
+          void onAnimationStatusChanged(AnimationStatus status) {
+            if (status == AnimationStatus.completed) {
+              modalRoute.animation?.removeStatusListener(onAnimationStatusChanged);
+              _triggerInitialFetch();
+            }
+          }
+
+          modalRoute.animation!.addStatusListener(onAnimationStatusChanged);
+        }
+      }
+
+      // Fallback timer in case the animation status listener doesn't fire
+      _initialFetchTimer = Timer(const Duration(milliseconds: 300), () {
+        _triggerInitialFetch();
+      });
+    });
+  }
+
+  void _triggerInitialFetch() {
+    _initialFetchTimer?.cancel();
+    if (_hasFetchedInitial || !mounted) return;
+    _hasFetchedInitial = true;
+
     final cached = Icd9Api.getCachedInitial();
     if (cached != null && cached.data.isNotEmpty) {
-      // Instant render with 0ms delay from warm cache
-      _results = cached.data;
-      _total = cached.total;
-      _hasMore = cached.hasMore;
-      _loading = false;
+      if (mounted) {
+        setState(() {
+          _results = cached.data;
+          _total = cached.total;
+          _hasMore = cached.hasMore;
+          _loading = false;
+        });
+      }
       // Re-fetch in background silently without blocking the user
       _fetchPage(1, reset: false, silent: true);
     } else {
       _fetchPage(1, reset: true);
     }
-    _scrollController.addListener(_onScroll);
   }
 
   void _syncSelectedCodes() {
@@ -361,6 +399,7 @@ class _Icd9MultiSearchBottomSheetState
 
   @override
   void dispose() {
+    _initialFetchTimer?.cancel();
     _debounceTimer?.cancel();
     _searchController.dispose();
     _scrollController.removeListener(_onScroll);
@@ -724,10 +763,29 @@ class _Icd9MultiSearchBottomSheetState
                 child: _loading
                     ? const Center(
                         child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF0D9488),
-                            strokeWidth: 2,
+                          padding: EdgeInsets.symmetric(vertical: 40),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: Color(0xFF0D9488),
+                                ),
+                              ),
+                              SizedBox(height: 14),
+                              Text(
+                                'Memuat daftar tindakan ICD-9-CM...',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.sub,
+                                  letterSpacing: 0,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       )
