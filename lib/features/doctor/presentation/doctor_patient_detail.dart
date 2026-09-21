@@ -1399,6 +1399,7 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => _MedicineSearchModal(
         selectedName: _resep[index].obat,
@@ -1430,6 +1431,8 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _debounce;
+  Timer? _initialFetchTimer;
+  bool _hasFetchedInitial = false;
 
   List<MedicineItem> _medicines = [];
   int _currentPage = 1;
@@ -1443,8 +1446,40 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
   @override
   void initState() {
     super.initState();
-    _fetchPage(1, reset: true);
     _scrollController.addListener(_onScroll);
+
+    // Open modal first with smooth animation, render loader in content,
+    // then fetch data after the bottom sheet transition animation completes.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final modalRoute = ModalRoute.of(context);
+      if (modalRoute?.animation != null) {
+        if (modalRoute!.animation!.isCompleted) {
+          _triggerInitialFetch();
+        } else {
+          void onAnimationStatusChanged(AnimationStatus status) {
+            if (status == AnimationStatus.completed) {
+              modalRoute.animation?.removeStatusListener(onAnimationStatusChanged);
+              _triggerInitialFetch();
+            }
+          }
+
+          modalRoute.animation!.addStatusListener(onAnimationStatusChanged);
+        }
+      }
+
+      // Fallback timer in case the animation status listener doesn't fire
+      _initialFetchTimer = Timer(const Duration(milliseconds: 300), () {
+        _triggerInitialFetch();
+      });
+    });
+  }
+
+  void _triggerInitialFetch() {
+    _initialFetchTimer?.cancel();
+    if (_hasFetchedInitial || !mounted) return;
+    _hasFetchedInitial = true;
+    _fetchPage(1, reset: true);
   }
 
   void _onScroll() {
@@ -1516,6 +1551,7 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
 
   @override
   void dispose() {
+    _initialFetchTimer?.cancel();
     _debounce?.cancel();
     _searchController.dispose();
     _scrollController.removeListener(_onScroll);
@@ -1670,7 +1706,7 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
           // Medicine List / Loading / Empty
           Expanded(
             child: _isLoading
-                ? _buildLoadingShimmer()
+                ? _buildLoadingState()
                 : _medicines.isEmpty
                     ? _buildEmptyState(query)
                     : ListView.separated(
@@ -1808,30 +1844,32 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
     );
   }
 
-  Widget _buildLoadingShimmer() {
-    return AppShimmer(
-      child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        itemCount: 8,
-        separatorBuilder: (_, _) => const SizedBox(height: 6),
-        itemBuilder: (_, _) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-          decoration: BoxDecoration(
-            color: AppColors.card2,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: const [
-              SkeletonBox(width: 46, height: 16, borderRadius: 4),
-              SizedBox(width: 8),
-              Expanded(
-                child: SkeletonBox(height: 14, borderRadius: 4),
+  Widget _buildLoadingState() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                color: AppColors.orange,
               ),
-              SizedBox(width: 10),
-              SkeletonBox(width: 60, height: 12, borderRadius: 3),
-            ],
-          ),
+            ),
+            SizedBox(height: 14),
+            Text(
+              'Memuat daftar obat...',
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                color: AppColors.sub,
+                letterSpacing: 0,
+              ),
+            ),
+          ],
         ),
       ),
     );

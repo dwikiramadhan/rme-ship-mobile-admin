@@ -161,6 +161,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => MedicineSearchModal(
         shipCode: effectiveShipCode,
