@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/notifications/in_app_notification_manager.dart';
+import '../../../../core/notifications/in_app_notification_model.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/circle_icon_button.dart';
 import '../../../auth/presentation/auth_controller.dart';
@@ -313,15 +315,23 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
 
       if (!mounted) return;
 
+      ref.read(notificationsProvider.notifier).markDoctorSeen(patientId);
+      ref.read(patientsProvider.notifier).markDilihatDokter(patientId);
+
       ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
       ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+      ref.read(notificationsProvider.notifier).fetchRecentNotifications();
 
       Navigator.of(context).pop(true);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Rekam medis & resep berhasil disimpan ke sistem!'),
-          backgroundColor: AppColors.green,
+      ref.read(inAppNotificationProvider.notifier).showNotification(
+        InAppNotificationItem(
+          id: 'success_save_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Rekam Medis Berhasil Disimpan',
+          message:
+              'Data pemeriksaan klinis dan resep untuk ${widget.patient.nama} berhasil disimpan ke sistem.',
+          type: InAppNotificationType.success,
+          patientId: patientId,
         ),
       );
     } catch (e) {

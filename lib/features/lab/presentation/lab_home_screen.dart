@@ -64,7 +64,8 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
     final allNotifs = ref.watch(notificationsProvider);
     final notifs = allNotifs
         .where((p) =>
-            p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)
+            p.statusPenanganan == 'Menunggu Lab' ||
+            (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru))
         .toList();
     final labHistories = ref.watch(labOrderHistoryProvider);
 

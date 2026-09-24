@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/app_shimmer.dart';
 import '../../../../core/widgets/circle_icon_button.dart';
 import '../../data/medicines_api.dart';
 import '../../domain/medicine_item.dart';

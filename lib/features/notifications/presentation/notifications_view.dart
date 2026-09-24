@@ -32,7 +32,11 @@ class NotificationsView extends ConsumerStatefulWidget {
 class _NotificationsViewState extends ConsumerState<NotificationsView> {
   List<Patient> _filterRolePatients(List<Patient> all) => switch (widget.role) {
         NotificationRole.doctor => all.where((p) {
-            final isWaitingDoc = p.status == PatientStatus.menungguDokter;
+            final isWaitingDoc = p.status == PatientStatus.menungguDokter &&
+                (p.statusPenanganan == null ||
+                    p.statusPenanganan == '' ||
+                    p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
+                    p.statusPenanganan == 'Pemeriksaan awal');
             final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
             return isWaitingDoc || isLabReady;
           }).toList(),

@@ -46,7 +46,11 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     final allNotifs = ref.watch(notificationsProvider);
 
     final notifs = allNotifs.where((p) {
-      final isWaitingDoc = p.status == PatientStatus.menungguDokter;
+      final isWaitingDoc = p.status == PatientStatus.menungguDokter &&
+          (p.statusPenanganan == null ||
+              p.statusPenanganan == '' ||
+              p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
+              p.statusPenanganan == 'Pemeriksaan awal');
       final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
       return isWaitingDoc || isLabReady;
     }).toList();

@@ -10,6 +10,7 @@ enum InAppNotificationType {
   schedule,
   warning,
   info,
+  success,
 }
 
 class InAppNotificationItem {
@@ -40,6 +41,7 @@ class InAppNotificationItem {
         InAppNotificationType.schedule => LucideIcons.calendarDays,
         InAppNotificationType.warning => LucideIcons.triangleAlert,
         InAppNotificationType.info => LucideIcons.bell,
+        InAppNotificationType.success => LucideIcons.circleCheck,
       };
 
   Color get color => switch (type) {
@@ -49,6 +51,7 @@ class InAppNotificationItem {
         InAppNotificationType.schedule => AppColors.orange,
         InAppNotificationType.warning => AppColors.red,
         InAppNotificationType.info => AppColors.blue,
+        InAppNotificationType.success => AppColors.green,
       };
 
   Color get backgroundColor => switch (type) {
@@ -58,6 +61,7 @@ class InAppNotificationItem {
         InAppNotificationType.schedule => const Color(0xFFFFEDD5),
         InAppNotificationType.warning => AppColors.redLt,
         InAppNotificationType.info => AppColors.blueLt,
+        InAppNotificationType.success => AppColors.greenLt,
       };
 
   String get categoryLabel => switch (type) {
@@ -67,5 +71,6 @@ class InAppNotificationItem {
         InAppNotificationType.schedule => 'JADWAL',
         InAppNotificationType.warning => 'PERINGATAN',
         InAppNotificationType.info => 'NOTIFIKASI',
+        InAppNotificationType.success => 'SUKSES',
       };
 }

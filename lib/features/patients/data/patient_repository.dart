@@ -12,6 +12,7 @@ import '../domain/patient.dart';
 import '../domain/prescription_item.dart';
 import '../domain/vitals.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../auth/domain/user_role.dart';
 import 'patient_api.dart';
 import 'seen_notification_storage.dart';
 
@@ -92,10 +93,10 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             resepStatus: p.resepStatus ?? existing.resepStatus,
             labOrder: p.labOrder ?? existing.labOrder,
             vitals: existing.vitals,
-            dilihatDokter: existing.dilihatDokter || _seenStorage.isDoctorSeen(p.id),
-            dilihatPharmacy: existing.dilihatPharmacy || _seenStorage.isPharmacySeen(p.id),
-            dilihatLab: existing.dilihatLab || _seenStorage.isLabSeen(p.id),
-            dilihatDokterLab: existing.dilihatDokterLab || _seenStorage.isDoctorLabSeen(p.id),
+            dilihatDokter: _seenStorage.isDoctorSeen(p.id),
+            dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
+            dilihatLab: _seenStorage.isLabSeen(p.id),
+            dilihatDokterLab: _seenStorage.isDoctorLabSeen(p.id),
           );
         }
         return p.copyWith(
@@ -175,10 +176,10 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
               resepStatus: p.resepStatus ?? existing.resepStatus,
               labOrder: p.labOrder ?? existing.labOrder,
               vitals: p.vitals.tekananDarah.isNotEmpty ? p.vitals : existing.vitals,
-              dilihatDokter: existing.dilihatDokter || _seenStorage.isDoctorSeen(p.id),
-              dilihatPharmacy: existing.dilihatPharmacy || _seenStorage.isPharmacySeen(p.id),
-              dilihatLab: existing.dilihatLab || _seenStorage.isLabSeen(p.id),
-              dilihatDokterLab: existing.dilihatDokterLab || _seenStorage.isDoctorLabSeen(p.id),
+              dilihatDokter: _seenStorage.isDoctorSeen(p.id),
+              dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
+              dilihatLab: _seenStorage.isLabSeen(p.id),
+              dilihatDokterLab: _seenStorage.isDoctorLabSeen(p.id),
             );
           }
           return p.copyWith(
@@ -765,6 +766,13 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     String? statusKondisi,
   }) async {
     final matchedDoc = kDoctors.where((d) => d.id == doctorId).firstOrNull;
+    await _seenStorage.markDoctorSeen(id);
+    if (labOrder != null) {
+      await _seenStorage.unmarkLabSeen(id);
+    } else {
+      await _seenStorage.unmarkPharmacySeen(id);
+    }
+
     _update(
       id,
       (p) => p.copyWith(
@@ -828,9 +836,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
       // Update patient status_penanganan to 'Menunggu Obat' in backend database
       try {
-        await _api.updatePatient(id, {
-          'status_penanganan': 'Menunggu Obat',
-        });
+        final patientToUpdate = state.where((p) => p.id == id).firstOrNull;
+        if (patientToUpdate != null) {
+          final updatePayload = patientToUpdate.toCreatePatientJson(
+            statusPenanganan: 'Menunggu Obat',
+          );
+          await _api.updatePatient(id, updatePayload);
+          debugPrint('✅ [addMedicalRecord] Successfully synced status_penanganan to Menunggu Obat');
+        }
       } catch (e) {
         debugPrint('Failed to sync status_penanganan to backend: $e');
       }
@@ -873,6 +886,13 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   }) async {
     final statusPenanganan = body['status_penanganan']?.toString() ?? 'Menunggu Obat';
 
+    await _seenStorage.markDoctorSeen(patientId);
+    if (statusPenanganan == 'Menunggu Lab' || labOrder != null) {
+      await _seenStorage.unmarkLabSeen(patientId);
+    } else {
+      await _seenStorage.unmarkPharmacySeen(patientId);
+    }
+
     _update(
       patientId,
       (p) => p.copyWith(
@@ -892,9 +912,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
       // Sync status_penanganan to patient endpoint
       try {
-        await _api.updatePatient(patientId, {
-          'status_penanganan': statusPenanganan,
-        });
+        final currentPatient = state.where((p) => p.id == patientId).firstOrNull;
+        if (currentPatient != null) {
+          final updatePayload = currentPatient.toCreatePatientJson(
+            statusPenanganan: statusPenanganan,
+          );
+          await _api.updatePatient(patientId, updatePayload);
+          debugPrint('✅ [patchMedicalRecord] Successfully updated patient status_penanganan to $statusPenanganan');
+        }
       } catch (e) {
         debugPrint('Failed to sync status_penanganan to patient: $e');
       }
@@ -1035,11 +1060,16 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     );
 
     if (status == ResepStatus.selesai) {
+      await _seenStorage.markPharmacySeen(id);
       try {
-        await _api.updatePatient(id, {
-          'status_penanganan': 'Selesai',
-        });
-        debugPrint('✅ [setResepStatus] Successfully updated status_penanganan to Selesai on API for patient $id');
+        final currentPatient = state.where((p) => p.id == id).firstOrNull;
+        if (currentPatient != null) {
+          final updatePayload = currentPatient.toCreatePatientJson(
+            statusPenanganan: 'Selesai',
+          );
+          await _api.updatePatient(id, updatePayload);
+          debugPrint('✅ [setResepStatus] Successfully updated status_penanganan to Selesai on API for patient $id');
+        }
       } catch (e) {
         debugPrint('❌ [setResepStatus] Failed to sync status_penanganan Selesai to API: $e');
         rethrow;
@@ -1099,6 +1129,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       );
     });
 
+    await _seenStorage.markLabSeen(patientId);
+    await _seenStorage.unmarkDoctorLabSeen(patientId);
+
     _wsService.send({
       'type': 'lab_result_ready',
       'patient_id': patientId,
@@ -1106,12 +1139,12 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     });
   }
 
-  void submitLabHasil({
+  Future<void> submitLabHasil({
     required String id,
     required String catatanHasil,
     String? fileName,
     List<LabExaminationItem> items = const [],
-  }) {
+  }) async {
     _update(id, (p) {
       final order = p.labOrder;
       if (order == null) return p;
@@ -1128,12 +1161,19 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       );
     });
 
+    await _seenStorage.markLabSeen(id);
+    await _seenStorage.unmarkDoctorLabSeen(id);
+
     _wsService.send({
       'type': 'lab_result_ready',
       'patient_id': id,
     });
   }
 }
+
+final seenNotificationStorageProvider = Provider<SeenNotificationStorage>((ref) {
+  return SeenNotificationStorage();
+});
 
 final patientApiProvider = Provider<PatientApi>((ref) {
   return PatientApi();
@@ -1153,6 +1193,7 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     SeenNotificationStorage? seenStorage,
     WebSocketService? wsService,
     this.inAppNotifier,
+    this.currentRole,
   })  : _api = api ?? PatientApi(),
         _seenStorage = seenStorage ?? SeenNotificationStorage(),
         _wsService = wsService ?? WebSocketService(),
@@ -1167,11 +1208,20 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   final SeenNotificationStorage _seenStorage;
   final WebSocketService _wsService;
   final InAppNotificationNotifier? inAppNotifier;
+  final UserRole? currentRole;
 
   StreamSubscription? _wsSubscription;
   StreamSubscription? _connSubscription;
   Timer? _fallbackTimer;
   bool _isFirstLoad = true;
+
+  bool _isWaitingDoctor(Patient p) {
+    return p.status == PatientStatus.menungguDokter &&
+        (p.statusPenanganan == null ||
+            p.statusPenanganan == '' ||
+            p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
+            p.statusPenanganan == 'Pemeriksaan awal');
+  }
 
   void _initWebSocket() {
     _wsSubscription = _wsService.onEvent.listen((event) async {
@@ -1180,19 +1230,34 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
       debugPrint('⚡ [NotificationsNotifier] Event received: $type');
 
       final patientId = event['patient_id']?.toString();
+      String? bannerPatientId;
       if (type == 'prescription_created' && patientId != null) {
         await _seenStorage.unmarkPharmacySeen(patientId);
-      } else if (type == 'patient_assigned' && patientId != null) {
+        if (currentRole == UserRole.pharmacy) {
+          bannerPatientId = patientId;
+        }
+      } else if ((type == 'patient_assigned' || type == 'patient_registered') && patientId != null) {
         await _seenStorage.unmarkDoctorSeen(patientId);
+        if (currentRole == UserRole.dokter) {
+          bannerPatientId = patientId;
+        }
       } else if (type == 'lab_result_ready' && patientId != null) {
         await _seenStorage.unmarkDoctorLabSeen(patientId);
+        if (currentRole == UserRole.dokter) {
+          bannerPatientId = patientId;
+        }
       } else if (type == 'lab_order_created' && patientId != null) {
         await _seenStorage.unmarkLabSeen(patientId);
+        if (currentRole == UserRole.lab) {
+          bannerPatientId = patientId;
+        }
+      } else if (type == 'prescription_completed' && patientId != null) {
+        await _seenStorage.markPharmacySeen(patientId);
       }
 
       await fetchRecentNotifications(
         targetPatientId: patientId,
-        triggerBannerForPatientId: patientId,
+        triggerBannerForPatientId: bannerPatientId,
       );
     });
   }
@@ -1240,8 +1305,18 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
         } catch (_) {}
       }
 
+      // Sync viewed flags from storage
+      patientList = patientList.map((p) {
+        return p.copyWith(
+          dilihatDokter: _seenStorage.isDoctorSeen(p.id),
+          dilihatDokterLab: _seenStorage.isDoctorLabSeen(p.id),
+          dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
+          dilihatLab: _seenStorage.isLabSeen(p.id),
+        );
+      }).toList();
+
       final unread = patientList.where((p) {
-        final isUnreadDoc = (p.status == PatientStatus.menungguDokter) && !_seenStorage.isDoctorSeen(p.id);
+        final isUnreadDoc = _isWaitingDoctor(p) && !_seenStorage.isDoctorSeen(p.id);
         final isUnreadDocLab = (p.labOrder?.status == LabOrderStatus.selesai) && !_seenStorage.isDoctorLabSeen(p.id);
         final isUnreadPharm = (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)) && !_seenStorage.isPharmacySeen(p.id);
         final isUnreadLab = (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) && !_seenStorage.isLabSeen(p.id);
@@ -1250,12 +1325,18 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 
       // Check for new notifications to trigger floating in-app banner
       if (inAppNotifier != null) {
-        for (final p in unread) {
-          final wasInState = state.any((old) => old.id == p.id);
-          final isTarget = p.id == triggerBannerForPatientId;
-          if ((!wasInState && !_isFirstLoad) || isTarget) {
-            _dispatchBanner(p);
-            break; // Show top priority banner
+        if (triggerBannerForPatientId != null) {
+          final target = unread.where((p) => p.id == triggerBannerForPatientId).firstOrNull;
+          if (target != null) {
+            _dispatchBanner(target);
+          }
+        } else if (!_isFirstLoad) {
+          for (final p in unread) {
+            final wasInState = state.any((old) => old.id == p.id);
+            if (!wasInState) {
+              _dispatchBanner(p);
+              break; // Show top priority banner
+            }
           }
         }
       }
@@ -1267,17 +1348,10 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 
   void _dispatchBanner(Patient p) {
     final identifier = p.nik.isNotEmpty ? p.nik : p.registerNo;
-    if (p.status == PatientStatus.menungguDokter) {
-      inAppNotifier?.showNotification(
-        InAppNotificationItem(
-          id: 'doc_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Pasien Siap Diperiksa',
-          message: '${p.nama} ($identifier) menunggu di antrian dokter.',
-          type: InAppNotificationType.doctor,
-          patientId: p.id,
-        ),
-      );
-    } else if (p.labOrder?.status == LabOrderStatus.selesai) {
+
+    // 1. Lab Result Ready (intended for Doctor)
+    if (p.labOrder?.status == LabOrderStatus.selesai) {
+      if (currentRole != null && currentRole != UserRole.dokter) return;
       inAppNotifier?.showNotification(
         InAppNotificationItem(
           id: 'lab_res_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
@@ -1287,7 +1361,12 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
           patientId: p.id,
         ),
       );
-    } else if (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru) {
+      return;
+    }
+
+    // 2. Pharmacy Order (intended for Pharmacy)
+    if (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru) {
+      if (currentRole != null && currentRole != UserRole.pharmacy) return;
       inAppNotifier?.showNotification(
         InAppNotificationItem(
           id: 'pharm_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
@@ -1297,7 +1376,12 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
           patientId: p.id,
         ),
       );
-    } else if (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) {
+      return;
+    }
+
+    // 3. Lab Order (intended for Lab)
+    if (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) {
+      if (currentRole != null && currentRole != UserRole.lab) return;
       inAppNotifier?.showNotification(
         InAppNotificationItem(
           id: 'lab_ord_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
@@ -1307,12 +1391,28 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
           patientId: p.id,
         ),
       );
+      return;
+    }
+
+    // 4. Doctor Queue (intended for Doctor)
+    if (_isWaitingDoctor(p) && !_seenStorage.isDoctorSeen(p.id)) {
+      if (currentRole != null && currentRole != UserRole.dokter) return;
+      inAppNotifier?.showNotification(
+        InAppNotificationItem(
+          id: 'doc_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
+          title: 'Pasien Siap Diperiksa',
+          message: '${p.nama} ($identifier) menunggu di antrian dokter.',
+          type: InAppNotificationType.doctor,
+          patientId: p.id,
+        ),
+      );
+      return;
     }
   }
 
   void markDoctorSeen(String id) {
     _seenStorage.markDoctorSeen(id);
-    state = state.where((p) => !(p.id == id && p.status == PatientStatus.menungguDokter)).toList();
+    state = state.where((p) => !(p.id == id && _isWaitingDoctor(p))).toList();
   }
 
   void markDoctorLabSeen(String id) {
@@ -1321,16 +1421,16 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   }
 
   void markAllDoctorSeen() {
-    final docIds = state.where((p) => p.status == PatientStatus.menungguDokter).map((p) => p.id);
+    final docIds = state.where((p) => _isWaitingDoctor(p)).map((p) => p.id);
     final labIds = state.where((p) => p.labOrder?.status == LabOrderStatus.selesai).map((p) => p.id);
     _seenStorage.markAllDoctorSeen(docIds);
     _seenStorage.markAllDoctorLabSeen(labIds);
-    state = state.where((p) => p.status != PatientStatus.menungguDokter && p.labOrder?.status != LabOrderStatus.selesai).toList();
+    state = state.where((p) => !_isWaitingDoctor(p) && p.labOrder?.status != LabOrderStatus.selesai).toList();
   }
 
   void markPharmacySeen(String id) {
     _seenStorage.markPharmacySeen(id);
-    state = state.where((p) => p.id != id).toList();
+    state = state.where((p) => !(p.id == id && (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)))).toList();
   }
 
   void markAllPharmacySeen() {
@@ -1341,7 +1441,7 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 
   void markLabSeen(String id) {
     _seenStorage.markLabSeen(id);
-    state = state.where((p) => !(p.id == id && p.labOrder?.status == LabOrderStatus.baru)).toList();
+    state = state.where((p) => !(p.id == id && (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)))).toList();
   }
 
   void markAllLabSeen() {
@@ -1362,16 +1462,26 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<Patient>>((ref) {
   final api = ref.watch(patientApiProvider);
   final ws = ref.watch(webSocketServiceProvider);
+  final seenStorage = ref.watch(seenNotificationStorageProvider);
   final inAppNotifier = ref.watch(inAppNotificationProvider.notifier);
-  return NotificationsNotifier(api: api, wsService: ws, inAppNotifier: inAppNotifier);
+  final authState = ref.watch(authControllerProvider);
+  final userRole = authState.session?.user.role;
+  return NotificationsNotifier(
+    api: api,
+    wsService: ws,
+    seenStorage: seenStorage,
+    inAppNotifier: inAppNotifier,
+    currentRole: userRole,
+  );
 });
 
 final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>((ref) {
   final api = ref.watch(patientApiProvider);
   final ws = ref.watch(webSocketServiceProvider);
+  final seenStorage = ref.watch(seenNotificationStorageProvider);
   final authState = ref.watch(authControllerProvider);
   final hasSession = authState.session != null;
-  return PatientsNotifier(api: api, wsService: ws, autoFetch: hasSession);
+  return PatientsNotifier(api: api, wsService: ws, seenStorage: seenStorage, autoFetch: hasSession);
 });
 
 final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {

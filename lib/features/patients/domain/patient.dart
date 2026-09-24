@@ -477,8 +477,35 @@ class Patient extends Equatable {
                 : null))
         ?.toString();
 
-    if (statusPenanganan == 'Selesai') {
+    final normStatusPenanganan = statusPenanganan?.trim().toLowerCase();
+    final normDbStatus = dbStatus.trim().toLowerCase();
+    if (normStatusPenanganan == 'menunggu obat' ||
+        normStatusPenanganan == 'menunggu lab' ||
+        normStatusPenanganan == 'dalam pemeriksaan lab' ||
+        normStatusPenanganan == 'selesai' ||
+        normDbStatus == 'diperiksa' ||
+        normDbStatus == 'selesai') {
+      status = PatientStatus.diperiksa;
+    }
+
+    if (normStatusPenanganan == 'selesai' || normDbStatus == 'selesai') {
       resepStatus = ResepStatus.selesai;
+    } else if (normStatusPenanganan == 'menunggu obat' && resepStatus == null && resep.isNotEmpty) {
+      resepStatus = ResepStatus.baru;
+    }
+
+    if (normStatusPenanganan == 'menunggu lab' && labOrder == null) {
+      labOrder = LabOrder(
+        id: medicalRecordId ?? id,
+        jenis: 'Pemeriksaan Lab',
+        status: LabOrderStatus.baru,
+      );
+    } else if (normStatusPenanganan == 'dalam pemeriksaan lab' && labOrder == null) {
+      labOrder = LabOrder(
+        id: medicalRecordId ?? id,
+        jenis: 'Pemeriksaan Lab',
+        status: LabOrderStatus.diproses,
+      );
     }
 
     return Patient(
@@ -544,6 +571,7 @@ class Patient extends Equatable {
     String? hubunganWali,
     String? keterangan,
     String? kodeKelurahan,
+    String? statusPenanganan,
   }) {
     final effectiveNik = nik.trim().isNotEmpty
         ? nik.trim()
@@ -554,6 +582,10 @@ class Patient extends Equatable {
         ? statusStr
         : ((dbStatus == 'Active' || dbStatus == 'Deleted') ? dbStatus : 'Active');
 
+    final effectiveStatusPenanganan = (statusPenanganan != null && statusPenanganan.isNotEmpty)
+        ? statusPenanganan
+        : this.statusPenanganan;
+
     return {
       'nik': effectiveNik,
       'name': nama,
@@ -563,6 +595,8 @@ class Patient extends Equatable {
       'phone': phone ?? this.phone ?? '08123456789',
       if (normalizedBlood != null) 'blood_type': normalizedBlood,
       'status': normalizedStatus ?? 'Active',
+      if (effectiveStatusPenanganan != null && effectiveStatusPenanganan.isNotEmpty)
+        'status_penanganan': effectiveStatusPenanganan,
       if (namaWali != null && namaWali.isNotEmpty) 'nama_wali': namaWali,
       if (hubunganWali != null && hubunganWali.isNotEmpty) 'hubungan_wali': hubunganWali,
       if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
