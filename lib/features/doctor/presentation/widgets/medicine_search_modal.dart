@@ -269,12 +269,14 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
                       style: const TextStyle(
                         fontSize: 11.5,
                         color: AppColors.text,
+                        letterSpacing: 0,
                       ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama obat atau SKU...',
                         hintStyle: TextStyle(
                           fontSize: 11.5,
                           color: AppColors.sub,
+                          letterSpacing: 0,
                         ),
                         isDense: true,
                         contentPadding: EdgeInsets.zero,

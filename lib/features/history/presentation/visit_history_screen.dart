@@ -24,6 +24,7 @@ class VisitHistoryScreen extends ConsumerWidget {
     return ResponsiveMasterDetail(
       title: 'Riwayat Kunjungan',
       subtitle: '${riwayat.length} rekam medis',
+      searchPlaceholder: 'Cari nama atau NIK pasien...',
       trailing: canEdit
           ? HeaderActionButton(icon: LucideIcons.plus, onPressed: () => _showForm(context, ref))
           : null,

@@ -730,6 +730,7 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                                               fontSize: 13,
                                               color: AppColors.sub,
                                               fontWeight: FontWeight.normal,
+                                              letterSpacing: 0,
                                             ),
                                           ),
                                         ),
@@ -915,6 +916,7 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                             hintStyle: const TextStyle(
                               fontSize: 10,
                               color: AppColors.sub,
+                              letterSpacing: 0,
                             ),
                             filled: true,
                             fillColor: Colors.white,
@@ -1036,6 +1038,7 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                             hintStyle: TextStyle(
                               fontSize: 11.5,
                               color: AppColors.sub,
+                              letterSpacing: 0,
                             ),
                             contentPadding: EdgeInsets.all(8),
                             border: InputBorder.none,

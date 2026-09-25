@@ -371,7 +371,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
     final compactTheme = theme.copyWith(
       inputDecorationTheme: theme.inputDecorationTheme.copyWith(
         contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 10.5),
+        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 10.5, letterSpacing: 0),
         isDense: true,
       ),
     );
@@ -1114,10 +1114,10 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _sistolik,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.text),
+                  style: const TextStyle(fontSize: 10.5, color: AppColors.text, letterSpacing: 0),
                   decoration: const InputDecoration(
                     hintText: 'Sistolik (120)',
-                    hintStyle: TextStyle(fontSize: 9.5, color: AppColors.sub),
+                    hintStyle: TextStyle(fontSize: 9.5, color: AppColors.sub, letterSpacing: 0),
                   ),
                 ),
               ),
@@ -1137,10 +1137,10 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _diastolik,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.text),
+                  style: const TextStyle(fontSize: 10.5, color: AppColors.text, letterSpacing: 0),
                   decoration: const InputDecoration(
                     hintText: 'Diastolik (80)',
-                    hintStyle: TextStyle(fontSize: 9.5, color: AppColors.sub),
+                    hintStyle: TextStyle(fontSize: 9.5, color: AppColors.sub, letterSpacing: 0),
                   ),
                 ),
               ),
@@ -1456,12 +1456,14 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                       style: const TextStyle(
                         fontSize: 10.5,
                         color: AppColors.text,
+                        letterSpacing: 0,
                       ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama pasien, NIK, atau No. RM...',
                         hintStyle: TextStyle(
                           fontSize: 10.0,
                           color: AppColors.sub,
+                          letterSpacing: 0,
                         ),
                         isDense: true,
                         contentPadding: EdgeInsets.zero,

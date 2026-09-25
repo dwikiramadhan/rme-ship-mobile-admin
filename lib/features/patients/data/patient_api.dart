@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
@@ -395,6 +397,36 @@ class PatientApi {
         return response.data as Map<String, dynamic>;
       }
       return {'status': 'success'};
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
+  /// Uploads patient identity photo via POST /api/v1/patients/upload-photo
+  Future<String> uploadPatientPhoto(File photo) async {
+    try {
+      final fileName = photo.path.split(Platform.pathSeparator).last;
+      final formData = FormData.fromMap({
+        'photo': await MultipartFile.fromFile(
+          photo.path,
+          filename: fileName,
+        ),
+      });
+
+      final response = await _dio.post(
+        '${ApiConfig.patientsPath}/upload-photo',
+        data: formData,
+        options: Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+        ),
+      );
+
+      final data = response.data;
+      if (data is Map<String, dynamic> && data['result'] is Map<String, dynamic>) {
+        final result = data['result'] as Map<String, dynamic>;
+        return (result['url'] as String?) ?? '';
+      }
+      return '';
     } on DioException catch (e) {
       throw DioClient.mapError(e);
     }

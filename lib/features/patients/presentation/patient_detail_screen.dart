@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/utils/diagnosis_helper.dart';
@@ -374,6 +375,10 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                 'Pasien')
             .toString();
     final nik = (data['nik'] ?? widget.initialPatient?.nik ?? '').toString();
+    final rawPhoto = data['photo_url'] ?? data['photo'] ?? widget.initialPatient?.photoUrl;
+    final photoUrl = (rawPhoto != null && rawPhoto.toString().isNotEmpty && rawPhoto.toString() != 'null')
+        ? rawPhoto.toString()
+        : null;
     final gender =
         (data['gender'] ??
                 (widget.initialPatient?.jk == Gender.l
@@ -616,23 +621,64 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Avatar Oranye Bulat
-                    Container(
-                      width: 50,
-                      height: 50,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE05315),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        initials,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
+                    // Avatar Oranye Bulat / Foto Pasien
+                    GestureDetector(
+                      onTap: (photoUrl != null && photoUrl.isNotEmpty)
+                          ? () => _showFullPhoto(
+                                context,
+                                photoUrl.startsWith('http')
+                                    ? photoUrl
+                                    : '${ApiConfig.baseUrl}$photoUrl',
+                                name,
+                              )
+                          : null,
+                      child: Container(
+                        width: 50,
+                        height: 50,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE05315),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFFDBA74),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFEA580C).withValues(alpha: 0.15),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
+                        clipBehavior: Clip.antiAlias,
+                        child: (photoUrl != null && photoUrl.isNotEmpty)
+                            ? Image.network(
+                                photoUrl.startsWith('http')
+                                    ? photoUrl
+                                    : '${ApiConfig.baseUrl}$photoUrl',
+                                width: 50,
+                                height: 50,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) => Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                initials,
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
                       ),
                     ),
                     const SizedBox(width: 14),
@@ -652,7 +698,11 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            'NIK: ${nik.isNotEmpty ? nik : '-'} • $gender • $age tahun${formattedDob.isNotEmpty ? ' ($formattedDob)' : ''}',
+                            (nik.isNotEmpty && nik != '-')
+                                ? 'NIK: $nik • $gender • $age tahun${formattedDob.isNotEmpty ? ' ($formattedDob)' : ''}'
+                                : (photoUrl != null && photoUrl.isNotEmpty)
+                                    ? 'Identitas: Foto • $gender • $age tahun${formattedDob.isNotEmpty ? ' ($formattedDob)' : ''}'
+                                    : '$gender • $age tahun${formattedDob.isNotEmpty ? ' ($formattedDob)' : ''}',
                             style: const TextStyle(
                               fontSize: 11.5,
                               color: Color(0xFF64748B),
@@ -1376,6 +1426,10 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   Widget _buildProfileTab(Map<String, dynamic> data) {
     final name = (data['name'] ?? data['nama'] ?? '-').toString();
     final nik = (data['nik'] ?? '-').toString();
+    final rawPhoto = data['photo_url'] ?? data['photo'] ?? widget.initialPatient?.photoUrl;
+    final photoUrl = (rawPhoto != null && rawPhoto.toString().isNotEmpty && rawPhoto.toString() != 'null')
+        ? rawPhoto.toString()
+        : null;
     final regNo = (data['register_no'] ?? '-').toString();
     final gender = (data['gender'] ?? '-').toString();
     final dob = (data['dob'] ?? '-').toString();
@@ -1411,7 +1465,14 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
           const SizedBox(height: 12),
           _buildProfileGrid([
             _ProfileField('Nama Lengkap', name),
-            _ProfileField('Nomor Induk Kependudukan (NIK)', nik),
+            _ProfileField(
+              'Nomor Induk Kependudukan (NIK)',
+              (nik.isNotEmpty && nik != '-')
+                  ? nik
+                  : ((photoUrl != null && photoUrl.isNotEmpty)
+                      ? 'Foto Pasien (Terlampir)'
+                      : '-'),
+            ),
             _ProfileField(
               'No. Registrasi / Rekam Medis',
               regNo.isNotEmpty ? regNo : '-',
@@ -1424,6 +1485,83 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
             _ProfileField('Golongan Darah', bloodType),
             _ProfileField('Nomor Telepon / Handphone', phone),
           ]),
+
+          if (photoUrl != null && photoUrl.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      photoUrl.startsWith('http')
+                          ? photoUrl
+                          : '${ApiConfig.baseUrl}$photoUrl',
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 56,
+                        height: 56,
+                        color: const Color(0xFFE2E8F0),
+                        child: const Icon(LucideIcons.image, color: Color(0xFF94A3B8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Foto Identitas Pasien',
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1E293B),
+                          ),
+                        ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Foto wajah/identitas terdaftar pada rekam medis pasien',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _showFullPhoto(
+                      context,
+                      photoUrl.startsWith('http')
+                          ? photoUrl
+                          : '${ApiConfig.baseUrl}$photoUrl',
+                      name,
+                    ),
+                    icon: const Icon(LucideIcons.eye, size: 14),
+                    label: const Text('Lihat Foto', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFE05315),
+                      side: const BorderSide(color: Color(0xFFFDBA74)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 20),
           const Divider(color: Color(0xFFF1F5F9)),
@@ -1486,6 +1624,69 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showFullPhoto(BuildContext context, String imageUrl, String name) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              constraints: const BoxConstraints(maxWidth: 480, maxHeight: 600),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppBar(
+                    backgroundColor: Colors.black.withValues(alpha: 0.6),
+                    elevation: 0,
+                    title: Text(
+                      'Foto $name',
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                    leading: IconButton(
+                      icon: const Icon(LucideIcons.x, color: Colors.white),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ),
+                  Flexible(
+                    child: InteractiveViewer(
+                      clipBehavior: Clip.none,
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Padding(
+                            padding: EdgeInsets.all(40),
+                            child: CircularProgressIndicator(color: Colors.white),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) => const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Text(
+                            'Gagal memuat foto',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

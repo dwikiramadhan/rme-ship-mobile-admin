@@ -1129,8 +1129,10 @@ class _PoliklinikPickerBottomSheetState
               child: TextField(
                 controller: _searchController,
                 onChanged: _onSearchChanged,
+                style: const TextStyle(fontSize: 13, color: AppColors.text, letterSpacing: 0),
                 decoration: InputDecoration(
                   hintText: 'Cari poliklinik...',
+                  hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8), letterSpacing: 0),
                   prefixIcon: Icon(LucideIcons.search, size: 16),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),

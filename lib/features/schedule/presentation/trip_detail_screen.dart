@@ -2378,6 +2378,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               hintStyle: const TextStyle(
                                 color: Color(0xFF94A3B8),
                                 fontSize: 14,
+                                letterSpacing: 0,
                               ),
                               helperText: isFuelExceeded
                                   ? null
@@ -2493,6 +2494,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               hintStyle: const TextStyle(
                                 color: Color(0xFF94A3B8),
                                 fontSize: 14,
+                                letterSpacing: 0,
                               ),
                               helperText: isWaterExceeded
                                   ? null
@@ -2638,6 +2640,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                           hintStyle: const TextStyle(
                                             fontSize: 12,
                                             color: Color(0xFF94A3B8),
+                                            letterSpacing: 0,
                                           ),
                                           filled: true,
                                           fillColor: Colors.white,
@@ -2725,6 +2728,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                           hintStyle: const TextStyle(
                                             fontSize: 12,
                                             color: Color(0xFF94A3B8),
+                                            letterSpacing: 0,
                                           ),
                                           filled: true,
                                           fillColor: Colors.white,
@@ -3186,6 +3190,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             hintStyle: const TextStyle(
                               fontSize: 12,
                               color: Color(0xFF94A3B8),
+                              letterSpacing: 0,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
@@ -3293,6 +3298,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   hintStyle: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF94A3B8),
+                                    letterSpacing: 0,
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 12,
@@ -3332,6 +3338,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   hintStyle: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF94A3B8),
+                                    letterSpacing: 0,
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 12,

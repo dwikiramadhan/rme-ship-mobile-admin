@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -78,10 +79,11 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       final paginated = await _api.getPatientsPaginated(
         page: 1,
         limit: _limit,
+        search: _currentSearch,
       );
 
       final existingMap = {for (final p in state) p.id: p};
-      final updatedList = paginated.data.map((p) {
+      final updatedPage1 = paginated.data.map((p) {
         final existing = existingMap[p.id];
         if (existing != null) {
           return p.copyWith(
@@ -92,7 +94,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             resep: p.resep.isNotEmpty ? p.resep : existing.resep,
             resepStatus: p.resepStatus ?? existing.resepStatus,
             labOrder: p.labOrder ?? existing.labOrder,
-            vitals: existing.vitals,
+            vitals: p.vitals.tekananDarah.isNotEmpty ? p.vitals : existing.vitals,
             dilihatDokter: _seenStorage.isDoctorSeen(p.id),
             dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
             dilihatLab: _seenStorage.isLabSeen(p.id),
@@ -107,7 +109,13 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         );
       }).toList();
 
-      if (!listEquals(state, updatedList)) {
+      final page1Map = {for (final p in updatedPage1) p.id: p};
+      final mergedExisting = state.map((p) => page1Map[p.id] ?? p).toList();
+      final existingStateIds = {for (final p in state) p.id};
+      final brandNew = updatedPage1.where((p) => !existingStateIds.contains(p.id)).toList();
+
+      final updatedList = [...brandNew, ...mergedExisting];
+      if (!listEquals(state, updatedList) && mounted) {
         state = updatedList;
       }
     } catch (_) {}
@@ -123,12 +131,19 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   /// Fetches patients from GET /api/v1/patients.
   /// If [refresh] is true, resets pagination and fetches page 1.
   Future<void> fetchPatients({bool refresh = true, String? search, String? status}) async {
+    if (search != null) {
+      _currentSearch = search.trim().isNotEmpty ? search.trim() : null;
+    }
+    final effectiveSearch = search ?? _currentSearch;
+
     if (refresh) {
       _isLoading = true;
       _currentPage = 1;
+      if (mounted) state = [...state];
     } else {
       if (_isLoadingMore || !_hasMore) return;
       _isLoadingMore = true;
+      if (mounted) state = [...state];
     }
 
     try {
@@ -142,7 +157,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       final paginated = await _api.getPatientsPaginated(
         page: targetPage,
         limit: _limit,
-        search: search,
+        search: effectiveSearch,
         status: status,
       );
 
@@ -207,6 +222,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     } finally {
       _isLoading = false;
       _isLoadingMore = false;
+      if (mounted) state = [...state];
     }
   }
 
@@ -444,6 +460,8 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
   }
 
+    Future<String> uploadPhoto(File photo) => _api.uploadPatientPhoto(photo);
+
   Future<Patient> addPatient(Patient patient) async {
     final created = await _api.createPatient(patient.toCreatePatientJson(
       dob: patient.dob,
@@ -452,6 +470,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       namaWali: patient.namaWali,
       hubunganWali: patient.hubunganWali,
       keterangan: patient.keterangan,
+      photoUrl: patient.photoUrl,
     ));
 
     // Attach local clinical intake fields (keluhan, vitals, assigned doctor)
@@ -461,6 +480,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       lokasiKeluhan: patient.lokasiKeluhan,
       vitals: patient.vitals,
       assignedDokterId: patient.assignedDokterId,
+      photoUrl: patient.photoUrl ?? created.photoUrl,
       dob: patient.dob ?? created.dob,
       bloodType: patient.bloodType ?? created.bloodType,
       namaWali: patient.namaWali ?? created.namaWali,
@@ -621,6 +641,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       namaWali: patient.namaWali,
       hubunganWali: patient.hubunganWali,
       keterangan: patient.keterangan,
+      photoUrl: patient.photoUrl,
     ));
     final fullPatient = patient.copyWith(
       nama: updated.nama,
@@ -628,6 +649,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       jk: updated.jk,
       umur: updated.umur,
       alamat: updated.alamat,
+      photoUrl: updated.photoUrl ?? patient.photoUrl,
       dob: updated.dob ?? patient.dob,
       bloodType: updated.bloodType ?? patient.bloodType,
       namaWali: updated.namaWali ?? patient.namaWali,

@@ -64,12 +64,13 @@ class AppTextField extends StatelessWidget {
           validator: validator,
           autovalidateMode: autovalidateMode,
           inputFormatters: numbersOnly ? [FilteringTextInputFormatter.digitsOnly] : null,
-          style: style ?? TextStyle(fontSize: fontSize ?? 14, color: AppColors.text),
+          style: style ?? TextStyle(fontSize: fontSize ?? 14, color: AppColors.text, letterSpacing: 0),
           decoration: InputDecoration(
             hintText: placeholder,
             hintStyle: TextStyle(
               fontSize: fontSize ?? 13.5,
               color: AppColors.sub,
+              letterSpacing: 0,
             ),
             suffixIcon: suffixIcon,
           ),

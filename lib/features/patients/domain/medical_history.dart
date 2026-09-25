@@ -366,6 +366,11 @@ class MedicalHistory {
       }
     }
 
+    final rawPhoto = rawJson['patient'] is Map
+        ? (rawJson['patient']['photo_url'] ?? rawJson['patient']['photo'])
+        : (rawJson['photo_url'] ?? rawJson['photo']);
+    final effectivePhotoUrl = rawPhoto?.toString() ?? patient?.photoUrl;
+
     if (patient != null) {
       return patient!.copyWith(
         nama: patient!.nama.isNotEmpty
@@ -377,6 +382,7 @@ class MedicalHistory {
         nik: patient!.nik.isNotEmpty
             ? CleanTextHelper.cleanCode(patient!.nik, fallback: cleanPatientNik)
             : cleanPatientNik,
+        photoUrl: patient!.photoUrl ?? effectivePhotoUrl,
         registerNo: cleanCode.isNotEmpty
             ? cleanCode
             : CleanTextHelper.cleanCode(patient!.registerNo),
@@ -396,6 +402,7 @@ class MedicalHistory {
       id: patientId,
       nama: cleanPatientName,
       nik: cleanPatientNik,
+      photoUrl: effectivePhotoUrl,
       jk: Gender.l,
       umur: 0,
       alamat: '',
@@ -405,7 +412,10 @@ class MedicalHistory {
       vitals: vitals,
       assignedDokterId: doctorId ?? '',
       waktuMasuk: createdAt ?? '',
-      updatedAt: DateTime.tryParse(updatedAt ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(createdAt ?? ''),
+      updatedAt: DateTime.tryParse(updatedAt ?? '') ??
+          DateTime.tryParse(createdAt ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
       registerNo: cleanCode,
       poliName: poliName,
       statusPenanganan: effectiveStatusPenanganan,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_card.dart';
@@ -31,7 +32,6 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   bool _isSearchFocused = false;
   Timer? _searchDebounce;
-  bool _internalLoadingMore = false;
 
   @override
   void initState() {
@@ -49,16 +49,8 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
     final notifier = ref.read(patientsProvider.notifier);
 
     if (maxScroll - currentScroll <= 200) {
-      if (notifier.hasMore &&
-          !notifier.isLoadingMore &&
-          !_internalLoadingMore) {
-        setState(() => _internalLoadingMore = true);
+      if (notifier.hasMore && !notifier.isLoadingMore && !notifier.isLoading) {
         notifier.loadMore();
-        Future.delayed(const Duration(milliseconds: 1500), () {
-          if (mounted && _internalLoadingMore) {
-            setState(() => _internalLoadingMore = false);
-          }
-        });
       }
     }
   }
@@ -77,7 +69,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
     final patients = ref.watch(patientsProvider);
     final notifier = ref.read(patientsProvider.notifier);
     final sorted = sortRecent(patients);
-    final showLoadingMore = notifier.isLoadingMore || _internalLoadingMore;
+    final showLoadingMore = notifier.isLoadingMore;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -145,12 +137,14 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                     style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.text,
+                      letterSpacing: 0,
                     ),
                     decoration: const InputDecoration(
                       hintText: 'Cari nama atau NIK pasien...',
                       hintStyle: TextStyle(
                         fontSize: 13,
                         color: AppColors.sub,
+                        letterSpacing: 0,
                       ),
                       isDense: true,
                       contentPadding: EdgeInsets.zero,
@@ -194,7 +188,12 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
             color: AppColors.blue,
             backgroundColor: AppColors.card,
             onRefresh: () async {
-              await notifier.fetchPatients(refresh: true);
+              await notifier.fetchPatients(
+                refresh: true,
+                search: _searchController.text.trim().isNotEmpty
+                    ? _searchController.text.trim()
+                    : null,
+              );
             },
             child: notifier.isLoading && sorted.isEmpty
                 ? const SkeletonList()
@@ -266,7 +265,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                               );
                             }
                             final p = sorted[index];
-                            return _PatientCard(patient: p);
+                            return _PatientCard(key: ValueKey(p.id), patient: p);
                           },
                         );
                       }
@@ -306,7 +305,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                             );
                           }
                           final p = sorted[index];
-                          return _PatientCard(patient: p);
+                          return _PatientCard(key: ValueKey(p.id), patient: p);
                         },
                       );
                     },
@@ -319,7 +318,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
 }
 
 class _PatientCard extends StatelessWidget {
-  const _PatientCard({required this.patient});
+  const _PatientCard({super.key, required this.patient});
 
   final Patient patient;
 
@@ -377,14 +376,32 @@ class _PatientCard extends StatelessWidget {
                       color: avatarBg,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(
-                      initial,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: avatarColor,
-                      ),
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: (patient.photoUrl != null && patient.photoUrl!.isNotEmpty)
+                        ? Image.network(
+                            patient.photoUrl!.startsWith('http')
+                                ? patient.photoUrl!
+                                : '${ApiConfig.baseUrl}${patient.photoUrl}',
+                            width: 38,
+                            height: 38,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Text(
+                              initial,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: avatarColor,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            initial,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: avatarColor,
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 10),
                   // Nama & Code Pasien (tanpa tanda #)

@@ -220,7 +220,7 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.red, width: 1.5),
         ),
-        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 13.5),
+        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 13.5, letterSpacing: 0),
       ),
 
       // -- Chips (M3 assist/filter chip shape) ------------------------------

@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
@@ -68,6 +71,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   String? _hubunganWali;
   bool _saving = false;
 
+  // Identitas state (NIK atau Photo)
+  String _identityType = 'NIK';
+  XFile? _photoFile;
+  String? _existingPhotoUrl;
+  final ImagePicker _imagePicker = ImagePicker();
+
   // Wilayah state
   bool _isManualAddress = false;
   List<WilayahProvinsi> _provinsiList = [];
@@ -102,6 +111,14 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     if (p != null) {
       _nama.text = p.nama;
       _nik.text = p.nik;
+      _existingPhotoUrl = p.photoUrl;
+      if (p.nik.startsWith('FTO') ||
+          (p.photoUrl != null && p.photoUrl!.isNotEmpty) ||
+          (p.keterangan != null && p.keterangan!.contains('[Identitas: Foto'))) {
+        _identityType = 'Photo';
+      } else {
+        _identityType = 'NIK';
+      }
       _bloodType = Patient.normalizeBloodType(p.bloodType);
       _alamat.text = p.alamat;
       _namaWali.text = p.namaWali ?? '';
@@ -130,6 +147,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       // Default test values for quick testing
       _nama.text = 'Budi Santoso';
       _nik.text = '3171012304950001';
+      _identityType = 'NIK';
+      _photoFile = null;
       _dob = DateTime(1995, 4, 23);
       _jk = Gender.l;
       _bloodType = 'O+';
@@ -292,9 +311,46 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     setState(() => _saving = true);
 
     try {
-      final nikValue = _nik.text.trim().isNotEmpty
-          ? _nik.text.trim()
-          : '3171${DateTime.now().millisecondsSinceEpoch.toString().padRight(12, '0').substring(0, 12)}';
+      final String nikValue;
+      if (_identityType == 'Photo') {
+        if (_nik.text.trim().isNotEmpty && _nik.text.startsWith('FTO')) {
+          nikValue = _nik.text.trim();
+        } else {
+          nikValue = 'FTO${DateTime.now().millisecondsSinceEpoch.toString().padRight(13, '0').substring(0, 13)}';
+        }
+      } else {
+        nikValue = _nik.text.trim().isNotEmpty
+            ? _nik.text.trim()
+            : '3171${DateTime.now().millisecondsSinceEpoch.toString().padRight(12, '0').substring(0, 12)}';
+      }
+
+      String? effectiveKeterangan = _keterangan.text.trim().isNotEmpty ? _keterangan.text.trim() : null;
+      if (_identityType == 'Photo' && _photoFile != null) {
+        final photoTag = '[Identitas: Foto Kamera (${_photoFile!.name})]';
+        if (effectiveKeterangan == null) {
+          effectiveKeterangan = photoTag;
+        } else if (!effectiveKeterangan.contains('[Identitas: Foto')) {
+          effectiveKeterangan = '$effectiveKeterangan\n$photoTag';
+        }
+      }
+
+      String? photoUrl = _existingPhotoUrl ?? widget.initialPatient?.photoUrl;
+      if (_identityType == 'Photo') {
+        if (_photoFile != null) {
+          try {
+            final uploaded = await ref
+                .read(patientsProvider.notifier)
+                .uploadPhoto(File(_photoFile!.path));
+            if (uploaded.isNotEmpty) {
+              photoUrl = uploaded;
+            }
+          } catch (e) {
+            debugPrint('⚠️ Gagal upload foto ke backend: $e');
+          }
+        }
+      } else {
+        photoUrl = null;
+      }
 
       final dobStr = _dob != null
           ? '${_dob!.year}-${_dob!.month.toString().padLeft(2, '0')}-${_dob!.day.toString().padLeft(2, '0')}'
@@ -352,13 +408,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           dob: dobStr,
           bloodType: normalizedBlood,
           alamat: fullAddress,
+          photoUrl: photoUrl,
           namaWali: _namaWali.text.trim().isNotEmpty
               ? _namaWali.text.trim()
               : null,
           hubunganWali: _hubunganWali,
-          keterangan: _keterangan.text.trim().isNotEmpty
-              ? _keterangan.text.trim()
-              : null,
+          keterangan: effectiveKeterangan,
           kodeKelurahan: kodeKel,
           kodePos: kodePosVal,
           keluhanUtama: _keluhanUtama.text.trim().isNotEmpty
@@ -399,13 +454,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 dob: dobStr,
                 bloodType: normalizedBlood,
                 alamat: fullAddress,
+                photoUrl: photoUrl,
                 namaWali: _namaWali.text.trim().isNotEmpty
                     ? _namaWali.text.trim()
                     : null,
                 hubunganWali: _hubunganWali,
-                keterangan: _keterangan.text.trim().isNotEmpty
-                    ? _keterangan.text.trim()
-                    : null,
+                keterangan: effectiveKeterangan,
                 kodeKelurahan: kodeKel,
                 kodePos: kodePosVal,
                 keluhanUtama: _keluhanUtama.text.trim().isNotEmpty
@@ -507,7 +561,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     final compactTheme = theme.copyWith(
       inputDecorationTheme: theme.inputDecorationTheme.copyWith(
         contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 10.5),
+        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 10.5, letterSpacing: 0),
         isDense: true,
       ),
     );
@@ -862,19 +916,27 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           ),
           const SizedBox(height: 12),
 
-          // NIK & Golongan Darah Row
+          // Jenis Identitas & Golongan Darah Row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // NIK (Flexible, no 16-digit restriction)
+              // Dropdown Jenis Identitas (NIK atau Photo)
               Expanded(
                 flex: 3,
-                child: AppTextField(
-                  label: 'NIK (Nomor Induk Kependudukan)',
-                  controller: _nik,
+                child: AppSelect<String>(
+                  label: 'Jenis Identitas',
+                  value: _identityType,
                   fontSize: 11.0,
                   labelFontSize: 10.5,
-                  placeholder: 'Nomor NIK / KTP / Paspor (opsional)',
+                  options: const [
+                    AppSelectOption(value: 'NIK', label: 'NIK'),
+                    AppSelectOption(value: 'Photo', label: 'Photo'),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      setState(() => _identityType = v);
+                    }
+                  },
                 ),
               ),
               const SizedBox(width: 10),
@@ -903,8 +965,293 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+
+          // Tampilan Sesuai Jenis Identitas (NIK Input atau Area Kamera)
+          if (_identityType == 'NIK') ...[
+            AppTextField(
+              label: 'Nomor NIK (Nomor Induk Kependudukan)',
+              controller: _nik,
+              fontSize: 11.0,
+              labelFontSize: 10.5,
+              placeholder: 'Nomor NIK / KTP / Paspor (opsional)',
+            ),
+          ] else ...[
+            _buildPhotoIdentitySection(),
+          ],
         ],
       ),
+    );
+  }
+
+  Future<void> _takePhoto() async {
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70,
+      );
+      if (photo != null) {
+        setState(() => _photoFile = photo);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuka kamera: $e'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    try {
+      final photo = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 70,
+      );
+      if (photo != null) {
+        setState(() => _photoFile = photo);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuka galeri: $e'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+    }
+  }
+
+  Widget _buildPhotoIdentitySection() {
+    final bool hasExistingPhoto =
+        _photoFile == null && _existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty;
+    final bool hasPhoto = _photoFile != null || hasExistingPhoto;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const AppFieldLabel(
+          label: 'Foto Identitas Pasien',
+          fontSize: 10.5,
+        ),
+        const SizedBox(height: 5),
+        if (!hasPhoto) ...[
+          InkWell(
+            onTap: _takePhoto,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.inputBg,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppColors.blue.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.blueLt,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      LucideIcons.camera,
+                      size: 18,
+                      color: AppColors.blue,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Ambil Foto dari Kamera',
+                          style: TextStyle(
+                            fontSize: 11.0,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Ketuk untuk buka kamera ponsel & foto fisik KTP / Paspor / Wajah Pasien',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            color: AppColors.sub,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.blue,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(LucideIcons.camera, size: 12, color: Colors.white),
+                        SizedBox(width: 4),
+                        Text(
+                          'Foto',
+                          style: TextStyle(
+                            fontSize: 10.0,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: InkWell(
+              onTap: _pickFromGallery,
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(LucideIcons.image, size: 11, color: AppColors.sub),
+                    SizedBox(width: 4),
+                    Text(
+                      'Pilih dari Galeri',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: AppColors.sub,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.inputBg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.green.withValues(alpha: 0.4),
+                width: 1.2,
+              ),
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: _photoFile != null
+                      ? Image.file(
+                          File(_photoFile!.path),
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                        )
+                      : Image.network(
+                          _existingPhotoUrl!.startsWith('http')
+                              ? _existingPhotoUrl!
+                              : '${ApiConfig.baseUrl}$_existingPhotoUrl',
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            width: 56,
+                            height: 56,
+                            color: AppColors.card2,
+                            alignment: Alignment.center,
+                            child: const Icon(LucideIcons.image, size: 20, color: AppColors.sub),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(
+                            LucideIcons.checkCircle2,
+                            size: 13,
+                            color: AppColors.green,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Foto Identitas Tersimpan',
+                            style: TextStyle(
+                              fontSize: 11.0,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        _photoFile != null
+                            ? _photoFile!.name
+                            : 'Tersimpan di Server (Cloud)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          color: AppColors.sub,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleIconButton(
+                      icon: LucideIcons.camera,
+                      tooltip: 'Ambil Ulang',
+                      size: 32,
+                      onPressed: _takePhoto,
+                    ),
+                    const SizedBox(width: 6),
+                    CircleIconButton(
+                      icon: LucideIcons.trash2,
+                      tooltip: 'Hapus Foto',
+                      size: 32,
+                      foreground: AppColors.red,
+                      onPressed: () => setState(() {
+                        _photoFile = null;
+                        _existingPhotoUrl = null;
+                      }),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -1415,12 +1762,14 @@ class _DoctorSearchModalState extends State<DoctorSearchModal> {
                       style: const TextStyle(
                         fontSize: 10.5,
                         color: AppColors.text,
+                        letterSpacing: 0,
                       ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama dokter atau spesialisasi...',
                         hintStyle: TextStyle(
                           fontSize: 10.0,
                           color: AppColors.sub,
+                          letterSpacing: 0,
                         ),
                         isDense: true,
                         contentPadding: EdgeInsets.zero,

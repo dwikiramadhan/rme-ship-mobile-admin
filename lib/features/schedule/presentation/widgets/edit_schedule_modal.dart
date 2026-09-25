@@ -1460,6 +1460,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                   fontSize: 12.5,
                   fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
                   color: hasValue ? AppColors.text : const Color(0xFF94A3B8),
+                  letterSpacing: 0,
                 ),
               ),
             ),
@@ -1940,6 +1941,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                     hintStyle: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF94A3B8),
+                      letterSpacing: 0,
                     ),
                     prefixIcon: const Icon(
                       LucideIcons.search,
@@ -2474,6 +2476,7 @@ class _PersonnelPickerBottomSheetState
                   hintStyle: const TextStyle(
                     fontSize: 12.5,
                     color: Color(0xFF94A3B8),
+                    letterSpacing: 0,
                   ),
                   prefixIcon: const Icon(
                     LucideIcons.search,
@@ -2990,6 +2993,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                   hintStyle: const TextStyle(
                     fontSize: 12.5,
                     color: Color(0xFF94A3B8),
+                    letterSpacing: 0,
                   ),
                   prefixIcon: const Icon(
                     LucideIcons.search,

@@ -31,6 +31,7 @@ class Patient extends Equatable {
     required this.assignedDokterId,
     required this.waktuMasuk,
     required this.updatedAt,
+    this.createdAt,
     this.status = PatientStatus.menungguDokter,
     this.dbStatus = 'Monitoring',
     this.statusPenanganan,
@@ -59,6 +60,7 @@ class Patient extends Equatable {
     this.serviceShipName,
     this.lastVisit,
     this.medicalRecordId,
+    this.photoUrl,
   });
 
   final String id;
@@ -85,6 +87,7 @@ class Patient extends Equatable {
   final String assignedDokterId;
   final String? doctorName;
   final String waktuMasuk;
+  final DateTime? createdAt;
   final DateTime updatedAt;
 
   final PatientStatus status;
@@ -98,6 +101,7 @@ class Patient extends Equatable {
   final String? keterangan;
   final String? kodeKelurahan;
   final int? kodePos;
+  final String? photoUrl;
 
   final String? diagnosa;
   final String? tindakan;
@@ -123,6 +127,7 @@ class Patient extends Equatable {
     String? assignedDokterId,
     String? doctorName,
     String? waktuMasuk,
+    DateTime? createdAt,
     DateTime? updatedAt,
     PatientStatus? status,
     String? dbStatus,
@@ -134,6 +139,7 @@ class Patient extends Equatable {
     String? keterangan,
     String? kodeKelurahan,
     int? kodePos,
+    Object? photoUrl = _unset,
     Object? diagnosa = _unset,
     Object? tindakan = _unset,
     List<ResepItem>? resep,
@@ -166,6 +172,7 @@ class Patient extends Equatable {
       assignedDokterId: assignedDokterId ?? this.assignedDokterId,
       doctorName: doctorName ?? this.doctorName,
       waktuMasuk: waktuMasuk ?? this.waktuMasuk,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
       dbStatus: dbStatus ?? this.dbStatus,
@@ -196,6 +203,9 @@ class Patient extends Equatable {
       medicalRecordId: identical(medicalRecordId, _unset)
           ? this.medicalRecordId
           : medicalRecordId as String?,
+      photoUrl: identical(photoUrl, _unset)
+          ? this.photoUrl
+          : photoUrl as String?,
     );
   }
 
@@ -209,6 +219,7 @@ class Patient extends Equatable {
     final String? bloodType = json['blood_type']?.toString();
     final String address = json['address']?.toString() ?? '';
     final String dbStatus = json['status']?.toString() ?? 'Monitoring';
+    final String? photoUrl = json['photo_url']?.toString() ?? json['photo']?.toString();
 
     final String? namaWali = json['nama_wali']?.toString();
     final String? hubunganWali = json['hubungan_wali']?.toString();
@@ -230,7 +241,9 @@ class Patient extends Equatable {
     }
 
     final createdAt = DateTime.tryParse(json['created_at']?.toString() ?? '');
-    final updatedAt = DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now();
+    final updatedAt = DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+        createdAt ??
+        DateTime.fromMillisecondsSinceEpoch(0);
     final localCreated = createdAt?.toLocal();
     final waktuMasuk = localCreated != null
         ? '${localCreated.day.toString().padLeft(2, '0')}/${localCreated.month.toString().padLeft(2, '0')}/${localCreated.year} ${localCreated.hour.toString().padLeft(2, '0')}:${localCreated.minute.toString().padLeft(2, '0')}'
@@ -521,6 +534,7 @@ class Patient extends Equatable {
       vitals: parsedVitals,
       assignedDokterId: assignedDoctorId,
       waktuMasuk: waktuMasuk,
+      createdAt: createdAt,
       updatedAt: updatedAt,
       status: status,
       dbStatus: dbStatus,
@@ -546,6 +560,7 @@ class Patient extends Equatable {
       serviceShipName: serviceShipName,
       lastVisit: lastVisit,
       medicalRecordId: medicalRecordId,
+      photoUrl: photoUrl,
     );
   }
 
@@ -572,6 +587,7 @@ class Patient extends Equatable {
     String? keterangan,
     String? kodeKelurahan,
     String? statusPenanganan,
+    String? photoUrl,
   }) {
     final effectiveNik = nik.trim().isNotEmpty
         ? nik.trim()
@@ -585,6 +601,10 @@ class Patient extends Equatable {
     final effectiveStatusPenanganan = (statusPenanganan != null && statusPenanganan.isNotEmpty)
         ? statusPenanganan
         : this.statusPenanganan;
+
+    final effectivePhotoUrl = (photoUrl != null && photoUrl.isNotEmpty)
+        ? photoUrl
+        : (this.photoUrl != null && this.photoUrl!.isNotEmpty ? this.photoUrl : null);
 
     return {
       'nik': effectiveNik,
@@ -602,6 +622,8 @@ class Patient extends Equatable {
       if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
       if (kodeKelurahan != null && kodeKelurahan.isNotEmpty) 'kode_kelurahan': kodeKelurahan,
       if (kodePos != null) 'kode_pos': kodePos,
+      if (effectivePhotoUrl != null && effectivePhotoUrl.isNotEmpty)
+        'photo_url': effectivePhotoUrl,
     };
   }
 
@@ -613,6 +635,7 @@ class Patient extends Equatable {
         jk,
         umur,
         alamat,
+        photoUrl,
         keluhanUtama,
         durasiKeluhan,
         lokasiKeluhan,
@@ -620,6 +643,7 @@ class Patient extends Equatable {
         assignedDokterId,
         doctorName,
         waktuMasuk,
+        createdAt,
         updatedAt,
         status,
         dbStatus,
@@ -653,6 +677,9 @@ class Patient extends Equatable {
 
 const Object _unset = Object();
 
+/// Mengembalikan daftar pasien sesuai urutan pagination dari server
+/// tanpa me-resort di sisi client, agar data halaman berikutnya (infinite scroll)
+/// tidak menyusup atau mengubah urutan data yang sudah ditampilkan di atas.
 List<Patient> sortRecent(List<Patient> patients) {
   return patients;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_card.dart';
@@ -62,14 +63,32 @@ class PatientInfoCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Text(
-                        cleanNama.isNotEmpty ? cleanNama[0] : '?',
-                        style: const TextStyle(
-                          color: AppColors.orange,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18,
-                        ),
-                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: (patient.photoUrl != null && patient.photoUrl!.isNotEmpty)
+                          ? Image.network(
+                              patient.photoUrl!.startsWith('http')
+                                  ? patient.photoUrl!
+                                  : '${ApiConfig.baseUrl}${patient.photoUrl}',
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => Text(
+                                cleanNama.isNotEmpty ? cleanNama[0] : '?',
+                                style: const TextStyle(
+                                  color: AppColors.orange,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            )
+                          : Text(
+                              cleanNama.isNotEmpty ? cleanNama[0] : '?',
+                              style: const TextStyle(
+                                color: AppColors.orange,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 18,
+                              ),
+                            ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

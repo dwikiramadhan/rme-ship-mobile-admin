@@ -731,11 +731,12 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
               fontSize: 12.5,
               color: scheme.onSurface,
               fontWeight: FontWeight.w500,
+              letterSpacing: 0,
             ),
             decoration: InputDecoration(
               isDense: true,
               hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 12, color: AppColors.sub),
+              hintStyle: const TextStyle(fontSize: 12, color: AppColors.sub, letterSpacing: 0),
               prefixIcon: const Icon(
                 LucideIcons.search,
                 size: 15,

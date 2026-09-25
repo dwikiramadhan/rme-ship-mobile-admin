@@ -1378,10 +1378,10 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
               ),
               child: TextField(
                 controller: row.customInstruksiCtrl,
-                style: const TextStyle(fontSize: 12, color: AppColors.text),
+                style: const TextStyle(fontSize: 12, color: AppColors.text, letterSpacing: 0),
                 decoration: const InputDecoration(
                   hintText: 'cth: 2 sendok takar sebelum tidur malam',
-                  hintStyle: TextStyle(fontSize: 11.5, color: AppColors.sub),
+                  hintStyle: TextStyle(fontSize: 11.5, color: AppColors.sub, letterSpacing: 0),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 7),
@@ -1662,12 +1662,14 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.text,
+                        letterSpacing: 0,
                       ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama obat atau SKU...',
                         hintStyle: TextStyle(
                           fontSize: 13,
                           color: AppColors.sub,
+                          letterSpacing: 0,
                         ),
                         isDense: true,
                         contentPadding: EdgeInsets.zero,

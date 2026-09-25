@@ -312,12 +312,14 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppColors.text,
+                              letterSpacing: 0,
                             ),
                             decoration: InputDecoration(
-                              hintText: widget.searchPlaceholder ?? 'Cari nama pasien...',
+                              hintText: widget.searchPlaceholder ?? 'Cari nama atau NIK pasien...',
                               hintStyle: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.sub,
+                                letterSpacing: 0,
                               ),
                               isDense: true,
                               contentPadding: EdgeInsets.zero,
