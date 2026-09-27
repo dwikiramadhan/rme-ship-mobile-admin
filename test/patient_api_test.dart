@@ -110,6 +110,33 @@ void main() {
       expect(patient.dbStatus, equals('Active'));
       expect(patient.lastVisit, equals('2026-09-05T00:00:00Z'));
     });
+
+    test('toCreatePatientJson includes service_ship_code if provided or present on Patient', () {
+      final patient = Patient.fromApiJson({
+        'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
+        'name': 'Pierre Gasly',
+        'service_ship_code': 'RSK-BYNP-LD1',
+      });
+
+      final json1 = patient.toCreatePatientJson();
+      expect(json1['service_ship_code'], equals('RSK-BYNP-LD1'));
+
+      final json2 = patient.toCreatePatientJson(serviceShipCode: 'KPL-002');
+      expect(json2['service_ship_code'], equals('KPL-002'));
+    });
+
+    test('toCreatePatientJson sets nik to null if patient nik is empty or not provided', () {
+      final patientWithoutNik = Patient.fromApiJson({
+        'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
+        'name': 'Pierre Gasly',
+      });
+
+      final json = patientWithoutNik.toCreatePatientJson();
+      expect(json['nik'], isNull);
+
+      final jsonWithNik = patientWithoutNik.toCreatePatientJson(nik: '3171012304950001');
+      expect(jsonWithNik['nik'], equals('3171012304950001'));
+    });
   });
 
   group('userRoleFromApiValue', () {

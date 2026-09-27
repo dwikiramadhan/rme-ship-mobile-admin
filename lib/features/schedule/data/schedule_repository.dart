@@ -119,6 +119,16 @@ class ScheduleRepository {
     }
   }
 
+  /// Updates a provision entry
+  Future<ProvisionHistoryItem> updateProvision(String id, Map<String, dynamic> body) async {
+    try {
+      return await _api.updateProvision(id, body);
+    } catch (e) {
+      debugPrint('ScheduleRepository updateProvision error: $e');
+      rethrow;
+    }
+  }
+
   /// Fetches trip issues for a schedule
   Future<List<TripIssueItem>> fetchTripIssues(String scheduleId) async {
     try {
@@ -135,6 +145,16 @@ class ScheduleRepository {
       return await _api.createTripIssue(body);
     } catch (e) {
       debugPrint('ScheduleRepository addTripIssue error: $e');
+      rethrow;
+    }
+  }
+
+  /// Updates a trip issue
+  Future<TripIssueItem> updateTripIssue(String id, Map<String, dynamic> body) async {
+    try {
+      return await _api.updateTripIssue(id, body);
+    } catch (e) {
+      debugPrint('ScheduleRepository updateTripIssue error: $e');
       rethrow;
     }
   }
@@ -289,6 +309,10 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
   Future<void> addProvision({
     required double fuelOil,
     required double water,
+    String type = 'sisa',
+    double? fuelOilAdded,
+    double? waterAdded,
+    String? notes,
     double? lat,
     double? lng,
     String? scheduleCode,
@@ -301,8 +325,14 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
             : (current.code.isNotEmpty ? current.code : _initial.code));
     final body = <String, dynamic>{
       'schedule_code': schedCode,
+      'type': type,
       'fuel_oil': fuelOil % 1 == 0 ? fuelOil.toInt() : fuelOil,
       'water': water % 1 == 0 ? water.toInt() : water,
+      if (fuelOilAdded != null)
+        'fuel_oil_added': fuelOilAdded % 1 == 0 ? fuelOilAdded.toInt() : fuelOilAdded,
+      if (waterAdded != null)
+        'water_added': waterAdded % 1 == 0 ? waterAdded.toInt() : waterAdded,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
       'lat': ?lat,
       'lng': ?lng,
     };
@@ -313,6 +343,34 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
 
   Future<void> deleteProvision(String id) async {
     await _repository.deleteProvision(id);
+    await refresh();
+  }
+
+  Future<void> updateProvision({
+    required String id,
+    required double fuelOil,
+    required double water,
+    double? lat,
+    double? lng,
+    String? type,
+    double? fuelOilAdded,
+    double? waterAdded,
+    String? notes,
+  }) async {
+    final body = <String, dynamic>{
+      'fuel_oil': fuelOil % 1 == 0 ? fuelOil.toInt() : fuelOil,
+      'water': water % 1 == 0 ? water.toInt() : water,
+      if (type != null) 'type': type,
+      if (fuelOilAdded != null)
+        'fuel_oil_added': fuelOilAdded % 1 == 0 ? fuelOilAdded.toInt() : fuelOilAdded,
+      if (waterAdded != null)
+        'water_added': waterAdded % 1 == 0 ? waterAdded.toInt() : waterAdded,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+      'lat': ?lat,
+      'lng': ?lng,
+    };
+    debugPrint('ScheduleRepository [PUT /api/v1/ship-provisions-history/$id] body: $body');
+    await _repository.updateProvision(id, body);
     await refresh();
   }
 
@@ -353,6 +411,24 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
     };
     debugPrint('ScheduleRepository [POST /api/v1/trip-issues] body: $body');
     await _repository.addTripIssue(body);
+    await refresh();
+  }
+
+  Future<void> updateTripIssue({
+    required String id,
+    required String description,
+    required DateTime occurredAt,
+    double? lat,
+    double? lng,
+  }) async {
+    final body = <String, dynamic>{
+      'description': description,
+      'occurred_at': _formatRfc3339(occurredAt),
+      'lat': ?lat,
+      'lng': ?lng,
+    };
+    debugPrint('ScheduleRepository [PUT /api/v1/trip-issues/$id] body: $body');
+    await _repository.updateTripIssue(id, body);
     await refresh();
   }
 

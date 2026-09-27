@@ -19,6 +19,8 @@ import '../../profile/presentation/profile_screen.dart';
 import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
 import 'patient_form.dart';
+import 'nurse_dashboard_view.dart';
+import '../../schedule/data/schedule_repository.dart';
 
 class NurseHomeScreen extends ConsumerStatefulWidget {
   const NurseHomeScreen({
@@ -37,11 +39,16 @@ class NurseHomeScreen extends ConsumerStatefulWidget {
 typedef PerawatHomeScreen = NurseHomeScreen;
 
 class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
-  String _tab = 'pasien';
+  String _tab = 'dashboard';
   bool _showForm = false;
   Patient? _editingPatient;
 
   static const _tabs = [
+    ShellNavItem(
+      key: 'dashboard',
+      label: 'Dashboard',
+      icon: LucideIcons.layoutGrid,
+    ),
     ShellNavItem(key: 'pasien', label: 'Pasien', icon: LucideIcons.users),
     ShellNavItem(
       key: 'riwayat',
@@ -61,13 +68,26 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
         _tab = key;
         _showForm = false;
         _editingPatient = null;
-        if (key == 'riwayat') {
+        if (key == 'dashboard') {
+          ref.invalidate(scheduleCounterProvider);
+          ref.read(schedulesNotifierProvider.notifier).refresh();
+          ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+          ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+        } else if (key == 'riwayat') {
           ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
         } else if (key == 'pasien') {
           ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
         }
       }),
       child: switch (_tab) {
+        'dashboard' => NurseDashboardView(
+            nurseName: widget.perawatName,
+            onNavigateToTab: (tabKey) => setState(() {
+              _tab = tabKey;
+              _showForm = false;
+              _editingPatient = null;
+            }),
+          ),
         'pasien' =>
           _showForm
               ? TambahPasienForm(

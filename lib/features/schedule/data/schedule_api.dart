@@ -383,6 +383,40 @@ class ScheduleApi {
     }
   }
 
+  /// Updates a trip issue via PUT /api/v1/trip-issues/:id
+  Future<TripIssueItem> updateTripIssue(String id, Map<String, dynamic> body) async {
+    try {
+      final response = await _dio.put('${ApiConfig.tripIssuesPath}/$id', data: body);
+      final data = response.data;
+      final payload = (data['result'] is Map<String, dynamic>)
+          ? data['result'] as Map<String, dynamic>
+          : (data['data'] is Map<String, dynamic>)
+              ? data['data'] as Map<String, dynamic>
+              : (data is Map<String, dynamic> ? data : <String, dynamic>{});
+      return TripIssueItem.fromJson(payload);
+    } on DioException catch (e) {
+      debugPrint('ScheduleApi updateTripIssue error: $e');
+      throw DioClient.mapError(e);
+    }
+  }
+
+  /// Updates a provision entry via PUT /api/v1/ship-provisions-history/:id
+  Future<ProvisionHistoryItem> updateProvision(String id, Map<String, dynamic> body) async {
+    try {
+      final response = await _dio.put('${ApiConfig.shipProvisionsHistoryPath}/$id', data: body);
+      final data = response.data;
+      final payload = (data['result'] is Map<String, dynamic>)
+          ? data['result'] as Map<String, dynamic>
+          : (data['data'] is Map<String, dynamic>)
+              ? data['data'] as Map<String, dynamic>
+              : (data is Map<String, dynamic> ? data : <String, dynamic>{});
+      return ProvisionHistoryItem.fromJson(payload);
+    } on DioException catch (e) {
+      debugPrint('ScheduleApi updateProvision error: $e');
+      throw DioClient.mapError(e);
+    }
+  }
+
   /// Deletes a trip issue via DELETE /api/v1/trip-issues/:id
   Future<void> deleteTripIssue(String id) async {
     try {

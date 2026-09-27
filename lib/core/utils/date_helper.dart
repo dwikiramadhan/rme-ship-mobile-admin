@@ -32,6 +32,37 @@ class DateHelper {
     'Des',
   ];
 
+  static DateTime? _parse(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is DateTime) return raw;
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return null;
+      final parsed = DateTime.tryParse(trimmed);
+      if (parsed != null) return parsed;
+      // Handle dd/MM/yyyy or dd/MM/yyyy HH:mm
+      final parts = trimmed.split(' ');
+      final dateParts = parts[0].split(RegExp(r'[/.-]'));
+      if (dateParts.length == 3) {
+        final d = int.tryParse(dateParts[0]);
+        final m = int.tryParse(dateParts[1]);
+        final y = int.tryParse(dateParts[2]);
+        if (d != null && m != null && y != null) {
+          int h = 0, min = 0;
+          if (parts.length > 1) {
+            final timeParts = parts[1].split(':');
+            if (timeParts.length >= 2) {
+              h = int.tryParse(timeParts[0]) ?? 0;
+              min = int.tryParse(timeParts[1]) ?? 0;
+            }
+          }
+          return DateTime(y, m, d, h, min);
+        }
+      }
+    }
+    return null;
+  }
+
   /// Format string ISO / timestamp / DateTime menjadi format tanggal: `05 Sep 2026`
   /// Menerima tipe `String?` atau `DateTime?`.
   static String formatDate(
@@ -40,14 +71,8 @@ class DateHelper {
     String fallback = '-',
   }) {
     if (raw == null) return fallback;
-    DateTime? dt;
-    if (raw is DateTime) {
-      dt = raw;
-    } else if (raw is String) {
-      final trimmed = raw.trim();
-      if (trimmed.isEmpty) return fallback;
-      dt = DateTime.tryParse(trimmed);
-    }
+    if (raw is String && raw.trim().isEmpty) return fallback;
+    final dt = _parse(raw);
     if (dt == null) return raw.toString();
 
     final local = dt.toLocal();
@@ -64,14 +89,8 @@ class DateHelper {
     String fallback = '-',
   }) {
     if (raw == null) return fallback;
-    DateTime? dt;
-    if (raw is DateTime) {
-      dt = raw;
-    } else if (raw is String) {
-      final trimmed = raw.trim();
-      if (trimmed.isEmpty) return fallback;
-      dt = DateTime.tryParse(trimmed);
-    }
+    if (raw is String && raw.trim().isEmpty) return fallback;
+    final dt = _parse(raw);
     if (dt == null) return raw.toString();
 
     final local = dt.toLocal();

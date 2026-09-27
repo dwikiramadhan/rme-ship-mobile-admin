@@ -26,8 +26,7 @@ class _FakeAuthRepository implements AuthRepository {
     required String email,
     required String password,
     bool rememberMe = true,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<AuthSession?> restoreSession() async => session;
@@ -159,7 +158,7 @@ class _MockPatientApi implements PatientApi {
   @override
   Future<List<Doctor>> getDoctors({
     int page = 1,
-    int limit = 50,
+    int limit = 15,
     String type = 'Doctor',
     String? search,
     String? availability,
@@ -182,167 +181,178 @@ class _MockPatientApi implements PatientApi {
 }
 
 void main() {
-  testWidgets('LabHomeScreen Daftar Order uses medical-history API with status_penanganan = Menunggu Lab', (tester) async {
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'LabHomeScreen Daftar Order uses medical-history API with status_penanganan = Menunggu Lab',
+    (tester) async {
+      tester.view.physicalSize = const Size(1180, 820);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final mockApi = _MockPatientApi();
-    final mockWs = _MockWebSocketService();
-    const testUser = AppUser(
-      id: 'analyst-1',
-      name: 'Analyst RME',
-      email: 'analyst@bayan.id',
-      role: UserRole.lab,
-    );
-    final testSession = AuthSession(token: 'mock-token', user: testUser);
+      final mockApi = _MockPatientApi();
+      final mockWs = _MockWebSocketService();
+      const testUser = AppUser(
+        id: 'analyst-1',
+        name: 'Analyst RME',
+        email: 'analyst@bayan.id',
+        role: UserRole.lab,
+      );
+      final testSession = AuthSession(token: 'mock-token', user: testUser);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(_FakeAuthRepository(testSession)),
-          patientApiProvider.overrideWithValue(mockApi),
-          webSocketServiceProvider.overrideWithValue(mockWs),
-          patientsProvider.overrideWith((ref) => PatientsNotifier(
-            api: mockApi,
-            autoFetch: false,
-          )),
-          labOrderHistoryProvider.overrideWith((ref) => MedicalHistoryNotifier(
-            api: mockApi,
-            autoFetch: false,
-            statusPenanganan: 'Menunggu Lab',
-          )),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: LabHomeScreen(analystName: 'Analyst RME'),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              _FakeAuthRepository(testSession),
+            ),
+            patientApiProvider.overrideWithValue(mockApi),
+            webSocketServiceProvider.overrideWithValue(mockWs),
+            patientsProvider.overrideWith(
+              (ref) => PatientsNotifier(api: mockApi, autoFetch: false),
+            ),
+            labOrderHistoryProvider.overrideWith(
+              (ref) => MedicalHistoryNotifier(
+                api: mockApi,
+                autoFetch: false,
+                statusPenanganan: 'Menunggu Lab',
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: LabHomeScreen(analystName: 'Analyst RME')),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    // Tap 'Antrian Lab' tab
-    await tester.tap(find.text('Antrian Lab'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      // Tap 'Antrian Lab' tab
+      await tester.tap(find.text('Antrian Lab'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify initial call requested status_penanganan = 'Menunggu Lab'
-    expect(mockApi.lastStatusPenanganan, 'Menunggu Lab');
-    expect(mockApi.lastPage, 1);
-    expect(mockApi.lastLimit, 10);
-    expect(mockApi.lastSortBy, 'created_at');
-    expect(mockApi.lastOrder, 'desc');
-
-    // Verify list items rendered from medical-history
-    expect(find.text('Budi Darmawan'), findsWidgets);
-    expect(find.text('Dewi Lestari'), findsWidgets);
-    expect(find.textContaining('Darah Rutin'), findsOneWidget);
-    expect(find.textContaining('Urinalisis Lengkap'), findsOneWidget);
-    expect(find.text('Menunggu Lab'), findsWidgets);
-
-    // Test search functionality (server-side query)
-    final searchInput = find.byType(TextField);
-    if (searchInput.evaluate().isNotEmpty) {
-      await tester.enterText(searchInput.first, 'Darmawan');
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(mockApi.lastSearch, 'Darmawan');
+      // Verify initial call requested status_penanganan = 'Menunggu Lab'
       expect(mockApi.lastStatusPenanganan, 'Menunggu Lab');
-    }
-  });
+      expect(mockApi.lastPage, 1);
+      expect(mockApi.lastLimit, 10);
+      expect(mockApi.lastSortBy, 'created_at');
+      expect(mockApi.lastOrder, 'desc');
 
-  testWidgets('LabOrderDetail submits lab examinations via POST /medical-records/:id/lab-examinations', (tester) async {
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+      // Verify list items rendered from medical-history
+      expect(find.text('Budi Darmawan'), findsWidgets);
+      expect(find.text('Dewi Lestari'), findsWidgets);
+      expect(find.textContaining('Darah Rutin'), findsOneWidget);
+      expect(find.textContaining('Urinalisis Lengkap'), findsOneWidget);
+      expect(find.text('Menunggu Lab'), findsWidgets);
 
-    final mockApi = _MockPatientApi();
-    final mockWs = _MockWebSocketService();
-    const testUser = AppUser(
-      id: '453b5c3a-4390-4ad7-bb09-8840cb8f33cf',
-      name: 'Analyst RME',
-      email: 'analyst@bayan.id',
-      role: UserRole.lab,
-    );
-    final testSession = AuthSession(token: 'mock-token', user: testUser);
+      // Test search functionality (server-side query)
+      final searchInput = find.byType(TextField);
+      if (searchInput.evaluate().isNotEmpty) {
+        await tester.enterText(searchInput.first, 'Darmawan');
+        await tester.pump(const Duration(milliseconds: 400));
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(_FakeAuthRepository(testSession)),
-          patientApiProvider.overrideWithValue(mockApi),
-          webSocketServiceProvider.overrideWithValue(mockWs),
-          patientsProvider.overrideWith((ref) => PatientsNotifier(
-            api: mockApi,
-            autoFetch: false,
-          )),
-          labOrderHistoryProvider.overrideWith((ref) => MedicalHistoryNotifier(
-            api: mockApi,
-            autoFetch: false,
-            statusPenanganan: 'Menunggu Lab',
-          )),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: LabHomeScreen(analystName: 'Analyst RME'),
+        expect(mockApi.lastSearch, 'Darmawan');
+        expect(mockApi.lastStatusPenanganan, 'Menunggu Lab');
+      }
+    },
+  );
+
+  testWidgets(
+    'LabOrderDetail submits lab examinations via POST /medical-records/:id/lab-examinations',
+    (tester) async {
+      tester.view.physicalSize = const Size(1180, 820);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final mockApi = _MockPatientApi();
+      final mockWs = _MockWebSocketService();
+      const testUser = AppUser(
+        id: '453b5c3a-4390-4ad7-bb09-8840cb8f33cf',
+        name: 'Analyst RME',
+        email: 'analyst@bayan.id',
+        role: UserRole.lab,
+      );
+      final testSession = AuthSession(token: 'mock-token', user: testUser);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              _FakeAuthRepository(testSession),
+            ),
+            patientApiProvider.overrideWithValue(mockApi),
+            webSocketServiceProvider.overrideWithValue(mockWs),
+            patientsProvider.overrideWith(
+              (ref) => PatientsNotifier(api: mockApi, autoFetch: false),
+            ),
+            labOrderHistoryProvider.overrideWith(
+              (ref) => MedicalHistoryNotifier(
+                api: mockApi,
+                autoFetch: false,
+                statusPenanganan: 'Menunggu Lab',
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: LabHomeScreen(analystName: 'Analyst RME')),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    // Tap 'Antrian Lab' tab
-    await tester.tap(find.text('Antrian Lab'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      // Tap 'Antrian Lab' tab
+      await tester.tap(find.text('Antrian Lab'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    // Select first patient in list
-    await tester.tap(find.text('Budi Darmawan').first);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      // Select first patient in list
+      await tester.tap(find.text('Budi Darmawan').first);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify LabOrderDetail rendered
-    expect(find.text('ORDER PEMERIKSAAN'), findsOneWidget);
-    expect(find.text('HASIL PEMERIKSAAN'), findsOneWidget);
-    expect(find.text('Tambah Parameter Pemeriksaan'), findsOneWidget);
+      // Verify LabOrderDetail rendered
+      expect(find.text('ORDER PEMERIKSAAN'), findsOneWidget);
+      expect(find.text('HASIL PEMERIKSAAN'), findsOneWidget);
+      expect(find.text('Tambah Parameter Pemeriksaan'), findsOneWidget);
 
-    // Enter parameter name in the first parameter
-    final testNameFields = find.byType(TextField);
-    // Find textfield with placeholder 'cth: Glukosa Sewaktu' or matching controller
-    for (final element in testNameFields.evaluate()) {
-      final widget = element.widget as TextField;
-      if (widget.decoration?.hintText == 'cth: Glukosa Sewaktu') {
-        await tester.enterText(find.byWidget(widget), 'Darah Rutin');
-        await tester.pump();
-        break;
+      // Enter parameter name in the first parameter
+      final testNameFields = find.byType(TextField);
+      // Find textfield with placeholder 'cth: Glukosa Sewaktu' or matching controller
+      for (final element in testNameFields.evaluate()) {
+        final widget = element.widget as TextField;
+        if (widget.decoration?.hintText == 'cth: Glukosa Sewaktu') {
+          await tester.enterText(find.byWidget(widget), 'Darah Rutin');
+          await tester.pump();
+          break;
+        }
       }
-    }
 
-    // Tap 'Kirim Hasil ke Dokter' button
-    final submitBtn = find.text('Kirim Hasil ke Dokter');
-    expect(submitBtn, findsOneWidget);
-    await tester.ensureVisible(submitBtn);
-    await tester.tap(submitBtn);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+      // Tap 'Kirim Hasil ke Dokter' button
+      final submitBtn = find.text('Kirim Hasil ke Dokter');
+      expect(submitBtn, findsOneWidget);
+      await tester.ensureVisible(submitBtn);
+      await tester.tap(submitBtn);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-    // Verify mock API received the correct POST body structure
-    expect(mockApi.lastSubmittedMedRecId, equals('hist-lab-1'));
-    final body = mockApi.lastSubmittedLabBody;
-    expect(body, isNotNull);
-    expect(body!['medical_record_id'], equals('hist-lab-1'));
-    expect(body['patient_id'], equals('patient-lab-1'));
-    expect(body['lab_personnel_id'], equals('453b5c3a-4390-4ad7-bb09-8840cb8f33cf'));
-    expect(body['items'], isA<List>());
-    final items = body['items'] as List;
-    expect(items.isNotEmpty, isTrue);
-    expect(items.first['test_name'], isNotEmpty);
-  });
+      // Verify mock API received the correct POST body structure
+      expect(mockApi.lastSubmittedMedRecId, equals('hist-lab-1'));
+      final body = mockApi.lastSubmittedLabBody;
+      expect(body, isNotNull);
+      expect(body!['medical_record_id'], equals('hist-lab-1'));
+      expect(body['patient_id'], equals('patient-lab-1'));
+      expect(
+        body['lab_personnel_id'],
+        equals('453b5c3a-4390-4ad7-bb09-8840cb8f33cf'),
+      );
+      expect(body['items'], isA<List>());
+      final items = body['items'] as List;
+      expect(items.isNotEmpty, isTrue);
+      expect(items.first['test_name'], isNotEmpty);
+    },
+  );
 }

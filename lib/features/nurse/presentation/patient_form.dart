@@ -13,6 +13,7 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_select.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/circle_icon_button.dart';
+import '../../../core/utils/ship_code_helper.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/data/wilayah_api.dart';
 import '../../patients/domain/doctor.dart';
@@ -114,6 +115,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _existingPhotoUrl = p.photoUrl;
       if (p.nik.startsWith('FTO') ||
           (p.photoUrl != null && p.photoUrl!.isNotEmpty) ||
+          p.nik.isEmpty ||
           (p.keterangan != null && p.keterangan!.contains('[Identitas: Foto'))) {
         _identityType = 'Photo';
       } else {
@@ -313,15 +315,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     try {
       final String nikValue;
       if (_identityType == 'Photo') {
-        if (_nik.text.trim().isNotEmpty && _nik.text.startsWith('FTO')) {
-          nikValue = _nik.text.trim();
-        } else {
-          nikValue = 'FTO${DateTime.now().millisecondsSinceEpoch.toString().padRight(13, '0').substring(0, 13)}';
-        }
+        nikValue = '';
       } else {
-        nikValue = _nik.text.trim().isNotEmpty
-            ? _nik.text.trim()
-            : '3171${DateTime.now().millisecondsSinceEpoch.toString().padRight(12, '0').substring(0, 12)}';
+        nikValue = _nik.text.trim();
       }
 
       String? effectiveKeterangan = _keterangan.text.trim().isNotEmpty ? _keterangan.text.trim() : null;
@@ -398,11 +394,19 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
       final normalizedBlood = Patient.normalizeBloodType(_bloodType);
 
+      String? activeShipCode = widget.initialPatient?.serviceShipCode;
+      if (activeShipCode == null || activeShipCode.isEmpty) {
+        try {
+          activeShipCode = await resolveLocalStorageShipCode(ref);
+        } catch (_) {}
+      }
+
       final p = widget.initialPatient;
       if (p != null) {
         final updatedPatient = p.copyWith(
           nama: _nama.text.trim(),
           nik: nikValue,
+          serviceShipCode: p.serviceShipCode ?? activeShipCode,
           jk: _jk!,
           umur: umurCalc,
           dob: dobStr,
@@ -455,6 +459,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 bloodType: normalizedBlood,
                 alamat: fullAddress,
                 photoUrl: photoUrl,
+                serviceShipCode: activeShipCode,
                 namaWali: _namaWali.text.trim().isNotEmpty
                     ? _namaWali.text.trim()
                     : null,

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -87,7 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final savedEmail = await _storage.readRememberEmail();
       if (savedEmail != null && savedEmail.isNotEmpty && mounted) {
         setState(() {
-          _emailController.text = savedEmail;
+          _emailController.text = savedEmail.toLowerCase();
           _rememberMe = true;
         });
       }
@@ -106,7 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _errorMessage = null;
     });
-    final email = _emailController.text.trim();
+    final email = _emailController.text.trim().toLowerCase();
     if (_rememberMe) {
       _storage.saveRememberEmail(email);
     } else {
@@ -460,6 +461,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
+              textCapitalization: TextCapitalization.none,
+              inputFormatters: [
+                TextInputFormatter.withFunction(
+                  (oldValue, newValue) => newValue.copyWith(
+                    text: newValue.text.toLowerCase(),
+                  ),
+                ),
+              ],
               textInputAction: TextInputAction.next,
               autofillHints: const [AutofillHints.email],
               style: const TextStyle(

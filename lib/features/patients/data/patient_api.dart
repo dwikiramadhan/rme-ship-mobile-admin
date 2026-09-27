@@ -42,7 +42,6 @@ class PaginatedMedicalHistory {
   final int totalPages;
 }
 
-
 /// Calls the real Bayan RME patient endpoints:
 /// - GET  /api/v1/patients
 /// - POST /api/v1/patients
@@ -80,26 +79,32 @@ class PatientApi {
       }
 
       final result = data['result'];
-      final (rawList, resPage, resLimit, resTotal, resTotalPages) = switch (result) {
+      final (
+        rawList,
+        resPage,
+        resLimit,
+        resTotal,
+        resTotalPages,
+      ) = switch (result) {
         {'data': final List list} => (
-            list,
-            (result['page'] as num?)?.toInt() ?? page,
-            (result['limit'] as num?)?.toInt() ?? limit,
-            (result['total'] as num?)?.toInt() ?? list.length,
-            (result['total_pages'] as num?)?.toInt() ??
-                (((result['total'] as num?)?.toInt() ?? list.length) > 0
-                    ? (((result['total'] as num?)?.toInt() ?? list.length) /
+          list,
+          (result['page'] as num?)?.toInt() ?? page,
+          (result['limit'] as num?)?.toInt() ?? limit,
+          (result['total'] as num?)?.toInt() ?? list.length,
+          (result['total_pages'] as num?)?.toInt() ??
+              (((result['total'] as num?)?.toInt() ?? list.length) > 0
+                  ? (((result['total'] as num?)?.toInt() ?? list.length) /
                             ((result['limit'] as num?)?.toInt() ?? limit))
                         .ceil()
-                    : 1),
-          ),
+                  : 1),
+        ),
         final Map<String, dynamic> m => (
-            const [],
-            (m['page'] as num?)?.toInt() ?? page,
-            (m['limit'] as num?)?.toInt() ?? limit,
-            (m['total'] as num?)?.toInt() ?? 0,
-            (m['total_pages'] as num?)?.toInt() ?? 1,
-          ),
+          const [],
+          (m['page'] as num?)?.toInt() ?? page,
+          (m['limit'] as num?)?.toInt() ?? limit,
+          (m['total'] as num?)?.toInt() ?? 0,
+          (m['total_pages'] as num?)?.toInt() ?? 1,
+        ),
         final List list => (list, page, limit, list.length, 1),
         _ => (const [], page, limit, 0, 1),
       };
@@ -124,7 +129,9 @@ class PatientApi {
   /// Fetches medical records for a specific patient via GET /api/v1/patients/{id}/medical-records
   Future<List<Map<String, dynamic>>> getMedicalRecords(String patientId) async {
     try {
-      final response = await _dio.get('${ApiConfig.patientsPath}/$patientId/medical-records');
+      final response = await _dio.get(
+        '${ApiConfig.patientsPath}/$patientId/medical-records',
+      );
       final data = response.data;
       if (data case {'result': final List list}) {
         return list.whereType<Map<String, dynamic>>().toList();
@@ -139,7 +146,7 @@ class PatientApi {
   /// Fetches all patients (convenience wrapper)
   Future<List<Patient>> getPatients({
     int page = 1,
-    int limit = 50,
+    int limit = 15,
     String? search,
     String? status,
   }) async {
@@ -151,7 +158,6 @@ class PatientApi {
     );
     return paginated.data;
   }
-
 
   /// Fetches a single patient's full record from GET /api/v1/patients/{id}
   Future<Patient> getPatient(String id) async {
@@ -182,12 +188,10 @@ class PatientApi {
   /// Creates a new patient via POST /api/v1/patients
   Future<Patient> createPatient(Map<String, dynamic> body) async {
     try {
-      final response = await _dio.post(
-        ApiConfig.patientsPath,
-        data: body,
-      );
+      final response = await _dio.post(ApiConfig.patientsPath, data: body);
       final data = response.data;
-      if (data is! Map<String, dynamic> || data['result'] is! Map<String, dynamic>) {
+      if (data is! Map<String, dynamic> ||
+          data['result'] is! Map<String, dynamic>) {
         throw const ApiException('Gagal mendaftarkan pasien.');
       }
       return Patient.fromApiJson(data['result'] as Map<String, dynamic>);
@@ -204,7 +208,8 @@ class PatientApi {
         data: body,
       );
       final data = response.data;
-      if (data is! Map<String, dynamic> || data['result'] is! Map<String, dynamic>) {
+      if (data is! Map<String, dynamic> ||
+          data['result'] is! Map<String, dynamic>) {
         throw const ApiException('Gagal memperbarui data pasien.');
       }
       return Patient.fromApiJson(data['result'] as Map<String, dynamic>);
@@ -214,7 +219,10 @@ class PatientApi {
   }
 
   /// Adds a medical record via POST /api/v1/patients/{id}/medical-records
-  Future<void> addMedicalRecord(String patientId, Map<String, dynamic> body) async {
+  Future<void> addMedicalRecord(
+    String patientId,
+    Map<String, dynamic> body,
+  ) async {
     try {
       await _dio.post(
         '${ApiConfig.patientsPath}/$patientId/medical-records',
@@ -249,7 +257,7 @@ class PatientApi {
   /// Fetches doctor list from GET /api/v1/medical-personnel?type=Doctor
   Future<List<Doctor>> getDoctors({
     int page = 1,
-    int limit = 50,
+    int limit = 15,
     String type = 'Doctor',
     String? search,
     String? availability,
@@ -261,7 +269,9 @@ class PatientApi {
         'type': type,
       };
       if (search != null && search.isNotEmpty) queryParams['search'] = search;
-      if (availability != null && availability.isNotEmpty) queryParams['availability'] = availability;
+      if (availability != null && availability.isNotEmpty) {
+        queryParams['availability'] = availability;
+      }
 
       final response = await _dio.get(
         ApiConfig.medicalPersonnelPath,
@@ -323,7 +333,9 @@ class PatientApi {
 
       final data = response.data;
       if (data is! Map<String, dynamic>) {
-        throw const ApiException('Format respons riwayat kunjungan tidak valid.');
+        throw const ApiException(
+          'Format respons riwayat kunjungan tidak valid.',
+        );
       }
 
       final result = data['result'] ?? data['data'];
@@ -340,7 +352,8 @@ class PatientApi {
         resPage = (result['page'] as num?)?.toInt() ?? page;
         resLimit = (result['limit'] as num?)?.toInt() ?? limit;
         resTotal = (result['total'] as num?)?.toInt() ?? rawList.length;
-        resTotalPages = (result['total_pages'] as num?)?.toInt() ??
+        resTotalPages =
+            (result['total_pages'] as num?)?.toInt() ??
             (resTotal > 0 ? (resTotal / resLimit).ceil() : 1);
       } else if (result is List) {
         rawList = result;
@@ -351,7 +364,10 @@ class PatientApi {
 
       final histories = rawList
           .whereType<Map>()
-          .map((item) => MedicalHistory.fromApiJson(Map<String, dynamic>.from(item)))
+          .map(
+            (item) =>
+                MedicalHistory.fromApiJson(Map<String, dynamic>.from(item)),
+          )
           .toList();
 
       return PaginatedMedicalHistory(
@@ -407,22 +423,18 @@ class PatientApi {
     try {
       final fileName = photo.path.split(Platform.pathSeparator).last;
       final formData = FormData.fromMap({
-        'photo': await MultipartFile.fromFile(
-          photo.path,
-          filename: fileName,
-        ),
+        'photo': await MultipartFile.fromFile(photo.path, filename: fileName),
       });
 
       final response = await _dio.post(
         '${ApiConfig.patientsPath}/upload-photo',
         data: formData,
-        options: Options(
-          headers: {'Content-Type': 'multipart/form-data'},
-        ),
+        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
       );
 
       final data = response.data;
-      if (data is Map<String, dynamic> && data['result'] is Map<String, dynamic>) {
+      if (data is Map<String, dynamic> &&
+          data['result'] is Map<String, dynamic>) {
         final result = data['result'] as Map<String, dynamic>;
         return (result['url'] as String?) ?? '';
       }
@@ -432,4 +444,3 @@ class PatientApi {
     }
   }
 }
-

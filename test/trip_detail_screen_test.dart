@@ -139,7 +139,6 @@ void main() {
 
     // Verify Tab Bar Items are rendered
     expect(find.text('Info Jadwal'), findsOneWidget);
-    expect(find.text('Poli Layanan'), findsOneWidget);
     expect(find.text('Persediaan'), findsOneWidget);
     expect(find.text('Kendala Perjalanan'), findsOneWidget);
 
@@ -159,15 +158,7 @@ void main() {
     expect(find.text('Herman Yulianto'), findsOneWidget);
     expect(find.text('Dodi Prasetyo'), findsOneWidget);
 
-    // Switch to Tab 2: Poli Layanan
-    await tester.tap(find.text('Poli Layanan'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Poli Gigi'), findsOneWidget);
-    expect(find.text('GIGI'), findsOneWidget);
-    expect(find.text('08:00 – 18:00'), findsOneWidget);
-
-    // Switch to Tab 3: Persediaan
+    // Switch to Tab 2: Persediaan
     await tester.tap(find.text('Persediaan'));
     await tester.pumpAndSettle();
 
@@ -449,6 +440,104 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('Tambah Logistik dropdown switches mode and records added fuel/water successfully', (tester) async {
+    final schedule = JadwalPerjalanan(
+      id: 'sched-tambah-1',
+      code: 'SCH-TAMBAH-001',
+      shipCode: 'KPL-001',
+      namaKapal: 'KM Bayan Sehat',
+      pelabuhanAsal: 'Tanjung Priok',
+      kodeAsal: 'TPR',
+      pelabuhanTujuan: 'Sorong',
+      kodeTujuan: 'SOQ',
+      berangkat: DateTime(2026, 9, 1, 13, 0),
+      tiba: DateTime(2026, 9, 16, 14, 0),
+      status: 'Ongoing',
+      fuelLiters: 1000,
+      waterLiters: 2000,
+      provisions: [
+        ProvisionHistoryItem(
+          id: 'prov-1',
+          scheduleCode: 'SCH-TAMBAH-001',
+          fuelOil: 800,
+          water: 1800,
+          createdAt: DateTime(2026, 9, 2, 10, 0),
+        ),
+      ],
+    );
+    final fakeRepo = _FakeScheduleRepo(schedule);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scheduleRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: MaterialApp(
+          home: TripDetailScreen(item: schedule),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Navigate to Persediaan
+    await tester.tap(find.text('Persediaan'));
+    await tester.pumpAndSettle();
+
+    // Open modal
+    final catatButton = find.widgetWithText(FilledButton, 'Catat Sisa Logistik');
+    await tester.ensureVisible(catatButton);
+    await tester.pumpAndSettle();
+    await tester.tap(catatButton);
+    await tester.pumpAndSettle();
+
+    // Default is Sisa Logistik
+    expect(find.text('Catat Sisa Logistik'), findsWidgets);
+    expect(find.text('Sisa Bahan Bakar (BBM)'), findsOneWidget);
+
+    // Switch dropdown to Tambah Logistik
+    final dropdown = find.byType(DropdownButtonFormField<String>);
+    expect(dropdown, findsOneWidget);
+    await tester.tap(dropdown);
+    await tester.pumpAndSettle();
+
+    // Select "Tambah Logistik" item
+    await tester.tap(find.text('Tambah Logistik').last);
+    await tester.pumpAndSettle();
+
+    // Verify modal title and fields changed to Tambah Logistik
+    expect(find.text('Tambah Logistik'), findsWidgets);
+    expect(find.text('Jumlah Penambahan BBM'), findsOneWidget);
+    expect(find.text('Jumlah Penambahan Air Bersih'), findsOneWidget);
+    expect(find.text('Nilai yang dimasukkan akan ditambahkan ke sisa stok saat ini.'), findsOneWidget);
+
+    // Enter values to add (500 fuel, 1000 water)
+    final textFields = find.byType(TextField);
+    await tester.enterText(textFields.at(0), '500');
+    await tester.enterText(textFields.at(1), '1000');
+    await tester.pump();
+
+    // Verify live preview of estimated total after addition
+    // currentFuel (800) + 500 = 1300 Liter
+    // currentWater (1800) + 1000 = 2800 Liter
+    expect(find.text('Estimasi stok setelah penambahan: 1300 Liter'), findsOneWidget);
+    expect(find.text('Estimasi stok setelah penambahan: 2800 Liter'), findsOneWidget);
+
+    // Click Simpan
+    final simpanButton = find.widgetWithText(FilledButton, 'Simpan');
+    await tester.tap(simpanButton);
+    await tester.pumpAndSettle();
+
+    // Verify modal is closed
+    expect(find.byType(AlertDialog), findsNothing);
+
+    // Verify success toast for Tambah Logistik
+    expect(find.text('Penambahan logistik berhasil dicatat'), findsOneWidget);
+
+    // Let toast dismiss
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('Edit button is inside Info Jadwal and opens EditScheduleModal with form matching mockups', (tester) async {
     final schedule = JadwalPerjalanan(
       id: 'sched-edit-1',
@@ -602,13 +691,35 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('Edit Poli button in Poli Layanan tab opens EditClinicsModal',
-      (tester) async {
-    tester.view.physicalSize = const Size(1200, 2400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() => tester.view.resetPhysicalSize());
+  testWidgets('Edit Catatan Logistik button opens edit modal with prefilled data and updates provision', (tester) async {
+    final schedule = JadwalPerjalanan(
+      id: 'sched-prov-edit',
+      code: 'SCH-PE-001',
+      shipCode: 'KPL-001',
+      namaKapal: 'KM Nusantara 01',
+      pelabuhanAsal: 'Pelabuhan Tanjung Priok',
+      kodeAsal: 'TPK',
+      pelabuhanTujuan: 'Pelabuhan Sorong',
+      kodeTujuan: 'SOQ',
+      berangkat: DateTime(2026, 9, 1, 13, 0),
+      tiba: DateTime(2026, 9, 16, 14, 0),
+      status: 'Ongoing',
+      fuelLiters: 1100,
+      waterLiters: 2000,
+      provisions: [
+        ProvisionHistoryItem(
+          id: 'prov-edit-1',
+          scheduleCode: 'SCH-PE-001',
+          fuelOil: 700,
+          water: 1500,
+          lat: -6.17511,
+          lng: 106.827153,
+          createdAt: DateTime(2026, 9, 2, 10, 0),
+          isLatest: true,
+        ),
+      ],
+    );
 
-    final schedule = createTestSchedule();
     final fakeRepo = _FakeScheduleRepo(schedule);
 
     await tester.pumpWidget(
@@ -623,31 +734,123 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 1. Switch to Tab "Poli Layanan"
-    await tester.tap(find.text('Poli Layanan'));
+    // Go to Persediaan tab
+    await tester.tap(find.text('Persediaan'));
     await tester.pumpAndSettle();
 
-    // 2. Verify "Edit Poli" button is rendered
-    expect(find.text('DAFTAR POLI LAYANAN'), findsOneWidget);
-    final editPoliFinder = find.text('Edit Poli');
-    expect(editPoliFinder, findsOneWidget);
+    // Verify there is NO trash icon for deleting provision
+    expect(find.byTooltip('Hapus Pencatatan'), findsNothing);
 
-    // 3. Tap "Edit Poli" button
-    await tester.tap(editPoliFinder);
+    // Verify edit icon is present
+    final editBtn = find.byTooltip('Edit Pencatatan');
+    expect(editBtn, findsOneWidget);
+
+    await tester.ensureVisible(editBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(editBtn);
     await tester.pumpAndSettle();
 
-    // 4. Verify EditClinicsModal is opened
-    expect(find.text('Edit Poli Layanan'), findsOneWidget);
-    expect(find.text('POLIKLINIK TERSEDIA'), findsOneWidget);
-    expect(find.text('Simpan Perubahan'), findsOneWidget);
+    // Modal should be open
+    expect(find.text('Edit Sisa Logistik'), findsOneWidget);
+    expect(
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('700')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: find.byType(AlertDialog), matching: find.text('1500')),
+      findsOneWidget,
+    );
 
-    // 5. Tap "Simpan Perubahan"
+    // Update fuel
+    final textFields = find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField));
+    await tester.enterText(textFields.at(0), '650');
+    await tester.pump();
+
+    // Save
     await tester.tap(find.text('Simpan Perubahan'));
     await tester.pumpAndSettle();
 
-    // Verify modal is dismissed and success toast shown
-    expect(find.text('Edit Poli Layanan'), findsNothing);
-    expect(find.text('Poli layanan berhasil diperbarui'), findsOneWidget);
+    // Toast shown
+    expect(find.text('Catatan logistik berhasil diperbarui'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('Edit Kendala Perjalanan button opens edit modal with prefilled data and updates issue', (tester) async {
+    final schedule = JadwalPerjalanan(
+      id: 'sched-issue-edit',
+      code: 'SCH-IE-001',
+      shipCode: 'KPL-001',
+      namaKapal: 'KM Nusantara 01',
+      pelabuhanAsal: 'Pelabuhan Tanjung Priok',
+      kodeAsal: 'TPK',
+      pelabuhanTujuan: 'Pelabuhan Sorong',
+      kodeTujuan: 'SOQ',
+      berangkat: DateTime(2026, 9, 1, 13, 0),
+      tiba: DateTime(2026, 9, 16, 14, 0),
+      status: 'Ongoing',
+      fuelLiters: 1100,
+      waterLiters: 2000,
+      tripIssues: [
+        TripIssueItem(
+          id: 'issue-edit-1',
+          scheduleId: 'sched-issue-edit',
+          description: 'Mesin utama mengalami overheat',
+          occurredAt: DateTime(2026, 9, 3, 10, 26),
+          lat: -6.20880,
+          lng: 106.84560,
+        ),
+      ],
+    );
+
+    final fakeRepo = _FakeScheduleRepo(schedule);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scheduleRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+        child: MaterialApp(
+          home: TripDetailScreen(item: schedule),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Go to Kendala tab
+    await tester.ensureVisible(find.text('Kendala Perjalanan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kendala Perjalanan'));
+    await tester.pumpAndSettle();
+
+    // Verify there is NO trash icon for deleting kendala
+    expect(find.byTooltip('Hapus Kendala'), findsNothing);
+
+    // Verify edit icon is present
+    final editBtn = find.byTooltip('Edit Kendala');
+    expect(editBtn, findsOneWidget);
+
+    await tester.ensureVisible(editBtn);
+    await tester.pumpAndSettle();
+    await tester.tap(editBtn);
+    await tester.pumpAndSettle();
+
+    // Modal should be open with prefilled description
+    expect(find.text('Edit Kendala'), findsOneWidget);
+
+    // Change description
+    final descField = find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)).first;
+    await tester.enterText(descField, 'Mesin utama mengalami overheat dan sudah diperbaiki');
+    await tester.pump();
+
+    // Save
+    await tester.tap(find.text('Simpan Perubahan'));
+    await tester.pumpAndSettle();
+
+    // Toast shown
+    expect(find.text('Kendala perjalanan berhasil diperbarui'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pumpAndSettle();
   });
 }
 
@@ -768,6 +971,33 @@ class _FakeScheduleRepo extends Fake implements ScheduleRepository {
       await saveCompleter!.future;
     }
     return schedule;
+  }
+
+  @override
+  Future<ProvisionHistoryItem> updateProvision(String id, Map<String, dynamic> body) async {
+    if (saveCompleter != null) {
+      await saveCompleter!.future;
+    }
+    return ProvisionHistoryItem(
+      id: id,
+      scheduleCode: 'SCH-TOAST-001',
+      fuelOil: (body['fuel_oil'] as num?)?.toInt() ?? 400,
+      water: (body['water'] as num?)?.toInt() ?? 800,
+      createdAt: DateTime(2026, 9, 2, 10, 0),
+    );
+  }
+
+  @override
+  Future<TripIssueItem> updateTripIssue(String id, Map<String, dynamic> body) async {
+    if (saveCompleter != null) {
+      await saveCompleter!.future;
+    }
+    return TripIssueItem(
+      id: id,
+      scheduleId: 'sched-1',
+      description: body['description'] as String? ?? '',
+      occurredAt: DateTime(2026, 9, 3, 10, 26),
+    );
   }
 }
 

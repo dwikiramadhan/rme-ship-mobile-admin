@@ -125,7 +125,7 @@ class _MockPatientApi implements PatientApi {
   @override
   Future<List<Doctor>> getDoctors({
     int page = 1,
-    int limit = 50,
+    int limit = 15,
     String type = 'Doctor',
     String? search,
     String? availability,
@@ -135,95 +135,99 @@ class _MockPatientApi implements PatientApi {
 }
 
 void main() {
-  testWidgets('PharmacyHomeScreen Antrian Resep uses medical-history API for listing, search, and status filter', (tester) async {
-    tester.view.physicalSize = const Size(1180, 820);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'PharmacyHomeScreen Antrian Resep uses medical-history API for listing, search, and status filter',
+    (tester) async {
+      tester.view.physicalSize = const Size(1180, 820);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final session = AuthSession(
-      token: 'fake-token',
-      user: const AppUser(
-        id: 'u1',
-        name: 'Apoteker Joko',
-        email: 'joko@bayan.id',
-        role: UserRole.pharmacy,
-        shipId: 'KM-01',
-      ),
-    );
+      final session = AuthSession(
+        token: 'fake-token',
+        user: const AppUser(
+          id: 'u1',
+          name: 'Apoteker Joko',
+          email: 'joko@bayan.id',
+          role: UserRole.pharmacy,
+          shipId: 'KM-01',
+        ),
+      );
 
-    final mockApi = _MockPatientApi();
+      final mockApi = _MockPatientApi();
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(_FakeAuthRepository(session)),
-          patientApiProvider.overrideWithValue(mockApi),
-          patientsProvider.overrideWith((ref) => PatientsNotifier(
-            api: mockApi,
-            autoFetch: false,
-          )),
-          pharmacyPrescriptionHistoryProvider.overrideWith((ref) => MedicalHistoryNotifier(
-            api: mockApi,
-            autoFetch: false,
-            statusPenanganan: 'Menunggu Obat',
-          )),
-        ],
-        child: const MaterialApp(
-          home: Scaffold(
-            body: PharmacyHomeScreen(apotekerName: 'Joko'),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              _FakeAuthRepository(session),
+            ),
+            patientApiProvider.overrideWithValue(mockApi),
+            patientsProvider.overrideWith(
+              (ref) => PatientsNotifier(api: mockApi, autoFetch: false),
+            ),
+            pharmacyPrescriptionHistoryProvider.overrideWith(
+              (ref) => MedicalHistoryNotifier(
+                api: mockApi,
+                autoFetch: false,
+                statusPenanganan: 'Menunggu Obat',
+              ),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(body: PharmacyHomeScreen(apotekerName: 'Joko')),
           ),
         ),
-      ),
-    );
+      );
 
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    // Tap 'Antrian Resep' tab
-    await tester.tap(find.text('Antrian Resep'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+      // Tap 'Antrian Resep' tab
+      await tester.tap(find.text('Antrian Resep'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
-    // Verify API called with default status_penanganan=Menunggu Obat
-    expect(mockApi.lastPage, equals(1));
-    expect(mockApi.lastLimit, equals(10));
-    expect(mockApi.lastSortBy, equals('created_at'));
-    expect(mockApi.lastOrder, equals('desc'));
-    expect(mockApi.lastStatusPenanganan, equals('Menunggu Obat'));
+      // Verify API called with default status_penanganan=Menunggu Obat
+      expect(mockApi.lastPage, equals(1));
+      expect(mockApi.lastLimit, equals(10));
+      expect(mockApi.lastSortBy, equals('created_at'));
+      expect(mockApi.lastOrder, equals('desc'));
+      expect(mockApi.lastStatusPenanganan, equals('Menunggu Obat'));
 
-    // Verify list items displayed from medical history
-    expect(find.text('Ahmad Dahlan'), findsWidgets);
-    expect(find.text('REG-20260906-001'), findsOneWidget);
+      // Verify list items displayed from medical history
+      expect(find.text('Ahmad Dahlan'), findsWidgets);
+      expect(find.text('REG-20260906-001'), findsOneWidget);
 
-    // Verify Status Filter button is present (icon-only)
-    final filterBtn = find.byIcon(LucideIcons.filter);
-    expect(filterBtn, findsOneWidget);
+      // Verify Status Filter button is present (icon-only)
+      final filterBtn = find.byIcon(LucideIcons.filter);
+      expect(filterBtn, findsOneWidget);
 
-    // Tap filter button and select 'Semua Status'
-    await tester.tap(filterBtn);
-    await tester.pumpAndSettle();
+      // Tap filter button and select 'Semua Status'
+      await tester.tap(filterBtn);
+      await tester.pumpAndSettle();
 
-    final optSemua = find.text('Semua Status');
-    expect(optSemua, findsOneWidget);
-    await tester.tap(optSemua);
-    await tester.pumpAndSettle();
+      final optSemua = find.text('Semua Status');
+      expect(optSemua, findsOneWidget);
+      await tester.tap(optSemua);
+      await tester.pumpAndSettle();
 
-    expect(mockApi.lastStatusPenanganan, equals('Menunggu Obat,Selesai'));
+      expect(mockApi.lastStatusPenanganan, equals('Menunggu Obat,Selesai'));
 
-    // Tap filter button and select 'Menunggu Obat' again
-    await tester.tap(filterBtn);
-    await tester.pumpAndSettle();
-    final optMenungguObat = find.text('Menunggu Obat');
-    expect(optMenungguObat, findsWidgets);
-    await tester.tap(optMenungguObat.last);
-    await tester.pumpAndSettle();
+      // Tap filter button and select 'Menunggu Obat' again
+      await tester.tap(filterBtn);
+      await tester.pumpAndSettle();
+      final optMenungguObat = find.text('Menunggu Obat');
+      expect(optMenungguObat, findsWidgets);
+      await tester.tap(optMenungguObat.last);
+      await tester.pumpAndSettle();
 
-    expect(mockApi.lastStatusPenanganan, equals('Menunggu Obat'));
+      expect(mockApi.lastStatusPenanganan, equals('Menunggu Obat'));
 
-    // Test Search triggers server-side search
-    await tester.enterText(find.byType(TextField), 'Ahmad');
-    await tester.pump(const Duration(milliseconds: 400));
-    expect(mockApi.lastSearch, equals('Ahmad'));
-  });
+      // Test Search triggers server-side search
+      await tester.enterText(find.byType(TextField), 'Ahmad');
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(mockApi.lastSearch, equals('Ahmad'));
+    },
+  );
 }

@@ -184,11 +184,19 @@ class Patient extends Equatable {
       keterangan: keterangan ?? this.keterangan,
       kodeKelurahan: kodeKelurahan ?? this.kodeKelurahan,
       kodePos: kodePos ?? this.kodePos,
-      diagnosa: identical(diagnosa, _unset) ? this.diagnosa : diagnosa as String?,
-      tindakan: identical(tindakan, _unset) ? this.tindakan : tindakan as String?,
+      diagnosa: identical(diagnosa, _unset)
+          ? this.diagnosa
+          : diagnosa as String?,
+      tindakan: identical(tindakan, _unset)
+          ? this.tindakan
+          : tindakan as String?,
       resep: resep ?? this.resep,
-      resepStatus: identical(resepStatus, _unset) ? this.resepStatus : resepStatus as ResepStatus?,
-      labOrder: identical(labOrder, _unset) ? this.labOrder : labOrder as LabOrder?,
+      resepStatus: identical(resepStatus, _unset)
+          ? this.resepStatus
+          : resepStatus as ResepStatus?,
+      labOrder: identical(labOrder, _unset)
+          ? this.labOrder
+          : labOrder as LabOrder?,
       dilihatDokter: dilihatDokter ?? this.dilihatDokter,
       dilihatPharmacy: dilihatPharmacy ?? this.dilihatPharmacy,
       dilihatLab: dilihatLab ?? this.dilihatLab,
@@ -211,15 +219,21 @@ class Patient extends Equatable {
 
   factory Patient.fromApiJson(Map<String, dynamic> json) {
     final String id = json['id']?.toString() ?? '';
-    final String name = CleanTextHelper.cleanName(json['name'] ?? json['nama'], fallback: 'Pasien');
-    final String nik = CleanTextHelper.cleanCode(json['nik'] ?? json['patient_nik']);
+    final String name = CleanTextHelper.cleanName(
+      json['name'] ?? json['nama'],
+      fallback: 'Pasien',
+    );
+    final String nik = CleanTextHelper.cleanCode(
+      json['nik'] ?? json['patient_nik'],
+    );
     final String genderStr = json['gender']?.toString().toLowerCase() ?? '';
     final Gender jk = genderStr.contains('perempuan') ? Gender.p : Gender.l;
     final String dobStr = json['dob']?.toString() ?? '';
     final String? bloodType = json['blood_type']?.toString();
     final String address = json['address']?.toString() ?? '';
     final String dbStatus = json['status']?.toString() ?? 'Monitoring';
-    final String? photoUrl = json['photo_url']?.toString() ?? json['photo']?.toString();
+    final String? photoUrl =
+        json['photo_url']?.toString() ?? json['photo']?.toString();
 
     final String? namaWali = json['nama_wali']?.toString();
     final String? hubunganWali = json['hubungan_wali']?.toString();
@@ -233,7 +247,8 @@ class Patient extends Equatable {
         final birth = DateTime.parse(dobStr);
         final today = DateTime.now();
         umur = today.year - birth.year;
-        if (today.month < birth.month || (today.month == birth.month && today.day < birth.day)) {
+        if (today.month < birth.month ||
+            (today.month == birth.month && today.day < birth.day)) {
           umur--;
         }
         if (umur < 0) umur = 0;
@@ -241,7 +256,8 @@ class Patient extends Equatable {
     }
 
     final createdAt = DateTime.tryParse(json['created_at']?.toString() ?? '');
-    final updatedAt = DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+    final updatedAt =
+        DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
         createdAt ??
         DateTime.fromMillisecondsSinceEpoch(0);
     final localCreated = createdAt?.toLocal();
@@ -269,32 +285,45 @@ class Patient extends Equatable {
     String? tindakan;
     Map<String, dynamic>? activeRecord;
     if (medRecords is List && medRecords.isNotEmpty) {
-      final validRecords = medRecords.whereType<Map<String, dynamic>>().toList();
+      final validRecords = medRecords
+          .whereType<Map<String, dynamic>>()
+          .toList();
       // Sort newest to oldest so index 0 is always the latest record
       validRecords.sort((a, b) {
-        final dateA = DateTime.tryParse(a['date']?.toString() ?? a['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final dateB = DateTime.tryParse(b['date']?.toString() ?? b['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final dateA =
+            DateTime.tryParse(
+              a['date']?.toString() ?? a['created_at']?.toString() ?? '',
+            ) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final dateB =
+            DateTime.tryParse(
+              b['date']?.toString() ?? b['created_at']?.toString() ?? '',
+            ) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return dateB.compareTo(dateA);
       });
 
       // Prioritize active visit (status_penanganan != 'Selesai'), or fallback to the newest record
-      activeRecord = validRecords.firstWhere(
-        (r) {
-          final s = (r['status_penanganan'] ?? r['status'] ?? '').toString().trim().toLowerCase();
-          return s.isNotEmpty && s != 'selesai';
-        },
-        orElse: () => validRecords.first,
-      );
+      activeRecord = validRecords.firstWhere((r) {
+        final s = (r['status_penanganan'] ?? r['status'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+        return s.isNotEmpty && s != 'selesai';
+      }, orElse: () => validRecords.first);
 
       final raw = activeRecord;
       final recComplaint = raw['complaint']?.toString() ?? '';
       final recDiag = raw['diagnosis']?.toString();
       final recTreatment = raw['treatment']?.toString() ?? '';
-      final recProcedure = raw['procedure']?.toString() ??
+      final recProcedure =
+          raw['procedure']?.toString() ??
           raw['tindakan']?.toString() ??
           raw['icd9']?.toString();
-      final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
-      final recDocName = raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
+      final recDocId =
+          raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
+      final recDocName =
+          raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
       final recNotes = raw['notes']?.toString() ?? '';
 
       if (recProcedure != null && recProcedure.isNotEmpty) {
@@ -316,7 +345,9 @@ class Patient extends Equatable {
             lokasi = trimmed.substring('Lokasi:'.length).trim();
           }
         }
-      } else if (recComplaint.isNotEmpty && recComplaint != 'Pemeriksaan klinis' && recComplaint != 'Pemeriksaan umum') {
+      } else if (recComplaint.isNotEmpty &&
+          recComplaint != 'Pemeriksaan klinis' &&
+          recComplaint != 'Pemeriksaan umum') {
         keluhan = recComplaint;
       } else if (keluhan.isEmpty && recComplaint.isNotEmpty) {
         keluhan = recComplaint;
@@ -326,7 +357,9 @@ class Patient extends Equatable {
         assignedDoctorId = recDocId;
       }
 
-      if (recDocName != null && recDocName.isNotEmpty && (doctorName == null || doctorName.isEmpty)) {
+      if (recDocName != null &&
+          recDocName.isNotEmpty &&
+          (doctorName == null || doctorName.isEmpty)) {
         doctorName = recDocName;
       }
 
@@ -343,13 +376,30 @@ class Patient extends Equatable {
 
       // 1. Read structured vitals from medical record columns
       final vs = raw['vital_signs'] is Map ? raw['vital_signs'] as Map : null;
-      final rawBp = raw['blood_pressure']?.toString() ?? vs?['blood_pressure']?.toString() ?? '';
-      final rawHr = raw['heart_rate']?.toString() ?? vs?['heart_rate']?.toString() ?? '';
-      final rawTemp = raw['temperature']?.toString() ?? vs?['temperature']?.toString() ?? '';
-      final rawRr = raw['respiratory_rate']?.toString() ?? vs?['respiratory_rate']?.toString() ?? '';
-      final rawSpo2 = raw['oxygen_saturation']?.toString() ?? vs?['oxygen_saturation']?.toString() ?? '';
+      final rawBp =
+          raw['blood_pressure']?.toString() ??
+          vs?['blood_pressure']?.toString() ??
+          '';
+      final rawHr =
+          raw['heart_rate']?.toString() ?? vs?['heart_rate']?.toString() ?? '';
+      final rawTemp =
+          raw['temperature']?.toString() ??
+          vs?['temperature']?.toString() ??
+          '';
+      final rawRr =
+          raw['respiratory_rate']?.toString() ??
+          vs?['respiratory_rate']?.toString() ??
+          '';
+      final rawSpo2 =
+          raw['oxygen_saturation']?.toString() ??
+          vs?['oxygen_saturation']?.toString() ??
+          '';
 
-      if (rawBp.isNotEmpty || rawHr.isNotEmpty || rawTemp.isNotEmpty || rawRr.isNotEmpty || rawSpo2.isNotEmpty) {
+      if (rawBp.isNotEmpty ||
+          rawHr.isNotEmpty ||
+          rawTemp.isNotEmpty ||
+          rawRr.isNotEmpty ||
+          rawSpo2.isNotEmpty) {
         parsedVitals = Vitals(
           tekananDarah: rawBp,
           nadi: rawHr,
@@ -360,7 +410,9 @@ class Patient extends Equatable {
       }
 
       // 2. Fallback / supplementary parse from triage notes
-      if (recNotes.contains('[Triage]') || recNotes.contains('Durasi:') || recNotes.contains('TD:')) {
+      if (recNotes.contains('[Triage]') ||
+          recNotes.contains('Durasi:') ||
+          recNotes.contains('TD:')) {
         final parts = recNotes.split('|');
         String td = '';
         String hr = '';
@@ -378,7 +430,10 @@ class Patient extends Equatable {
           } else if (part.startsWith('Nadi:') || part.startsWith('HR:')) {
             hr = part.replaceFirst('Nadi:', '').replaceFirst('HR:', '').trim();
           } else if (part.startsWith('Suhu:') || part.startsWith('Temp:')) {
-            temp = part.replaceFirst('Suhu:', '').replaceFirst('Temp:', '').trim();
+            temp = part
+                .replaceFirst('Suhu:', '')
+                .replaceFirst('Temp:', '')
+                .trim();
           } else if (part.startsWith('RR:')) {
             rr = part.substring('RR:'.length).trim();
           } else if (part.startsWith('SpO2:')) {
@@ -414,7 +469,8 @@ class Patient extends Equatable {
         );
       }
 
-      final rawPrescription = raw['prescription'] ??
+      final rawPrescription =
+          raw['prescription'] ??
           raw['prescriptions'] ??
           raw['medicines'] ??
           raw['resep'];
@@ -432,11 +488,12 @@ class Patient extends Equatable {
             resep = parsed;
             resepStatus = ResepStatus.baru;
           }
-        case _ when recTreatment.isNotEmpty &&
-            !RegExp(r'^[\d.,\s-]+$').hasMatch(recTreatment) &&
-            recTreatment != 'Pemeriksaan awal' &&
-            recTreatment != 'Menunggu Pemeriksaan Dokter' &&
-            recTreatment != 'Pemeriksaan Dokter':
+        case _
+            when recTreatment.isNotEmpty &&
+                !RegExp(r'^[\d.,\s-]+$').hasMatch(recTreatment) &&
+                recTreatment != 'Pemeriksaan awal' &&
+                recTreatment != 'Menunggu Pemeriksaan Dokter' &&
+                recTreatment != 'Pemeriksaan Dokter':
           final parsed = parseResepString(recTreatment);
           if (parsed.isNotEmpty) {
             resep = parsed;
@@ -445,11 +502,14 @@ class Patient extends Equatable {
       }
     }
 
-    final topPrescription = json['prescription'] ??
+    final topPrescription =
+        json['prescription'] ??
         json['prescriptions'] ??
         json['medicines'] ??
         json['resep'];
-    if (resep.isEmpty && topPrescription is List && topPrescription.isNotEmpty) {
+    if (resep.isEmpty &&
+        topPrescription is List &&
+        topPrescription.isNotEmpty) {
       resep = topPrescription
           .whereType<Map<String, dynamic>>()
           .map((j) => ResepItem.fromJson(j))
@@ -464,31 +524,48 @@ class Patient extends Equatable {
 
     final String? statusPenanganan = json['status_penanganan']?.toString();
     final String registerNo = CleanTextHelper.cleanCode(
-      json['register_no'] ?? json['code'] ?? json['registration_code'] ?? json['no_registrasi'],
+      json['register_no'] ??
+          json['code'] ??
+          json['registration_code'] ??
+          json['no_registrasi'],
     );
     final String? phone = json['phone']?.toString();
     final rawPoliCode = CleanTextHelper.cleanCode(json['poli_code']);
     final String? poliCode = rawPoliCode.isNotEmpty ? rawPoliCode : null;
     final rawPoliName = json['poliklinik'] is Map
-        ? CleanTextHelper.cleanName(json['poliklinik']['name'] ?? json['poliklinik']['nama'])
+        ? CleanTextHelper.cleanName(
+            json['poliklinik']['name'] ?? json['poliklinik']['nama'],
+          )
         : CleanTextHelper.cleanName(json['poliklinik'] ?? poliCode);
     final String? poliName = rawPoliName.isNotEmpty ? rawPoliName : null;
-    final rawServiceShipCode = CleanTextHelper.cleanCode(json['service_ship_code']);
-    final String? serviceShipCode = rawServiceShipCode.isNotEmpty ? rawServiceShipCode : null;
+    final rawServiceShipCode = CleanTextHelper.cleanCode(
+      json['service_ship_code'],
+    );
+    final String? serviceShipCode = rawServiceShipCode.isNotEmpty
+        ? rawServiceShipCode
+        : null;
     final rawServiceShipName = json['service_ship'] is Map
-        ? CleanTextHelper.cleanName(json['service_ship']['name'] ?? json['service_ship']['nama'])
+        ? CleanTextHelper.cleanName(
+            json['service_ship']['name'] ?? json['service_ship']['nama'],
+          )
         : CleanTextHelper.cleanName(json['service_ship'] ?? serviceShipCode);
-    final String? serviceShipName = rawServiceShipName.isNotEmpty ? rawServiceShipName : null;
+    final String? serviceShipName = rawServiceShipName.isNotEmpty
+        ? rawServiceShipName
+        : null;
     final String? lastVisit = json['last_visit']?.toString();
-    final String? medicalRecordId = (json['medical_record_id'] ??
-            json['medicalRecordId'] ??
-            json['med_rec_id'] ??
-            (json['medical_record'] is Map ? json['medical_record']['id'] : null) ??
-            activeRecord?['id'] ??
-            (json['medical_records'] is List && (json['medical_records'] as List).isNotEmpty
-                ? (json['medical_records'] as List).first['id']
-                : null))
-        ?.toString();
+    final String? medicalRecordId =
+        (json['medical_record_id'] ??
+                json['medicalRecordId'] ??
+                json['med_rec_id'] ??
+                (json['medical_record'] is Map
+                    ? json['medical_record']['id']
+                    : null) ??
+                activeRecord?['id'] ??
+                (json['medical_records'] is List &&
+                        (json['medical_records'] as List).isNotEmpty
+                    ? (json['medical_records'] as List).first['id']
+                    : null))
+            ?.toString();
 
     final normStatusPenanganan = statusPenanganan?.trim().toLowerCase();
     final normDbStatus = dbStatus.trim().toLowerCase();
@@ -503,7 +580,9 @@ class Patient extends Equatable {
 
     if (normStatusPenanganan == 'selesai' || normDbStatus == 'selesai') {
       resepStatus = ResepStatus.selesai;
-    } else if (normStatusPenanganan == 'menunggu obat' && resepStatus == null && resep.isNotEmpty) {
+    } else if (normStatusPenanganan == 'menunggu obat' &&
+        resepStatus == null &&
+        resep.isNotEmpty) {
       resepStatus = ResepStatus.baru;
     }
 
@@ -513,7 +592,8 @@ class Patient extends Equatable {
         jenis: 'Pemeriksaan Lab',
         status: LabOrderStatus.baru,
       );
-    } else if (normStatusPenanganan == 'dalam pemeriksaan lab' && labOrder == null) {
+    } else if (normStatusPenanganan == 'dalam pemeriksaan lab' &&
+        labOrder == null) {
       labOrder = LabOrder(
         id: medicalRecordId ?? id,
         jenis: 'Pemeriksaan Lab',
@@ -578,6 +658,7 @@ class Patient extends Equatable {
   }
 
   Map<String, dynamic> toCreatePatientJson({
+    String? nik,
     String? dob,
     String? phone,
     String? bloodType,
@@ -588,23 +669,36 @@ class Patient extends Equatable {
     String? kodeKelurahan,
     String? statusPenanganan,
     String? photoUrl,
+    String? serviceShipCode,
   }) {
-    final effectiveNik = nik.trim().isNotEmpty
-        ? nik.trim()
-        : '3171${DateTime.now().millisecondsSinceEpoch.toString().padRight(12, '0').substring(0, 12)}';
+    final rawNik = (nik ?? this.nik).trim();
+    final String? effectiveNik = rawNik.isNotEmpty ? rawNik : null;
 
     final normalizedBlood = normalizeBloodType(bloodType ?? this.bloodType);
     final normalizedStatus = (statusStr == 'Active' || statusStr == 'Deleted')
         ? statusStr
-        : ((dbStatus == 'Active' || dbStatus == 'Deleted') ? dbStatus : 'Active');
+        : ((dbStatus == 'Active' || dbStatus == 'Deleted')
+              ? dbStatus
+              : 'Active');
 
-    final effectiveStatusPenanganan = (statusPenanganan != null && statusPenanganan.isNotEmpty)
+    final effectiveStatusPenanganan =
+        (statusPenanganan != null && statusPenanganan.isNotEmpty)
         ? statusPenanganan
         : this.statusPenanganan;
 
     final effectivePhotoUrl = (photoUrl != null && photoUrl.isNotEmpty)
         ? photoUrl
-        : (this.photoUrl != null && this.photoUrl!.isNotEmpty ? this.photoUrl : null);
+        : (this.photoUrl != null && this.photoUrl!.isNotEmpty
+              ? this.photoUrl
+              : null);
+
+    final effectiveServiceShipCode =
+        (serviceShipCode != null && serviceShipCode.trim().isNotEmpty)
+            ? serviceShipCode.trim()
+            : (this.serviceShipCode != null &&
+                    this.serviceShipCode!.trim().isNotEmpty
+                ? this.serviceShipCode!.trim()
+                : null);
 
     return {
       'nik': effectiveNik,
@@ -613,14 +707,20 @@ class Patient extends Equatable {
       'dob': (dob != null && dob.isNotEmpty) ? dob : (this.dob ?? '1990-01-01'),
       'address': alamat,
       'phone': phone ?? this.phone ?? '08123456789',
-      if (normalizedBlood != null) 'blood_type': normalizedBlood,
+      'blood_type': ?normalizedBlood,
       'status': normalizedStatus ?? 'Active',
-      if (effectiveStatusPenanganan != null && effectiveStatusPenanganan.isNotEmpty)
+      if (effectiveStatusPenanganan != null &&
+          effectiveStatusPenanganan.isNotEmpty)
         'status_penanganan': effectiveStatusPenanganan,
+      if (effectiveServiceShipCode != null &&
+          effectiveServiceShipCode.isNotEmpty)
+        'service_ship_code': effectiveServiceShipCode,
       if (namaWali != null && namaWali.isNotEmpty) 'nama_wali': namaWali,
-      if (hubunganWali != null && hubunganWali.isNotEmpty) 'hubungan_wali': hubunganWali,
+      if (hubunganWali != null && hubunganWali.isNotEmpty)
+        'hubungan_wali': hubunganWali,
       if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
-      if (kodeKelurahan != null && kodeKelurahan.isNotEmpty) 'kode_kelurahan': kodeKelurahan,
+      if (kodeKelurahan != null && kodeKelurahan.isNotEmpty)
+        'kode_kelurahan': kodeKelurahan,
       if (kodePos != null) 'kode_pos': kodePos,
       if (effectivePhotoUrl != null && effectivePhotoUrl.isNotEmpty)
         'photo_url': effectivePhotoUrl,
@@ -629,50 +729,50 @@ class Patient extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        nama,
-        nik,
-        jk,
-        umur,
-        alamat,
-        photoUrl,
-        keluhanUtama,
-        durasiKeluhan,
-        lokasiKeluhan,
-        vitals,
-        assignedDokterId,
-        doctorName,
-        waktuMasuk,
-        createdAt,
-        updatedAt,
-        status,
-        dbStatus,
-        statusPenanganan,
-        dob,
-        bloodType,
-        namaWali,
-        hubunganWali,
-        keterangan,
-        kodeKelurahan,
-        kodePos,
-        diagnosa,
-        tindakan,
-        resep,
-        resepStatus,
-        labOrder,
-        dilihatDokter,
-        dilihatPharmacy,
-        dilihatLab,
-        dilihatDokterLab,
-        registerNo,
-        phone,
-        poliCode,
-        poliName,
-        serviceShipCode,
-        serviceShipName,
-        lastVisit,
-        medicalRecordId,
-      ];
+    id,
+    nama,
+    nik,
+    jk,
+    umur,
+    alamat,
+    photoUrl,
+    keluhanUtama,
+    durasiKeluhan,
+    lokasiKeluhan,
+    vitals,
+    assignedDokterId,
+    doctorName,
+    waktuMasuk,
+    createdAt,
+    updatedAt,
+    status,
+    dbStatus,
+    statusPenanganan,
+    dob,
+    bloodType,
+    namaWali,
+    hubunganWali,
+    keterangan,
+    kodeKelurahan,
+    kodePos,
+    diagnosa,
+    tindakan,
+    resep,
+    resepStatus,
+    labOrder,
+    dilihatDokter,
+    dilihatPharmacy,
+    dilihatLab,
+    dilihatDokterLab,
+    registerNo,
+    phone,
+    poliCode,
+    poliName,
+    serviceShipCode,
+    serviceShipName,
+    lastVisit,
+    medicalRecordId,
+  ];
 }
 
 const Object _unset = Object();

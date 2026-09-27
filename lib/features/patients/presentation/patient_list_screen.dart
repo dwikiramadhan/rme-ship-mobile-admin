@@ -142,7 +142,7 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                     decoration: const InputDecoration(
                       hintText: 'Cari nama atau NIK pasien...',
                       hintStyle: TextStyle(
-                        fontSize: 13,
+                        fontSize: 11,
                         color: AppColors.sub,
                         letterSpacing: 0,
                       ),
@@ -237,35 +237,82 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       final wide = constraints.maxWidth > 700;
 
                       if (wide) {
-                        return GridView.builder(
+                        final totalItems =
+                            sorted.length + (showLoadingMore ? 1 : 0);
+                        final rowCount = (totalItems + 1) ~/ 2;
+
+                        return ListView.separated(
                           controller: _scrollController,
                           physics: const AlwaysScrollableScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                mainAxisExtent: 156,
-                              ),
-                          itemCount: sorted.length + (showLoadingMore ? 2 : 0),
-                          itemBuilder: (context, index) {
-                            if (index >= sorted.length) {
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                alignment: Alignment.center,
-                                child: const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.blue,
+                          itemCount: rowCount,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 12),
+                          itemBuilder: (context, rowIndex) {
+                            final firstIndex = rowIndex * 2;
+                            final secondIndex = firstIndex + 1;
+
+                            final isFirstLoading = firstIndex >= sorted.length;
+                            final isSecondLoading =
+                                secondIndex >= sorted.length && showLoadingMore;
+
+                            final p1 = firstIndex < sorted.length
+                                ? sorted[firstIndex]
+                                : null;
+                            final p2 = secondIndex < sorted.length
+                                ? sorted[secondIndex]
+                                : null;
+
+                            return IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Expanded(
+                                    child: isFirstLoading
+                                        ? Container(
+                                            padding: const EdgeInsets.all(16),
+                                            alignment: Alignment.center,
+                                            child: const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: AppColors.blue,
+                                              ),
+                                            ),
+                                          )
+                                        : (p1 != null
+                                              ? _PatientCard(
+                                                  key: ValueKey(p1.id),
+                                                  patient: p1,
+                                                )
+                                              : const SizedBox.shrink()),
                                   ),
-                                ),
-                              );
-                            }
-                            final p = sorted[index];
-                            return _PatientCard(key: ValueKey(p.id), patient: p);
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: isSecondLoading
+                                        ? Container(
+                                            padding: const EdgeInsets.all(16),
+                                            alignment: Alignment.center,
+                                            child: const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: AppColors.blue,
+                                              ),
+                                            ),
+                                          )
+                                        : (p2 != null
+                                              ? _PatientCard(
+                                                  key: ValueKey(p2.id),
+                                                  patient: p2,
+                                                )
+                                              : const SizedBox.shrink()),
+                                  ),
+                                ],
+                              ),
+                            );
                           },
                         );
                       }
@@ -333,14 +380,13 @@ class _PatientCard extends StatelessWidget {
         ? const Color(0xFF2563EB)
         : const Color(0xFFE11D48);
 
-    final displayDate =
-        patient.lastVisit != null && patient.lastVisit!.isNotEmpty
-        ? formatDate(patient.lastVisit)
-        : patient.waktuMasuk;
-
-    final hasContactOrPoli =
-        (patient.phone != null && patient.phone!.isNotEmpty) ||
-        (patient.poliName != null && patient.poliName!.isNotEmpty);
+    final displayDate = patient.createdAt != null
+        ? formatDateTime(patient.createdAt)
+        : (patient.lastVisit != null && patient.lastVisit!.isNotEmpty
+              ? formatDateTime(patient.lastVisit)
+              : (patient.waktuMasuk.isNotEmpty
+                    ? formatDateTime(patient.waktuMasuk)
+                    : '-'));
 
     return Material(
       color: Colors.transparent,
@@ -363,9 +409,9 @@ class _PatientCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 1. Header: Avatar + Nama & Code Pasien (tanpa #)
+              // 1. Header: Avatar + Nama & Code Pasien (tanpa #) + Tanggal Created At di Kanan Atas
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Avatar
                   Container(
@@ -377,7 +423,9 @@ class _PatientCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     clipBehavior: Clip.antiAlias,
-                    child: (patient.photoUrl != null && patient.photoUrl!.isNotEmpty)
+                    child:
+                        (patient.photoUrl != null &&
+                            patient.photoUrl!.isNotEmpty)
                         ? Image.network(
                             patient.photoUrl!.startsWith('http')
                                 ? patient.photoUrl!
@@ -427,34 +475,57 @@ class _PatientCard extends StatelessWidget {
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
+                              color: const Color(0xFFE0F2FE),
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
-                                width: 0.8,
-                              ),
                             ),
                             child: Text(
                               patient.registerNo,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF475569),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF0284C7),
                               ),
                             ),
                           )
                         else
-                          Text(
-                            patient.nik.isNotEmpty ? patient.nik : 'Tanpa NIK',
+                          const Text(
+                            'No. RM: -',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 11,
+                            style: TextStyle(
+                              fontSize: 10.5,
                               color: AppColors.sub,
                             ),
                           ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Tanggal Created At (Kanan Atas)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Registered',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF94A3B8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          displayDate,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF374151),
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -463,168 +534,228 @@ class _PatientCard extends StatelessWidget {
 
               const SizedBox(height: 6),
 
-              // 2. Info Demografi (NIK, Jenis Kelamin, Umur, Golongan Darah) - Sederhana & Bersih
-              Wrap(
-                spacing: 5,
-                runSpacing: 2,
-                crossAxisAlignment: WrapCrossAlignment.center,
+              // 2. Info 2 Kolom (NIK, Gender, Umur, Phone, Alamat, Poli)
+              // Baris 1: NIK & Gender
+              Row(
                 children: [
-                  if (patient.registerNo.isNotEmpty &&
-                      patient.nik.isNotEmpty) ...[
-                    Text(
-                      patient.nik,
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF334155),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Text(
-                      '·',
-                      style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 11),
-                    ),
-                  ],
-                  Text(
-                    '${patient.jk.label}, ${patient.umur} th',
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: _buildColItem(
+                      icon: LucideIcons.creditCard,
+                      label: 'NIK',
+                      value: patient.nik.isNotEmpty ? patient.nik : '-',
+                      labelWidth: 24,
                     ),
                   ),
-                  if (patient.bloodType != null &&
-                      patient.bloodType!.isNotEmpty &&
-                      patient.bloodType != '-') ...[
-                    const Text(
-                      '·',
-                      style: TextStyle(color: Color(0xFFCBD5E1), fontSize: 11),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildColItem(
+                      icon: LucideIcons.user,
+                      label: 'Gender',
+                      value: patient.jk.label.isNotEmpty
+                          ? patient.jk.label
+                          : '-',
+                      labelWidth: 42,
                     ),
-                    Text(
-                      'Gol. ${patient.bloodType}',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+                  ),
                 ],
               ),
+              const SizedBox(height: 4),
 
-              // 3. Info Kontak & Poliklinik (Monokrom sederhana)
-              if (hasContactOrPoli) ...[
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    if (patient.phone != null && patient.phone!.isNotEmpty) ...[
-                      const Icon(
-                        LucideIcons.phone,
-                        size: 11,
-                        color: Color(0xFF94A3B8),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        patient.phone!,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                    if (patient.phone != null &&
-                        patient.phone!.isNotEmpty &&
-                        patient.poliName != null &&
-                        patient.poliName!.isNotEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6),
-                        child: Text(
-                          '·',
-                          style: TextStyle(
-                            color: Color(0xFFCBD5E1),
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
-                    if (patient.poliName != null &&
-                        patient.poliName!.isNotEmpty) ...[
-                      const Icon(
-                        LucideIcons.stethoscope,
-                        size: 11,
-                        color: Color(0xFF94A3B8),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          patient.poliName!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 6),
-
-              // 4. Footer: Alamat & Tanggal Kunjungan Terakhir
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      LucideIcons.mapPin,
-                      size: 11,
-                      color: Color(0xFF94A3B8),
+              // Baris 2: Umur & Phone
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildColItem(
+                      icon: LucideIcons.calendar,
+                      label: 'Umur',
+                      value: patient.umur > 0
+                          ? '${patient.umur} th'
+                          : (patient.dob != null && patient.dob!.isNotEmpty
+                                ? '${patient.umur} th'
+                                : '-'),
+                      labelWidth: 32,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        patient.alamat.isNotEmpty
-                            ? patient.alamat
-                            : 'Alamat tidak tercantum',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildColItem(
+                      icon: LucideIcons.phone,
+                      label: 'Phone',
+                      value:
+                          (patient.phone != null && patient.phone!.isNotEmpty)
+                          ? patient.phone!
+                          : '-',
+                      labelWidth: 36,
                     ),
-                    const SizedBox(width: 6),
-                    const Icon(
-                      LucideIcons.calendarDays,
-                      size: 11,
-                      color: Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      displayDate,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        color: Color(0xFF64748B),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 4),
+
+              // Baris 3: Alamat & Poli (atau Alamat Full-width)
+              if (patient.poliName != null && patient.poliName!.isNotEmpty)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildColItem(
+                        icon: LucideIcons.mapPin,
+                        label: 'Alamat',
+                        value: _extractKabKotaProvinsi(patient.alamat),
+                        labelWidth: 40,
+                        maxLines: 2,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildColItem(
+                        icon: LucideIcons.stethoscope,
+                        label: 'Poli',
+                        value: patient.poliName!,
+                        labelWidth: 26,
+                        maxLines: 2,
+                      ),
+                    ),
+                  ],
+                )
+              else
+                _buildColItem(
+                  icon: LucideIcons.mapPin,
+                  label: 'Alamat',
+                  value: _extractKabKotaProvinsi(patient.alamat),
+                  labelWidth: 42,
+                  maxLines: 2,
+                ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  String _extractKabKotaProvinsi(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty || trimmed == '-') return '-';
+
+    // Split by comma
+    final parts = trimmed
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return '-';
+
+    // Remove postal code if present at the end (5 digits)
+    if (parts.length > 1 && RegExp(r'^\d{5}$').hasMatch(parts.last)) {
+      parts.removeLast();
+    }
+
+    // Filter out street/RT/RW, Kelurahan, Kecamatan
+    final candidates = parts.where((p) {
+      final lower = p.toLowerCase();
+      if (lower.startsWith('jl.') ||
+          lower.startsWith('jl ') ||
+          lower.startsWith('jalan ') ||
+          lower.startsWith('gang ') ||
+          lower.startsWith('rt ') ||
+          lower.startsWith('rw ') ||
+          lower.startsWith('kel.') ||
+          lower.startsWith('kel ') ||
+          lower.startsWith('kelurahan ') ||
+          lower.startsWith('desa ') ||
+          lower.startsWith('kec.') ||
+          lower.startsWith('kec ') ||
+          lower.startsWith('kecamatan ')) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (candidates.isEmpty) {
+      return _toTitleCase(parts.last);
+    }
+
+    if (candidates.length == 1) {
+      return _toTitleCase(candidates.first);
+    }
+
+    // If 2 or more candidates, take the last two (which represent Kab/Kota and Provinsi)
+    final kabKota = _toTitleCase(candidates[candidates.length - 2]);
+    final provinsi = _toTitleCase(candidates.last);
+    return '$kabKota, $provinsi';
+  }
+
+  String _toTitleCase(String text) {
+    final clean = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (clean.isEmpty) return clean;
+    if (clean == clean.toUpperCase() && clean.length > 2) {
+      return clean
+          .split(' ')
+          .map((w) {
+            if (w.isEmpty) return w;
+            return w[0].toUpperCase() + w.substring(1).toLowerCase();
+          })
+          .join(' ');
+    }
+    return clean;
+  }
+
+  Widget _buildColItem({
+    required IconData icon,
+    required String label,
+    required String value,
+    double? labelWidth,
+    int maxLines = 1,
+  }) {
+    return Row(
+      crossAxisAlignment: maxLines > 1
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(top: maxLines > 1 ? 1.5 : 0),
+          child: Icon(icon, size: 11, color: const Color(0xFF94A3B8)),
+        ),
+        const SizedBox(width: 4),
+        if (labelWidth != null)
+          SizedBox(
+            width: labelWidth,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: Color(0xFF6B7280),
+                fontWeight: FontWeight.w400,
+                letterSpacing: 0,
+              ),
+            ),
+          )
+        else
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10.5,
+              color: Color(0xFF6B7280),
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0,
+            ),
+          ),
+        const SizedBox(width: 3),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Color(0xFF374151),
+              letterSpacing: 0,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

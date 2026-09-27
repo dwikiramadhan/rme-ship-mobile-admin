@@ -6,7 +6,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../domain/trip_schedule.dart';
-import 'widgets/edit_clinics_modal.dart';
 import 'widgets/edit_schedule_modal.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
@@ -116,24 +115,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           _showTopRightSuccessToast(
             context,
             'Jadwal perjalanan berhasil diperbarui',
-          );
-        }
-      },
-    );
-  }
-
-  void _editClinics(BuildContext context, JadwalPerjalanan item) {
-    EditClinicsModal.show(
-      context,
-      schedule: item,
-      onSave: (body) async {
-        await ref
-            .read(tripDetailNotifierProvider(widget.item).notifier)
-            .updateSchedule(body);
-        if (context.mounted) {
-          _showTopRightSuccessToast(
-            context,
-            'Poli layanan berhasil diperbarui',
           );
         }
       },
@@ -365,8 +346,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   Widget _buildCurrentTab(JadwalPerjalanan schedule) => switch (_selectedTabIndex) {
         0 => _buildTabInfoJadwal(schedule),
-        1 => _buildTabPoliLayanan(schedule),
-        2 => _buildTabPersediaan(schedule),
+        1 => _buildTabPersediaan(schedule),
         _ => _buildTabKendala(schedule),
       };
 
@@ -374,7 +354,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   // TAB BAR WIDGET
   // ==========================================
   Widget _buildTabBar(JadwalPerjalanan schedule) {
-    final clinicsCount = schedule.clinics.length;
     final provisionsCount = schedule.provisions.length;
     final issuesCount = schedule.tripIssues.length;
 
@@ -408,14 +387,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             ),
             _buildTabItem(
               index: 1,
-              icon: LucideIcons.building2,
-              label: 'Poli Layanan',
-              badgeCount: clinicsCount,
-              badgeColor: const Color(0xFFF97316),
-              badgeBg: const Color(0xFFFFEDD5),
-            ),
-            _buildTabItem(
-              index: 2,
               icon: LucideIcons.fuel,
               label: 'Persediaan',
               badgeCount: provisionsCount,
@@ -423,7 +394,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               badgeBg: const Color(0xFFFEF3C7),
             ),
             _buildTabItem(
-              index: 3,
+              index: 2,
               icon: LucideIcons.triangleAlert,
               label: 'Kendala Perjalanan',
               badgeCount: issuesCount,
@@ -1432,213 +1403,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     );
   }
 
-  // ==========================================
-  // TAB 2: POLI LAYANAN
-  // ==========================================
-  Widget _buildTabPoliLayanan(JadwalPerjalanan schedule) {
-    final clinics = schedule.clinics;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(
-              LucideIcons.building2,
-              size: 16,
-              color: Color(0xFF64748B),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'DAFTAR POLI LAYANAN',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            const Spacer(),
-            InkWell(
-              onTap: () => _editClinics(context, schedule),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.orangeLt,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.orange.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(
-                      LucideIcons.pencilLine,
-                      size: 13,
-                      color: AppColors.orange,
-                    ),
-                    SizedBox(width: 5),
-                    Text(
-                      'Edit Poli',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        if (clinics.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                const Icon(
-                  LucideIcons.building2,
-                  size: 40,
-                  color: Color(0xFF94A3B8),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Belum ada Poli Layanan terdaftar',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Poli layanan untuk jadwal ini belum dikonfigurasi.',
-                  style: TextStyle(fontSize: 12, color: AppColors.sub),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _editClinics(context, schedule),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.orange,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                  ),
-                  icon: const Icon(
-                    LucideIcons.pencilLine,
-                    size: 15,
-                    color: Colors.white,
-                  ),
-                  label: const Text(
-                    'Atur Poli Layanan',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: clinics.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final clinic = clinics[index];
-
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: AppColors.border),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7ED),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFFED7AA)),
-                      ),
-                      child: const Icon(
-                        LucideIcons.building2,
-                        color: Color(0xFFEA580C),
-                        size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            clinic.name,
-                            style: const TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            clinic.code.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.sub,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${clinic.openTime} – ${clinic.closeTime}',
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFFEA580C),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-      ],
-    );
-  }
 
   // ==========================================
   // TAB 3: PERSEDIAAN
@@ -1821,9 +1586,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   height: 7,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: isFirst
-                                        ? const Color(0xFF10B981)
-                                        : const Color(0xFF94A3B8),
+                                    color: item.isTambah
+                                        ? const Color(0xFF059669)
+                                        : (isFirst
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFF94A3B8)),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -1835,7 +1602,30 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                     color: AppColors.text,
                                   ),
                                 ),
-                                if (isFirst) ...[
+                                if (item.isTambah) ...[
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: const Color(0xFF86EFAC),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      '+ TAMBAH',
+                                      style: TextStyle(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF15803D),
+                                      ),
+                                    ),
+                                  ),
+                                ] else if (isFirst) ...[
                                   const SizedBox(width: 8),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
@@ -1882,7 +1672,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    '${item.fuelOil.toInt()} Liter',
+                                    item.isTambah && item.fuelOilAdded > 0
+                                        ? '${item.fuelOil.toInt()} L (+${item.fuelOilAdded.toInt()} L)'
+                                        : '${item.fuelOil.toInt()} Liter',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
@@ -1916,7 +1708,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    '${item.water.toInt()} Liter',
+                                    item.isTambah && item.waterAdded > 0
+                                        ? '${item.water.toInt()} L (+${item.waterAdded.toInt()} L)'
+                                        : '${item.water.toInt()} Liter',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
@@ -1955,13 +1749,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               children: [
                                 IconButton(
                                   icon: const Icon(
-                                    LucideIcons.trash2,
+                                    LucideIcons.pencil,
                                     size: 15,
                                     color: Color(0xFF94A3B8),
                                   ),
-                                  tooltip: 'Hapus Pencatatan',
+                                  tooltip: 'Edit Pencatatan',
                                   onPressed: () =>
-                                      _confirmDeleteProvision(context, item.id),
+                                      _showEditProvisionDialog(context, schedule, item),
                                 ),
                               ],
                             ),
@@ -2205,8 +1999,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
     final fuelController = TextEditingController();
     final waterController = TextEditingController();
+    final notesController = TextEditingController();
     final latController = TextEditingController();
     final lngController = TextEditingController();
+    var selectedAction = 'sisa';
     var isSubmitting = false;
 
     showDialog(
@@ -2214,14 +2010,15 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (dialogCtx, setDialogState) {
+            final isTambah = selectedAction == 'tambah';
             final enteredFuel = double.tryParse(fuelController.text.trim());
-            final isFuelExceeded =
+            final isFuelExceeded = !isTambah &&
                 currentFuel > 0 &&
                 enteredFuel != null &&
                 enteredFuel > currentFuel;
 
             final enteredWater = double.tryParse(waterController.text.trim());
-            final isWaterExceeded =
+            final isWaterExceeded = !isTambah &&
                 currentWater > 0 &&
                 enteredWater != null &&
                 enteredWater > currentWater;
@@ -2244,12 +2041,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7ED),
+                        color: isTambah
+                            ? const Color(0xFFECFDF5)
+                            : const Color(0xFFFFF7ED),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
-                        LucideIcons.fuel,
-                        color: Color(0xFFEA580C),
+                      child: Icon(
+                        isTambah ? LucideIcons.circlePlus : LucideIcons.fuel,
+                        color: isTambah
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFEA580C),
                         size: 20,
                       ),
                     ),
@@ -2257,19 +2058,21 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
+                        children: [
                           Text(
-                            'Catat Sisa Logistik',
-                            style: TextStyle(
+                            isTambah ? 'Tambah Logistik' : 'Catat Sisa Logistik',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF1E293B),
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'Perbarui sisa stok BBM & air bersih',
-                            style: TextStyle(
+                            isTambah
+                                ? 'Catat penambahan stok BBM & air bersih'
+                                : 'Perbarui sisa stok BBM & air bersih',
+                            style: const TextStyle(
                               fontSize: 12,
                               color: Color(0xFF64748B),
                               fontWeight: FontWeight.normal,
@@ -2289,6 +2092,112 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Dropdown Pilihan Tambah / Sisa Logistik
+                          Row(
+                            children: const [
+                              Icon(
+                                LucideIcons.layers,
+                                size: 14,
+                                color: Color(0xFF64748B),
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'Jenis Pencatatan',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF334155),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          DropdownButtonFormField<String>(
+                            value: selectedAction,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: const Color(0xFFF8FAFC),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 11,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: isTambah
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFFEA580C),
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'sisa',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.fuel,
+                                      size: 16,
+                                      color: Color(0xFFB45309),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Sisa Logistik',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'tambah',
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.circlePlus,
+                                      size: 16,
+                                      color: Color(0xFF059669),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Tambah Logistik',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                setDialogState(() {
+                                  selectedAction = val;
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
                           // Info Note
                           Container(
                             margin: const EdgeInsets.only(bottom: 14),
@@ -2297,26 +2206,36 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
+                              color: isTambah
+                                  ? const Color(0xFFF0FDF4)
+                                  : const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(8),
                               border: Border.all(
-                                color: const Color(0xFFE2E8F0),
+                                color: isTambah
+                                    ? const Color(0xFFBBF7D0)
+                                    : const Color(0xFFE2E8F0),
                               ),
                             ),
                             child: Row(
-                              children: const [
+                              children: [
                                 Icon(
                                   LucideIcons.info,
                                   size: 14,
-                                  color: Color(0xFF64748B),
+                                  color: isTambah
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFF64748B),
                                 ),
-                                SizedBox(width: 8),
+                                const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    'Nilai yang dimasukkan tidak boleh lebih dari sisa logistik saat ini.',
+                                    isTambah
+                                        ? 'Nilai yang dimasukkan akan ditambahkan ke sisa stok saat ini.'
+                                        : 'Nilai yang dimasukkan tidak boleh lebih dari sisa logistik saat ini.',
                                     style: TextStyle(
                                       fontSize: 11.5,
-                                      color: Color(0xFF475569),
+                                      color: isTambah
+                                          ? const Color(0xFF166534)
+                                          : const Color(0xFF475569),
                                     ),
                                   ),
                                 ),
@@ -2327,10 +2246,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           // Fuel Field Header with Current Stock Badge
                           Row(
                             children: [
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  'Sisa Bahan Bakar (BBM)',
-                                  style: TextStyle(
+                                  isTambah
+                                      ? 'Jumlah Penambahan BBM'
+                                      : 'Sisa Bahan Bakar (BBM)',
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF334155),
@@ -2382,10 +2303,19 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               ),
                               helperText: isFuelExceeded
                                   ? null
-                                  : 'Maksimal ${formatNum(currentFuel)} Liter',
-                              helperStyle: const TextStyle(
+                                  : isTambah
+                                      ? (enteredFuel != null && enteredFuel > 0
+                                          ? 'Estimasi stok setelah penambahan: ${formatNum(currentFuel + enteredFuel)} Liter'
+                                          : 'Masukkan jumlah BBM yang ditambahkan')
+                                      : 'Maksimal ${formatNum(currentFuel)} Liter',
+                              helperStyle: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFF64748B),
+                                fontWeight: isTambah && enteredFuel != null && enteredFuel > 0
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: isTambah && enteredFuel != null && enteredFuel > 0
+                                    ? const Color(0xFF059669)
+                                    : const Color(0xFF64748B),
                               ),
                               errorText: isFuelExceeded
                                   ? 'Tidak boleh melebihi sisa BBM saat ini (${formatNum(currentFuel)} L)'
@@ -2394,10 +2324,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 fontSize: 11,
                                 color: AppColors.red,
                               ),
-                              prefixIcon: const Icon(
-                                LucideIcons.fuel,
+                              prefixIcon: Icon(
+                                isTambah ? LucideIcons.circlePlus : LucideIcons.fuel,
                                 size: 18,
-                                color: Color(0xFFEA580C),
+                                color: isTambah
+                                    ? const Color(0xFF059669)
+                                    : const Color(0xFFEA580C),
                               ),
                               suffixText: 'Liter',
                               suffixStyle: const TextStyle(
@@ -2432,7 +2364,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 borderSide: BorderSide(
                                   color: isFuelExceeded
                                       ? AppColors.red
-                                      : const Color(0xFFEA580C),
+                                      : (isTambah
+                                          ? const Color(0xFF059669)
+                                          : const Color(0xFFEA580C)),
                                   width: 1.5,
                                 ),
                               ),
@@ -2443,10 +2377,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           // Water Field Header with Current Stock Badge
                           Row(
                             children: [
-                              const Expanded(
+                              Expanded(
                                 child: Text(
-                                  'Sisa Air Bersih',
-                                  style: TextStyle(
+                                  isTambah
+                                      ? 'Jumlah Penambahan Air Bersih'
+                                      : 'Sisa Air Bersih',
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: Color(0xFF334155),
@@ -2498,10 +2434,19 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               ),
                               helperText: isWaterExceeded
                                   ? null
-                                  : 'Maksimal ${formatNum(currentWater)} Liter',
-                              helperStyle: const TextStyle(
+                                  : isTambah
+                                      ? (enteredWater != null && enteredWater > 0
+                                          ? 'Estimasi stok setelah penambahan: ${formatNum(currentWater + enteredWater)} Liter'
+                                          : 'Masukkan jumlah air yang ditambahkan')
+                                      : 'Maksimal ${formatNum(currentWater)} Liter',
+                              helperStyle: TextStyle(
                                 fontSize: 11,
-                                color: Color(0xFF64748B),
+                                fontWeight: isTambah && enteredWater != null && enteredWater > 0
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                                color: isTambah && enteredWater != null && enteredWater > 0
+                                    ? AppColors.sky
+                                    : const Color(0xFF64748B),
                               ),
                               errorText: isWaterExceeded
                                   ? 'Tidak boleh melebihi sisa air saat ini (${formatNum(currentWater)} L)'
@@ -2554,6 +2499,59 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               ),
                             ),
                           ),
+                          if (isTambah) ...[
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: notesController,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF1E293B),
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Catatan Penambahan (Opsional)',
+                                labelStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
+                                floatingLabelStyle: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF059669),
+                                ),
+                                hintText: 'Contoh: Pengisian dari tongkang / dermaga',
+                                hintStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF94A3B8),
+                                  letterSpacing: 0,
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF059669),
+                                    width: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 16),
 
                           // Optional Coordinates Section
@@ -2801,7 +2799,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   ),
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFEA580C),
+                      backgroundColor: isTambah
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFEA580C),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
                         vertical: 10,
@@ -2846,16 +2846,18 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
                             if (fuel <= 0 && water <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
+                                SnackBar(
                                   content: Text(
-                                    'Masukkan sisa BBM atau Air yang valid',
+                                    isTambah
+                                        ? 'Masukkan penambahan BBM atau Air yang valid'
+                                        : 'Masukkan sisa BBM atau Air yang valid',
                                   ),
                                 ),
                               );
                               return;
                             }
 
-                            if (currentFuel > 0 && fuel > currentFuel) {
+                            if (!isTambah && currentFuel > 0 && fuel > currentFuel) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
@@ -2866,11 +2868,506 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               return;
                             }
 
-                            if (currentWater > 0 && water > currentWater) {
+                            if (!isTambah && currentWater > 0 && water > currentWater) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(
                                     'Sisa Air tidak boleh melebihi sisa saat ini (${formatNum(currentWater)} Liter)',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+
+                            setDialogState(() {
+                              isSubmitting = true;
+                            });
+
+                            try {
+                              final newFuel = isTambah
+                                  ? (currentFuel + fuel).toDouble()
+                                  : fuel;
+                              final newWater = isTambah
+                                  ? (currentWater + water).toDouble()
+                                  : water;
+
+                              await ref
+                                  .read(
+                                    tripDetailNotifierProvider(
+                                      widget.item,
+                                    ).notifier,
+                                  )
+                                  .addProvision(
+                                    scheduleCode: schedule.scheduleCode,
+                                    fuelOil: newFuel,
+                                    water: newWater,
+                                    lat: lat,
+                                    lng: lng,
+                                    type: selectedAction,
+                                    fuelOilAdded: isTambah ? fuel : 0,
+                                    waterAdded: isTambah ? water : 0,
+                                    notes: notesController.text.trim().isNotEmpty
+                                        ? notesController.text.trim()
+                                        : null,
+                                  );
+                              if (dialogCtx.mounted) {
+                                Navigator.pop(dialogCtx);
+                              }
+                              if (context.mounted) {
+                                _showTopRightSuccessToast(
+                                  context,
+                                  isTambah
+                                      ? 'Penambahan logistik berhasil dicatat'
+                                      : 'Sisa logistik berhasil dicatat',
+                                );
+                              }
+                            } catch (e) {
+                              if (dialogCtx.mounted) {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                });
+                              }
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Gagal mencatat logistik: $e',
+                                    ),
+                                    backgroundColor: Colors.red.shade700,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditProvisionDialog(
+    BuildContext context,
+    JadwalPerjalanan schedule,
+    ProvisionHistoryItem item,
+  ) {
+    String formatNum(num n) => n % 1 == 0 ? n.toInt().toString() : n.toString();
+
+    final isTambah = item.isTambah;
+    final initialFuel = isTambah && item.fuelOilAdded > 0
+        ? item.fuelOilAdded
+        : item.fuelOil;
+    final initialWater = isTambah && item.waterAdded > 0
+        ? item.waterAdded
+        : item.water;
+
+    final fuelController = TextEditingController(text: formatNum(initialFuel));
+    final waterController = TextEditingController(text: formatNum(initialWater));
+    final notesController = TextEditingController(text: item.notes ?? '');
+    final latController = TextEditingController(
+      text: item.lat != null ? item.lat!.toString() : '',
+    );
+    final lngController = TextEditingController(
+      text: item.lng != null ? item.lng!.toString() : '',
+    );
+    var isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setDialogState) {
+            return PopScope(
+              canPop: !isSubmitting,
+              child: AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 24,
+                ),
+                titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                title: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isTambah
+                            ? const Color(0xFFECFDF5)
+                            : const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        isTambah ? LucideIcons.circlePlus : LucideIcons.fuel,
+                        color: isTambah
+                            ? const Color(0xFF059669)
+                            : const Color(0xFFEA580C),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isTambah
+                                ? 'Edit Penambahan Logistik'
+                                : 'Edit Sisa Logistik',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            isTambah
+                                ? 'Perbarui data penambahan BBM & air bersih'
+                                : 'Perbarui catatan sisa stok BBM & air bersih',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                content: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: SizedBox(
+                    width: MediaQuery.sizeOf(dialogCtx).width,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Fuel Field
+                          Text(
+                            isTambah
+                                ? 'Jumlah Penambahan BBM'
+                                : 'Sisa Bahan Bakar (BBM)',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: fuelController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              prefixIcon: Icon(
+                                isTambah ? LucideIcons.circlePlus : LucideIcons.fuel,
+                                size: 18,
+                                color: isTambah
+                                    ? const Color(0xFF059669)
+                                    : const Color(0xFFEA580C),
+                              ),
+                              suffixText: 'Liter',
+                              filled: true,
+                              fillColor: const Color(0xFFF8FAFC),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Water Field
+                          Text(
+                            isTambah
+                                ? 'Jumlah Penambahan Air Bersih'
+                                : 'Sisa Air Bersih',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: waterController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d*'),
+                              ),
+                            ],
+                            decoration: const InputDecoration(
+                              hintText: '0',
+                              prefixIcon: Icon(
+                                LucideIcons.droplets,
+                                size: 18,
+                                color: AppColors.sky,
+                              ),
+                              suffixText: 'Liter',
+                              filled: true,
+                              fillColor: Color(0xFFF8FAFC),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(Radius.circular(12)),
+                                borderSide: BorderSide(
+                                  color: Color(0xFFE2E8F0),
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (isTambah) ...[
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: notesController,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF1E293B),
+                              ),
+                              decoration: InputDecoration(
+                                labelText: 'Catatan Penambahan (Opsional)',
+                                labelStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFCBD5E1),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+
+                          // Coordinates Section
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.mapPin,
+                                      size: 14,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Koordinat Posisi (Opsional)',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF475569),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextField(
+                                        controller: latController,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                              signed: true,
+                                            ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^-?\d*\.?\d*'),
+                                          ),
+                                        ],
+                                        decoration: const InputDecoration(
+                                          labelText: 'Latitude',
+                                          hintText: '-6.1751',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(10),
+                                            ),
+                                            borderSide: BorderSide(
+                                              color: Color(0xFFCBD5E1),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: TextField(
+                                        controller: lngController,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                              signed: true,
+                                            ),
+                                        inputFormatters: [
+                                          FilteringTextInputFormatter.allow(
+                                            RegExp(r'^-?\d*\.?\d*'),
+                                          ),
+                                        ],
+                                        decoration: const InputDecoration(
+                                          labelText: 'Longitude',
+                                          hintText: '106.8271',
+                                          filled: true,
+                                          fillColor: Colors.white,
+                                          contentPadding: EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          border: OutlineInputBorder(
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(10),
+                                            ),
+                                            borderSide: BorderSide(
+                                              color: Color(0xFFCBD5E1),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                actions: [
+                  OutlinedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.pop(dialogCtx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    ),
+                    child: const Text(
+                      'Batal',
+                      style: TextStyle(
+                        color: Color(0xFF475569),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: isTambah
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFEA580C),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: isSubmitting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(LucideIcons.check, size: 16),
+                    label: Text(
+                      isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final fuel =
+                                double.tryParse(fuelController.text.trim()) ??
+                                0;
+                            final water =
+                                double.tryParse(waterController.text.trim()) ??
+                                0;
+                            final lat = double.tryParse(
+                              latController.text.trim(),
+                            );
+                            final lng = double.tryParse(
+                              lngController.text.trim(),
+                            );
+
+                            if (fuel <= 0 && water <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Masukkan nilai BBM atau Air yang valid',
                                   ),
                                 ),
                               );
@@ -2888,20 +3385,27 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                       widget.item,
                                     ).notifier,
                                   )
-                                  .addProvision(
-                                    scheduleCode: schedule.scheduleCode,
+                                  .updateProvision(
+                                    id: item.id,
                                     fuelOil: fuel,
                                     water: water,
                                     lat: lat,
                                     lng: lng,
+                                    type: item.type,
+                                    fuelOilAdded: isTambah ? fuel : 0,
+                                    waterAdded: isTambah ? water : 0,
+                                    notes: notesController.text.trim().isNotEmpty
+                                        ? notesController.text.trim()
+                                        : null,
                                   );
+
                               if (dialogCtx.mounted) {
                                 Navigator.pop(dialogCtx);
                               }
                               if (context.mounted) {
                                 _showTopRightSuccessToast(
                                   context,
-                                  'Sisa logistik berhasil dicatat',
+                                  'Catatan logistik berhasil diperbarui',
                                 );
                               }
                             } catch (e) {
@@ -2914,7 +3418,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
-                                      'Gagal mencatat logistik: $e',
+                                      'Gagal memperbarui logistik: $e',
                                     ),
                                     backgroundColor: Colors.red.shade700,
                                   ),
@@ -3064,13 +3568,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                     ),
                     IconButton(
                       icon: const Icon(
-                        LucideIcons.trash2,
+                        LucideIcons.pencil,
                         color: Color(0xFFD97706),
                         size: 18,
                       ),
-                      tooltip: 'Hapus Kendala',
+                      tooltip: 'Edit Kendala',
                       onPressed: () =>
-                          _confirmDeleteTripIssue(context, issue.id),
+                          _showEditTripIssueDialog(context, schedule, issue),
                     ),
                   ],
                 ),
@@ -3202,11 +3706,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
+                        Material(
+                          color: const Color(0xFFF8FAFC),
+                          shape: RoundedRectangleBorder(
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
                           child: ListTile(
                             dense: true,
@@ -3453,6 +3957,356 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         )
                       : const Text(
                           'Simpan',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditTripIssueDialog(
+    BuildContext context,
+    JadwalPerjalanan schedule,
+    TripIssueItem issue,
+  ) {
+    final descController = TextEditingController(text: issue.description);
+    final latController = TextEditingController(
+      text: issue.lat != null ? issue.lat!.toString() : '',
+    );
+    final lngController = TextEditingController(
+      text: issue.lng != null ? issue.lng!.toString() : '',
+    );
+    DateTime selectedTime = issue.occurredAt ?? DateTime.now();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (dialogBuilderCtx, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
+              titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              title: Row(
+                children: const [
+                  Icon(
+                    LucideIcons.pencil,
+                    color: Color(0xFFEA580C),
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Edit Kendala',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: SizedBox(
+                  width: MediaQuery.sizeOf(dialogCtx).width,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: descController,
+                          maxLines: 2,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: Color(0xFF1E293B),
+                          ),
+                          decoration: InputDecoration(
+                            labelText: 'Deskripsi Kendala',
+                            labelStyle: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                            floatingLabelStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFEA580C),
+                            ),
+                            hintText: 'Contoh: Badai katrina di perairan...',
+                            hintStyle: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF94A3B8),
+                              letterSpacing: 0,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Material(
+                          color: const Color(0xFFF8FAFC),
+                          shape: RoundedRectangleBorder(
+                            side: const BorderSide(color: Color(0xFFE2E8F0)),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 2,
+                            ),
+                            leading: const Icon(
+                              LucideIcons.calendar,
+                              color: Color(0xFFEA580C),
+                              size: 16,
+                            ),
+                            title: const Text(
+                              'Waktu Kejadian',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                            subtitle: Text(
+                              _formatFullDateTime(selectedTime),
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.sub,
+                              ),
+                            ),
+                            trailing: const Icon(
+                              LucideIcons.chevronRight,
+                              size: 15,
+                              color: Color(0xFF94A3B8),
+                            ),
+                            onTap: () async {
+                              final pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: selectedTime,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (pickedDate != null && context.mounted) {
+                                final pickedTime = await showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.fromDateTime(
+                                    selectedTime,
+                                  ),
+                                );
+                                if (pickedTime != null) {
+                                  setDialogState(() {
+                                    selectedTime = DateTime(
+                                      pickedDate.year,
+                                      pickedDate.month,
+                                      pickedDate.day,
+                                      pickedTime.hour,
+                                      pickedTime.minute,
+                                    );
+                                  });
+                                }
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: latController,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF1E293B),
+                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                      signed: true,
+                                    ),
+                                decoration: InputDecoration(
+                                  labelText: 'Latitude',
+                                  labelStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  floatingLabelStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFEA580C),
+                                  ),
+                                  hintText: '-6.20880',
+                                  hintStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                    letterSpacing: 0,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: lngController,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF1E293B),
+                                ),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                      signed: true,
+                                    ),
+                                decoration: InputDecoration(
+                                  labelText: 'Longitude',
+                                  labelStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  floatingLabelStyle: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFEA580C),
+                                  ),
+                                  hintText: '106.84560',
+                                  hintStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                    letterSpacing: 0,
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx),
+                  child: const Text('Batal', style: TextStyle(fontSize: 12)),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFEA580C),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final desc = descController.text.trim();
+                          if (desc.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Deskripsi kendala wajib diisi'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          final lat = double.tryParse(
+                            latController.text.trim(),
+                          );
+                          final lng = double.tryParse(
+                            lngController.text.trim(),
+                          );
+
+                          setDialogState(() {
+                            isSubmitting = true;
+                          });
+
+                          try {
+                            await ref
+                                .read(
+                                  tripDetailNotifierProvider(
+                                    widget.item,
+                                  ).notifier,
+                                )
+                                .updateTripIssue(
+                                  id: issue.id,
+                                  description: desc,
+                                  occurredAt: selectedTime,
+                                  lat: lat,
+                                  lng: lng,
+                                );
+
+                            if (dialogCtx.mounted) {
+                              Navigator.pop(dialogCtx);
+                            }
+
+                            if (context.mounted) {
+                              _showTopRightSuccessToast(
+                                context,
+                                'Kendala perjalanan berhasil diperbarui',
+                              );
+                            }
+                          } catch (e) {
+                            if (dialogCtx.mounted) {
+                              setDialogState(() {
+                                isSubmitting = false;
+                              });
+                            }
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Gagal memperbarui kendala: $e',
+                                  ),
+                                  backgroundColor: Colors.red.shade700,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text(
+                          'Simpan Perubahan',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,

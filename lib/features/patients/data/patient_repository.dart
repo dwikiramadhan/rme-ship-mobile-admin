@@ -16,6 +16,8 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../auth/domain/user_role.dart';
 import 'patient_api.dart';
 import 'seen_notification_storage.dart';
+import '../../../core/utils/ship_code_helper.dart';
+import '../../environment/data/environment_storage.dart';
 
 /// Patient state management wired directly to [PatientApi] and real-time [WebSocketService]
 /// for instant sub-second event pushes (Perawat -> Dokter, Dokter -> Farmasi/Lab).
@@ -25,10 +27,10 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     SeenNotificationStorage? seenStorage,
     WebSocketService? wsService,
     bool autoFetch = true,
-  })  : _api = api ?? PatientApi(),
-        _seenStorage = seenStorage ?? SeenNotificationStorage(),
-        _wsService = wsService ?? WebSocketService(),
-        super(const []) {
+  }) : _api = api ?? PatientApi(),
+       _seenStorage = seenStorage ?? SeenNotificationStorage(),
+       _wsService = wsService ?? WebSocketService(),
+       super(const []) {
     if (autoFetch) {
       Future.microtask(() => fetchPatients());
       _initWebSocket();
@@ -64,10 +66,15 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       final patientId = event['patient_id']?.toString();
       final statusPenanganan = event['status_penanganan']?.toString();
       if (patientId != null && statusPenanganan != null) {
-        _update(patientId, (p) => p.copyWith(
-          statusPenanganan: statusPenanganan,
-          resepStatus: statusPenanganan == 'Menunggu Obat' ? (p.resepStatus ?? ResepStatus.baru) : p.resepStatus,
-        ));
+        _update(
+          patientId,
+          (p) => p.copyWith(
+            statusPenanganan: statusPenanganan,
+            resepStatus: statusPenanganan == 'Menunggu Obat'
+                ? (p.resepStatus ?? ResepStatus.baru)
+                : p.resepStatus,
+          ),
+        );
       }
       _silentPoll();
     });
@@ -87,14 +94,18 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         final existing = existingMap[p.id];
         if (existing != null) {
           return p.copyWith(
-            status: p.status != PatientStatus.menungguDokter ? p.status : existing.status,
+            status: p.status != PatientStatus.menungguDokter
+                ? p.status
+                : existing.status,
             dbStatus: p.dbStatus,
             diagnosa: p.diagnosa ?? existing.diagnosa,
             tindakan: p.tindakan ?? existing.tindakan,
             resep: p.resep.isNotEmpty ? p.resep : existing.resep,
             resepStatus: p.resepStatus ?? existing.resepStatus,
             labOrder: p.labOrder ?? existing.labOrder,
-            vitals: p.vitals.tekananDarah.isNotEmpty ? p.vitals : existing.vitals,
+            vitals: p.vitals.tekananDarah.isNotEmpty
+                ? p.vitals
+                : existing.vitals,
             dilihatDokter: _seenStorage.isDoctorSeen(p.id),
             dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
             dilihatLab: _seenStorage.isLabSeen(p.id),
@@ -112,7 +123,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       final page1Map = {for (final p in updatedPage1) p.id: p};
       final mergedExisting = state.map((p) => page1Map[p.id] ?? p).toList();
       final existingStateIds = {for (final p in state) p.id};
-      final brandNew = updatedPage1.where((p) => !existingStateIds.contains(p.id)).toList();
+      final brandNew = updatedPage1
+          .where((p) => !existingStateIds.contains(p.id))
+          .toList();
 
       final updatedList = [...brandNew, ...mergedExisting];
       if (!listEquals(state, updatedList) && mounted) {
@@ -130,7 +143,11 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
   /// Fetches patients from GET /api/v1/patients.
   /// If [refresh] is true, resets pagination and fetches page 1.
-  Future<void> fetchPatients({bool refresh = true, String? search, String? status}) async {
+  Future<void> fetchPatients({
+    bool refresh = true,
+    String? search,
+    String? status,
+  }) async {
     if (search != null) {
       _currentSearch = search.trim().isNotEmpty ? search.trim() : null;
     }
@@ -171,18 +188,25 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           final existing = existingMap[p.id];
           if (existing != null) {
             return p.copyWith(
-              keluhanUtama: (p.keluhanUtama.isNotEmpty && p.keluhanUtama != 'Pemeriksaan umum')
+              keluhanUtama:
+                  (p.keluhanUtama.isNotEmpty &&
+                      p.keluhanUtama != 'Pemeriksaan umum')
                   ? p.keluhanUtama
                   : existing.keluhanUtama,
-              durasiKeluhan: (p.durasiKeluhan.isNotEmpty && p.durasiKeluhan != '-')
+              durasiKeluhan:
+                  (p.durasiKeluhan.isNotEmpty && p.durasiKeluhan != '-')
                   ? p.durasiKeluhan
                   : existing.durasiKeluhan,
-              lokasiKeluhan: (p.lokasiKeluhan.isNotEmpty && p.lokasiKeluhan != '-')
+              lokasiKeluhan:
+                  (p.lokasiKeluhan.isNotEmpty && p.lokasiKeluhan != '-')
                   ? p.lokasiKeluhan
                   : existing.lokasiKeluhan,
-              status: p.status != PatientStatus.menungguDokter ? p.status : existing.status,
+              status: p.status != PatientStatus.menungguDokter
+                  ? p.status
+                  : existing.status,
               dbStatus: p.dbStatus,
-              statusPenanganan: (p.statusPenanganan != null && p.statusPenanganan!.isNotEmpty)
+              statusPenanganan:
+                  (p.statusPenanganan != null && p.statusPenanganan!.isNotEmpty)
                   ? p.statusPenanganan
                   : existing.statusPenanganan,
               diagnosa: p.diagnosa ?? existing.diagnosa,
@@ -190,7 +214,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
               resep: p.resep.isNotEmpty ? p.resep : existing.resep,
               resepStatus: p.resepStatus ?? existing.resepStatus,
               labOrder: p.labOrder ?? existing.labOrder,
-              vitals: p.vitals.tekananDarah.isNotEmpty ? p.vitals : existing.vitals,
+              vitals: p.vitals.tekananDarah.isNotEmpty
+                  ? p.vitals
+                  : existing.vitals,
               dilihatDokter: _seenStorage.isDoctorSeen(p.id),
               dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
               dilihatLab: _seenStorage.isLabSeen(p.id),
@@ -207,14 +233,17 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       } else {
         // Prevent duplicate IDs when appending
         final existingIds = state.map((p) => p.id).toSet();
-        final newItems = paginated.data.where((p) => !existingIds.contains(p.id)).map((p) {
-          return p.copyWith(
-            dilihatDokter: _seenStorage.isDoctorSeen(p.id),
-            dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
-            dilihatLab: _seenStorage.isLabSeen(p.id),
-            dilihatDokterLab: _seenStorage.isDoctorLabSeen(p.id),
-          );
-        }).toList();
+        final newItems = paginated.data
+            .where((p) => !existingIds.contains(p.id))
+            .map((p) {
+              return p.copyWith(
+                dilihatDokter: _seenStorage.isDoctorSeen(p.id),
+                dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
+                dilihatLab: _seenStorage.isLabSeen(p.id),
+                dilihatDokterLab: _seenStorage.isDoctorLabSeen(p.id),
+              );
+            })
+            .toList();
         state = [...state, ...newItems];
       }
     } catch (e) {
@@ -234,21 +263,38 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         if (!state.any((p) => p.id == id)) {
           state = [...state, detailedPatient];
         }
-        _update(id, (p) => p.copyWith(
-          diagnosa: detailedPatient.diagnosa ?? p.diagnosa,
-          tindakan: detailedPatient.tindakan ?? p.tindakan,
-          status: detailedPatient.diagnosa != null ? PatientStatus.diperiksa : p.status,
-          resep: detailedPatient.resep.isNotEmpty ? detailedPatient.resep : p.resep,
-          resepStatus: detailedPatient.resepStatus ?? p.resepStatus,
-          labOrder: detailedPatient.labOrder ?? p.labOrder,
-          keluhanUtama: detailedPatient.keluhanUtama.isNotEmpty ? detailedPatient.keluhanUtama : p.keluhanUtama,
-          durasiKeluhan: detailedPatient.durasiKeluhan != '-' ? detailedPatient.durasiKeluhan : p.durasiKeluhan,
-          lokasiKeluhan: detailedPatient.lokasiKeluhan != '-' ? detailedPatient.lokasiKeluhan : p.lokasiKeluhan,
-          vitals: detailedPatient.vitals.tekananDarah.isNotEmpty ? detailedPatient.vitals : p.vitals,
-          assignedDokterId: detailedPatient.assignedDokterId.isNotEmpty ? detailedPatient.assignedDokterId : p.assignedDokterId,
-          doctorName: detailedPatient.doctorName ?? p.doctorName,
-          bloodType: detailedPatient.bloodType ?? p.bloodType,
-        ));
+        _update(
+          id,
+          (p) => p.copyWith(
+            diagnosa: detailedPatient.diagnosa ?? p.diagnosa,
+            tindakan: detailedPatient.tindakan ?? p.tindakan,
+            status: detailedPatient.diagnosa != null
+                ? PatientStatus.diperiksa
+                : p.status,
+            resep: detailedPatient.resep.isNotEmpty
+                ? detailedPatient.resep
+                : p.resep,
+            resepStatus: detailedPatient.resepStatus ?? p.resepStatus,
+            labOrder: detailedPatient.labOrder ?? p.labOrder,
+            keluhanUtama: detailedPatient.keluhanUtama.isNotEmpty
+                ? detailedPatient.keluhanUtama
+                : p.keluhanUtama,
+            durasiKeluhan: detailedPatient.durasiKeluhan != '-'
+                ? detailedPatient.durasiKeluhan
+                : p.durasiKeluhan,
+            lokasiKeluhan: detailedPatient.lokasiKeluhan != '-'
+                ? detailedPatient.lokasiKeluhan
+                : p.lokasiKeluhan,
+            vitals: detailedPatient.vitals.tekananDarah.isNotEmpty
+                ? detailedPatient.vitals
+                : p.vitals,
+            assignedDokterId: detailedPatient.assignedDokterId.isNotEmpty
+                ? detailedPatient.assignedDokterId
+                : p.assignedDokterId,
+            doctorName: detailedPatient.doctorName ?? p.doctorName,
+            bloodType: detailedPatient.bloodType ?? p.bloodType,
+          ),
+        );
       } catch (_) {}
 
       final medRecords = await _api.getMedicalRecords(id);
@@ -265,27 +311,39 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
         final sortedRecords = List<Map<String, dynamic>>.from(medRecords);
         sortedRecords.sort((a, b) {
-          final dateA = DateTime.tryParse(a['date']?.toString() ?? a['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final dateB = DateTime.tryParse(b['date']?.toString() ?? b['created_at']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final dateA =
+              DateTime.tryParse(
+                a['date']?.toString() ?? a['created_at']?.toString() ?? '',
+              ) ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+          final dateB =
+              DateTime.tryParse(
+                b['date']?.toString() ?? b['created_at']?.toString() ?? '',
+              ) ??
+              DateTime.fromMillisecondsSinceEpoch(0);
           return dateB.compareTo(dateA);
         });
 
-        final raw = sortedRecords.firstWhere(
-          (r) {
-            final s = (r['status_penanganan'] ?? r['status'] ?? '').toString().trim().toLowerCase();
-            return s.isNotEmpty && s != 'selesai';
-          },
-          orElse: () => sortedRecords.first,
-        );
+        final raw = sortedRecords.firstWhere((r) {
+          final s = (r['status_penanganan'] ?? r['status'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          return s.isNotEmpty && s != 'selesai';
+        }, orElse: () => sortedRecords.first);
 
         final recDiag = raw['diagnosis']?.toString();
         final recTreatment = raw['treatment']?.toString() ?? '';
-        final recProcedure = raw['procedure']?.toString() ??
+        final recProcedure =
+            raw['procedure']?.toString() ??
             raw['tindakan']?.toString() ??
             raw['icd9']?.toString();
         final recComplaint = raw['complaint']?.toString();
-        final recDocId = raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
-        final recDocName = raw['doctor']?['name']?.toString() ?? raw['doctor_name']?.toString();
+        final recDocId =
+            raw['doctor_id']?.toString() ?? raw['doctor']?['id']?.toString();
+        final recDocName =
+            raw['doctor']?['name']?.toString() ??
+            raw['doctor_name']?.toString();
         final notes = raw['notes']?.toString() ?? '';
 
         if (recProcedure != null && recProcedure.isNotEmpty) {
@@ -323,19 +381,40 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           docName = recDocName;
         }
 
-        if (recDiag != null && recDiag.isNotEmpty && recDiag != 'Pemeriksaan Umum') {
+        if (recDiag != null &&
+            recDiag.isNotEmpty &&
+            recDiag != 'Pemeriksaan Umum') {
           diag = recDiag;
         }
 
         // 1. Read structured vitals from medical record columns
         final vs = raw['vital_signs'] is Map ? raw['vital_signs'] as Map : null;
-        final rawBp = raw['blood_pressure']?.toString() ?? vs?['blood_pressure']?.toString() ?? '';
-        final rawHr = raw['heart_rate']?.toString() ?? vs?['heart_rate']?.toString() ?? '';
-        final rawTemp = raw['temperature']?.toString() ?? vs?['temperature']?.toString() ?? '';
-        final rawRr = raw['respiratory_rate']?.toString() ?? vs?['respiratory_rate']?.toString() ?? '';
-        final rawSpo2 = raw['oxygen_saturation']?.toString() ?? vs?['oxygen_saturation']?.toString() ?? '';
+        final rawBp =
+            raw['blood_pressure']?.toString() ??
+            vs?['blood_pressure']?.toString() ??
+            '';
+        final rawHr =
+            raw['heart_rate']?.toString() ??
+            vs?['heart_rate']?.toString() ??
+            '';
+        final rawTemp =
+            raw['temperature']?.toString() ??
+            vs?['temperature']?.toString() ??
+            '';
+        final rawRr =
+            raw['respiratory_rate']?.toString() ??
+            vs?['respiratory_rate']?.toString() ??
+            '';
+        final rawSpo2 =
+            raw['oxygen_saturation']?.toString() ??
+            vs?['oxygen_saturation']?.toString() ??
+            '';
 
-        if (rawBp.isNotEmpty || rawHr.isNotEmpty || rawTemp.isNotEmpty || rawRr.isNotEmpty || rawSpo2.isNotEmpty) {
+        if (rawBp.isNotEmpty ||
+            rawHr.isNotEmpty ||
+            rawTemp.isNotEmpty ||
+            rawRr.isNotEmpty ||
+            rawSpo2.isNotEmpty) {
           parsedVitals = Vitals(
             tekananDarah: rawBp,
             nadi: rawHr,
@@ -346,7 +425,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         }
 
         // 2. Fallback / supplementary parse from triage notes
-        if (notes.contains('[Triage]') || notes.contains('Durasi:') || notes.contains('TD:')) {
+        if (notes.contains('[Triage]') ||
+            notes.contains('Durasi:') ||
+            notes.contains('TD:')) {
           final parts = notes.split('|');
           String td = '';
           String hr = '';
@@ -362,9 +443,15 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             } else if (part.startsWith('TD:')) {
               td = part.substring('TD:'.length).trim();
             } else if (part.startsWith('Nadi:') || part.startsWith('HR:')) {
-              hr = part.replaceFirst('Nadi:', '').replaceFirst('HR:', '').trim();
+              hr = part
+                  .replaceFirst('Nadi:', '')
+                  .replaceFirst('HR:', '')
+                  .trim();
             } else if (part.startsWith('Suhu:') || part.startsWith('Temp:')) {
-              temp = part.replaceFirst('Suhu:', '').replaceFirst('Temp:', '').trim();
+              temp = part
+                  .replaceFirst('Suhu:', '')
+                  .replaceFirst('Temp:', '')
+                  .trim();
             } else if (part.startsWith('RR:')) {
               rr = part.substring('RR:'.length).trim();
             } else if (part.startsWith('SpO2:')) {
@@ -382,7 +469,8 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           }
         }
 
-        final rawPrescription = raw['prescription'] ??
+        final rawPrescription =
+            raw['prescription'] ??
             raw['prescriptions'] ??
             raw['medicines'] ??
             raw['resep'];
@@ -405,22 +493,39 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           if (parsed.isNotEmpty) resepItems = parsed;
         }
 
-        final isExamined = diag != null && diag.isNotEmpty && diag != 'Pemeriksaan Umum';
+        final isExamined =
+            diag != null && diag.isNotEmpty && diag != 'Pemeriksaan Umum';
 
-        _update(id, (p) => p.copyWith(
-          diagnosa: isExamined ? diag : p.diagnosa,
-          tindakan: (tindakan != null && tindakan.isNotEmpty) ? tindakan : p.tindakan,
-          status: isExamined ? PatientStatus.diperiksa : p.status,
-          resep: resepItems.isNotEmpty ? resepItems : p.resep,
-          resepStatus: resepItems.isNotEmpty ? (p.resepStatus ?? ResepStatus.baru) : p.resepStatus,
-          medicalRecordId: raw['id']?.toString() ?? p.medicalRecordId,
-          keluhanUtama: (complaint != null && complaint.isNotEmpty && !complaint.startsWith('Kondisi:')) ? complaint : p.keluhanUtama,
-          durasiKeluhan: durasi ?? p.durasiKeluhan,
-          lokasiKeluhan: lokasi ?? p.lokasiKeluhan,
-          vitals: parsedVitals ?? p.vitals,
-          assignedDokterId: (docId != null && docId.isNotEmpty) ? docId : p.assignedDokterId,
-          doctorName: (docName != null && docName.isNotEmpty) ? docName : p.doctorName,
-        ));
+        _update(
+          id,
+          (p) => p.copyWith(
+            diagnosa: isExamined ? diag : p.diagnosa,
+            tindakan: (tindakan != null && tindakan.isNotEmpty)
+                ? tindakan
+                : p.tindakan,
+            status: isExamined ? PatientStatus.diperiksa : p.status,
+            resep: resepItems.isNotEmpty ? resepItems : p.resep,
+            resepStatus: resepItems.isNotEmpty
+                ? (p.resepStatus ?? ResepStatus.baru)
+                : p.resepStatus,
+            medicalRecordId: raw['id']?.toString() ?? p.medicalRecordId,
+            keluhanUtama:
+                (complaint != null &&
+                    complaint.isNotEmpty &&
+                    !complaint.startsWith('Kondisi:'))
+                ? complaint
+                : p.keluhanUtama,
+            durasiKeluhan: durasi ?? p.durasiKeluhan,
+            lokasiKeluhan: lokasi ?? p.lokasiKeluhan,
+            vitals: parsedVitals ?? p.vitals,
+            assignedDokterId: (docId != null && docId.isNotEmpty)
+                ? docId
+                : p.assignedDokterId,
+            doctorName: (docName != null && docName.isNotEmpty)
+                ? docName
+                : p.doctorName,
+          ),
+        );
       }
     } catch (e) {
       debugPrint('fetchPatientDetail error: $e');
@@ -439,7 +544,11 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   /// Triggers loading next page on scroll
   Future<void> loadMore({String? search, String? status}) async {
     if (!_hasMore || _isLoading || _isLoadingMore) return;
-    await fetchPatients(refresh: false, search: search ?? _currentSearch, status: status);
+    await fetchPatients(
+      refresh: false,
+      search: search ?? _currentSearch,
+      status: status,
+    );
   }
 
   void _update(String id, Patient Function(Patient) updater) {
@@ -460,22 +569,37 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
   }
 
-    Future<String> uploadPhoto(File photo) => _api.uploadPatientPhoto(photo);
+  Future<String> uploadPhoto(File photo) => _api.uploadPatientPhoto(photo);
 
   Future<Patient> addPatient(Patient patient) async {
-    final created = await _api.createPatient(patient.toCreatePatientJson(
-      dob: patient.dob,
-      bloodType: patient.bloodType,
-      kodeKelurahan: patient.kodeKelurahan,
-      namaWali: patient.namaWali,
-      hubunganWali: patient.hubunganWali,
-      keterangan: patient.keterangan,
-      photoUrl: patient.photoUrl,
-    ));
+    String? effectiveShipCode = patient.serviceShipCode;
+    if (effectiveShipCode == null || effectiveShipCode.trim().isEmpty) {
+      try {
+        final resolved = await resolveLocalStorageShipCode();
+        if (resolved.isNotEmpty) {
+          effectiveShipCode = resolved;
+        }
+      } catch (_) {}
+    }
+
+    final created = await _api.createPatient(
+      patient.toCreatePatientJson(
+        dob: patient.dob,
+        bloodType: patient.bloodType,
+        kodeKelurahan: patient.kodeKelurahan,
+        namaWali: patient.namaWali,
+        hubunganWali: patient.hubunganWali,
+        keterangan: patient.keterangan,
+        photoUrl: patient.photoUrl,
+        serviceShipCode: effectiveShipCode,
+      ),
+    );
 
     // Attach local clinical intake fields (keluhan, vitals, assigned doctor)
     final fullPatient = created.copyWith(
-      keluhanUtama: patient.keluhanUtama.isNotEmpty ? patient.keluhanUtama : created.keluhanUtama,
+      keluhanUtama: patient.keluhanUtama.isNotEmpty
+          ? patient.keluhanUtama
+          : created.keluhanUtama,
       durasiKeluhan: patient.durasiKeluhan,
       lokasiKeluhan: patient.lokasiKeluhan,
       vitals: patient.vitals,
@@ -488,6 +612,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       keterangan: patient.keterangan ?? created.keterangan,
       kodeKelurahan: patient.kodeKelurahan ?? created.kodeKelurahan,
       kodePos: patient.kodePos ?? created.kodePos,
+      serviceShipCode: effectiveShipCode ?? created.serviceShipCode,
     );
 
     if (patient.assignedDokterId.isNotEmpty) {
@@ -529,12 +654,26 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           systolic = int.tryParse(parts[0].trim());
           diastolic = int.tryParse(parts[1].trim());
         }
-        final heartRate = int.tryParse(patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''));
-        final temperature = double.tryParse(patient.vitals.suhu.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
-        final respiratoryRate = int.tryParse(patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''));
-        final oxygenSaturation = double.tryParse(patient.vitals.spo2.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+        final heartRate = int.tryParse(
+          patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''),
+        );
+        final temperature = double.tryParse(
+          patient.vitals.suhu
+              .replaceAll(',', '.')
+              .replaceAll(RegExp(r'[^\d.]'), ''),
+        );
+        final respiratoryRate = int.tryParse(
+          patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''),
+        );
+        final oxygenSaturation = double.tryParse(
+          patient.vitals.spo2
+              .replaceAll(',', '.')
+              .replaceAll(RegExp(r'[^\d.]'), ''),
+        );
 
-        var formattedComplaint = patient.keluhanUtama.isNotEmpty ? patient.keluhanUtama : 'Pemeriksaan awal';
+        var formattedComplaint = patient.keluhanUtama.isNotEmpty
+            ? patient.keluhanUtama
+            : 'Pemeriksaan awal';
         final extraComplaint = <String>[];
         if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
           extraComplaint.add('Durasi: ${patient.durasiKeluhan}');
@@ -543,12 +682,26 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           extraComplaint.add('Lokasi: ${patient.lokasiKeluhan}');
         }
         if (extraComplaint.isNotEmpty) {
-          formattedComplaint = '$formattedComplaint • ${extraComplaint.join(' • ')}';
+          formattedComplaint =
+              '$formattedComplaint • ${extraComplaint.join(' • ')}';
+        }
+
+        String? effectiveShipId;
+        try {
+          final envStorage = EnvironmentStorage();
+          effectiveShipId = await envStorage.getShipId();
+        } catch (_) {}
+        if (effectiveShipId == null || effectiveShipId.isEmpty) {
+          effectiveShipId = '3a7ff982-e187-49f8-a34e-95f775afda61';
         }
 
         await _api.addMedicalRecord(created.id, {
           'doctor_id': patient.assignedDokterId,
-          'ship_id': '3a7ff982-e187-49f8-a34e-95f775afda61',
+          'ship_id': effectiveShipId,
+          if (effectiveShipCode != null && effectiveShipCode.isNotEmpty) ...{
+            'ship_code': effectiveShipCode,
+            'service_ship_code': effectiveShipCode,
+          },
           'port_id': 'f7d71b54-4c2c-4b10-a601-b82a604c7315',
           'complaint': formattedComplaint,
           'diagnosis': 'Pemeriksaan Umum',
@@ -557,13 +710,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           'date': DateTime.now().toIso8601String().split('T').first,
           'status': 'Stable',
           'status_penanganan': 'Menunggu Dokter',
-          if (patient.vitals.tekananDarah.isNotEmpty) 'blood_pressure': patient.vitals.tekananDarah,
-          if (systolic != null) 'systolic': systolic,
-          if (diastolic != null) 'diastolic': diastolic,
-          if (heartRate != null) 'heart_rate': heartRate,
-          if (temperature != null) 'temperature': temperature,
-          if (respiratoryRate != null) 'respiratory_rate': respiratoryRate,
-          if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
+          if (patient.vitals.tekananDarah.isNotEmpty)
+            'blood_pressure': patient.vitals.tekananDarah,
+          'systolic': ?systolic,
+          'diastolic': ?diastolic,
+          'heart_rate': ?heartRate,
+          'temperature': ?temperature,
+          'respiratory_rate': ?respiratoryRate,
+          'oxygen_saturation': ?oxygenSaturation,
         });
       } catch (e) {
         debugPrint('addPatient medical record error: $e');
@@ -577,7 +731,10 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       'nama': fullPatient.nama,
     });
 
-    state = [fullPatient, ...state.where((p) => p.id != patient.id && p.id != created.id)];
+    state = [
+      fullPatient,
+      ...state.where((p) => p.id != patient.id && p.id != created.id),
+    ];
     return fullPatient;
   }
 
@@ -614,35 +771,44 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       final vitalsMap = patientUpdates?['vitals'];
       if (vitalsMap is Map) {
         newVitals = Vitals(
-          tekananDarah: vitalsMap['tekanan_darah']?.toString() ?? p.vitals.tekananDarah,
+          tekananDarah:
+              vitalsMap['tekanan_darah']?.toString() ?? p.vitals.tekananDarah,
           nadi: vitalsMap['nadi']?.toString() ?? p.vitals.nadi,
           suhu: vitalsMap['suhu']?.toString() ?? p.vitals.suhu,
-          frekuensiNapas: vitalsMap['frekuensi_napas']?.toString() ?? p.vitals.frekuensiNapas,
+          frekuensiNapas:
+              vitalsMap['frekuensi_napas']?.toString() ??
+              p.vitals.frekuensiNapas,
           spo2: vitalsMap['spo2']?.toString() ?? p.vitals.spo2,
         );
       }
       return p.copyWith(
         status: PatientStatus.menungguDokter,
         statusPenanganan: 'Menunggu Dokter',
-        assignedDokterId: recordData['doctor_id']?.toString() ?? p.assignedDokterId,
+        assignedDokterId:
+            recordData['doctor_id']?.toString() ?? p.assignedDokterId,
         keluhanUtama: recordData['complaint']?.toString() ?? p.keluhanUtama,
-        durasiKeluhan: patientUpdates?['durasi_keluhan']?.toString() ?? p.durasiKeluhan,
-        lokasiKeluhan: patientUpdates?['lokasi_keluhan']?.toString() ?? p.lokasiKeluhan,
+        durasiKeluhan:
+            patientUpdates?['durasi_keluhan']?.toString() ?? p.durasiKeluhan,
+        lokasiKeluhan:
+            patientUpdates?['lokasi_keluhan']?.toString() ?? p.lokasiKeluhan,
         vitals: newVitals ?? p.vitals,
       );
     });
   }
 
   Future<Patient> updatePatient(Patient patient) async {
-    final updated = await _api.updatePatient(patient.id, patient.toCreatePatientJson(
-      dob: patient.dob,
-      bloodType: patient.bloodType,
-      kodeKelurahan: patient.kodeKelurahan,
-      namaWali: patient.namaWali,
-      hubunganWali: patient.hubunganWali,
-      keterangan: patient.keterangan,
-      photoUrl: patient.photoUrl,
-    ));
+    final updated = await _api.updatePatient(
+      patient.id,
+      patient.toCreatePatientJson(
+        dob: patient.dob,
+        bloodType: patient.bloodType,
+        kodeKelurahan: patient.kodeKelurahan,
+        namaWali: patient.namaWali,
+        hubunganWali: patient.hubunganWali,
+        keterangan: patient.keterangan,
+        photoUrl: patient.photoUrl,
+      ),
+    );
     final fullPatient = patient.copyWith(
       nama: updated.nama,
       nik: updated.nik,
@@ -704,12 +870,26 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           systolic = int.tryParse(parts[0].trim());
           diastolic = int.tryParse(parts[1].trim());
         }
-        final heartRate = int.tryParse(patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''));
-        final temperature = double.tryParse(patient.vitals.suhu.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
-        final respiratoryRate = int.tryParse(patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''));
-        final oxygenSaturation = double.tryParse(patient.vitals.spo2.replaceAll(',', '.').replaceAll(RegExp(r'[^\d.]'), ''));
+        final heartRate = int.tryParse(
+          patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''),
+        );
+        final temperature = double.tryParse(
+          patient.vitals.suhu
+              .replaceAll(',', '.')
+              .replaceAll(RegExp(r'[^\d.]'), ''),
+        );
+        final respiratoryRate = int.tryParse(
+          patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''),
+        );
+        final oxygenSaturation = double.tryParse(
+          patient.vitals.spo2
+              .replaceAll(',', '.')
+              .replaceAll(RegExp(r'[^\d.]'), ''),
+        );
 
-        var formattedComplaint = patient.keluhanUtama.isNotEmpty ? patient.keluhanUtama : 'Pemeriksaan awal';
+        var formattedComplaint = patient.keluhanUtama.isNotEmpty
+            ? patient.keluhanUtama
+            : 'Pemeriksaan awal';
         final extraComplaint = <String>[];
         if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
           extraComplaint.add('Durasi: ${patient.durasiKeluhan}');
@@ -718,7 +898,8 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           extraComplaint.add('Lokasi: ${patient.lokasiKeluhan}');
         }
         if (extraComplaint.isNotEmpty) {
-          formattedComplaint = '$formattedComplaint • ${extraComplaint.join(' • ')}';
+          formattedComplaint =
+              '$formattedComplaint • ${extraComplaint.join(' • ')}';
         }
 
         await _api.addMedicalRecord(patient.id, {
@@ -728,17 +909,20 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           'complaint': formattedComplaint,
           'diagnosis': patient.diagnosa ?? 'Pemeriksaan Umum',
           'treatment': patient.resep.isNotEmpty
-              ? patient.resep.map((r) => '${r.obat} ${r.dosis} (${r.instruksi})').join(', ')
+              ? patient.resep
+                    .map((r) => '${r.obat} ${r.dosis} (${r.instruksi})')
+                    .join(', ')
               : 'Menunggu Pemeriksaan Dokter',
           'notes': finalNotes,
           'date': DateTime.now().toIso8601String().split('T').first,
-          if (patient.vitals.tekananDarah.isNotEmpty) 'blood_pressure': patient.vitals.tekananDarah,
-          if (systolic != null) 'systolic': systolic,
-          if (diastolic != null) 'diastolic': diastolic,
-          if (heartRate != null) 'heart_rate': heartRate,
-          if (temperature != null) 'temperature': temperature,
-          if (respiratoryRate != null) 'respiratory_rate': respiratoryRate,
-          if (oxygenSaturation != null) 'oxygen_saturation': oxygenSaturation,
+          if (patient.vitals.tekananDarah.isNotEmpty)
+            'blood_pressure': patient.vitals.tekananDarah,
+          'systolic': ?systolic,
+          'diastolic': ?diastolic,
+          'heart_rate': ?heartRate,
+          'temperature': ?temperature,
+          'respiratory_rate': ?respiratoryRate,
+          'oxygen_saturation': ?oxygenSaturation,
         });
       } catch (e) {
         debugPrint('updatePatient medical record error: $e');
@@ -806,8 +990,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         resepStatus: ResepStatus.baru,
         labOrder: labOrder ?? p.labOrder,
         dilihatDokter: true,
-        assignedDokterId: (doctorId != null && doctorId.isNotEmpty) ? doctorId : p.assignedDokterId,
-        doctorName: matchedDoc?.nama ?? (p.doctorName?.isNotEmpty == true ? p.doctorName : 'Dr. Budi Santoso'),
+        assignedDokterId: (doctorId != null && doctorId.isNotEmpty)
+            ? doctorId
+            : p.assignedDokterId,
+        doctorName:
+            matchedDoc?.nama ??
+            (p.doctorName?.isNotEmpty == true
+                ? p.doctorName
+                : 'Dr. Budi Santoso'),
       ),
     );
 
@@ -815,13 +1005,20 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       final patient = state.where((p) => p.id == id).firstOrNull;
       final assignedDoctorId = patient?.assignedDokterId ?? '';
       final complaint = patient?.keluhanUtama ?? '';
-      final treatmentText = resep.map((r) => '${r.obat} ${r.dosis} (${r.instruksi})').join(', ');
+      final treatmentText = resep
+          .map((r) => '${r.obat} ${r.dosis} (${r.instruksi})')
+          .join(', ');
 
       final validDoctorIds = kDoctors.map((d) => d.id).toSet();
-      String effectiveDoctorId = '8afc72cb-b1c5-4ea1-a438-b06c6ae4a99b'; // Dr. Budi Santoso fallback
-      if (doctorId != null && doctorId.isNotEmpty && (validDoctorIds.contains(doctorId) || doctorId.length > 20)) {
+      String effectiveDoctorId =
+          '8afc72cb-b1c5-4ea1-a438-b06c6ae4a99b'; // Dr. Budi Santoso fallback
+      if (doctorId != null &&
+          doctorId.isNotEmpty &&
+          (validDoctorIds.contains(doctorId) || doctorId.length > 20)) {
         effectiveDoctorId = doctorId;
-      } else if (assignedDoctorId.isNotEmpty && (validDoctorIds.contains(assignedDoctorId) || assignedDoctorId.length > 20)) {
+      } else if (assignedDoctorId.isNotEmpty &&
+          (validDoctorIds.contains(assignedDoctorId) ||
+              assignedDoctorId.length > 20)) {
         effectiveDoctorId = assignedDoctorId;
       }
 
@@ -853,7 +1050,8 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         'complaint': complaint.isNotEmpty ? complaint : 'Pemeriksaan klinis',
         'date': DateTime.now().toIso8601String().split('T').first,
         'status': statusKondisi?.isNotEmpty == true ? statusKondisi! : 'Stable',
-        if (labOrder != null) 'notes': 'Order Lab: ${labOrder.jenis} (${labOrder.catatan})',
+        if (labOrder != null)
+          'notes': 'Order Lab: ${labOrder.jenis} (${labOrder.catatan})',
       });
 
       // Update patient status_penanganan to 'Menunggu Obat' in backend database
@@ -864,7 +1062,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             statusPenanganan: 'Menunggu Obat',
           );
           await _api.updatePatient(id, updatePayload);
-          debugPrint('✅ [addMedicalRecord] Successfully synced status_penanganan to Menunggu Obat');
+          debugPrint(
+            '✅ [addMedicalRecord] Successfully synced status_penanganan to Menunggu Obat',
+          );
         }
       } catch (e) {
         debugPrint('Failed to sync status_penanganan to backend: $e');
@@ -906,7 +1106,8 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     List<ResepItem>? resep,
     LabOrder? labOrder,
   }) async {
-    final statusPenanganan = body['status_penanganan']?.toString() ?? 'Menunggu Obat';
+    final statusPenanganan =
+        body['status_penanganan']?.toString() ?? 'Menunggu Obat';
 
     await _seenStorage.markDoctorSeen(patientId);
     if (statusPenanganan == 'Menunggu Lab' || labOrder != null) {
@@ -934,13 +1135,17 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
       // Sync status_penanganan to patient endpoint
       try {
-        final currentPatient = state.where((p) => p.id == patientId).firstOrNull;
+        final currentPatient = state
+            .where((p) => p.id == patientId)
+            .firstOrNull;
         if (currentPatient != null) {
           final updatePayload = currentPatient.toCreatePatientJson(
             statusPenanganan: statusPenanganan,
           );
           await _api.updatePatient(patientId, updatePayload);
-          debugPrint('✅ [patchMedicalRecord] Successfully updated patient status_penanganan to $statusPenanganan');
+          debugPrint(
+            '✅ [patchMedicalRecord] Successfully updated patient status_penanganan to $statusPenanganan',
+          );
         }
       } catch (e) {
         debugPrint('Failed to sync status_penanganan to patient: $e');
@@ -1044,13 +1249,19 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       'items': payloadItems,
     };
 
-    debugPrint('🚀 [dispensePrescription] POST /api/v1/medical-records/$medRecId/dispense body: $body');
+    debugPrint(
+      '🚀 [dispensePrescription] POST /api/v1/medical-records/$medRecId/dispense body: $body',
+    );
 
     try {
       await _api.dispensePrescription(medRecId, body);
-      debugPrint('✅ [dispensePrescription] Successfully dispensed prescription for medRecId $medRecId');
+      debugPrint(
+        '✅ [dispensePrescription] Successfully dispensed prescription for medRecId $medRecId',
+      );
     } catch (e) {
-      debugPrint('❌ [dispensePrescription] Failed to dispense prescription for medRecId $medRecId: $e');
+      debugPrint(
+        '❌ [dispensePrescription] Failed to dispense prescription for medRecId $medRecId: $e',
+      );
       rethrow;
     }
 
@@ -1072,7 +1283,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   }
 
   Future<void> setResepStatus(String id, ResepStatus status) async {
-    final newStatusPenanganan = status == ResepStatus.selesai ? 'Selesai' : null;
+    final newStatusPenanganan = status == ResepStatus.selesai
+        ? 'Selesai'
+        : null;
     _update(
       id,
       (p) => p.copyWith(
@@ -1090,10 +1303,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             statusPenanganan: 'Selesai',
           );
           await _api.updatePatient(id, updatePayload);
-          debugPrint('✅ [setResepStatus] Successfully updated status_penanganan to Selesai on API for patient $id');
+          debugPrint(
+            '✅ [setResepStatus] Successfully updated status_penanganan to Selesai on API for patient $id',
+          );
         }
       } catch (e) {
-        debugPrint('❌ [setResepStatus] Failed to sync status_penanganan Selesai to API: $e');
+        debugPrint(
+          '❌ [setResepStatus] Failed to sync status_penanganan Selesai to API: $e',
+        );
         rethrow;
       }
 
@@ -1133,8 +1350,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       rethrow;
     }
 
-    final parsedItems =
-        items.map((i) => LabExaminationItem.fromJson(i)).toList();
+    final parsedItems = items
+        .map((i) => LabExaminationItem.fromJson(i))
+        .toList();
     _update(patientId, (p) {
       final order = p.labOrder;
       if (order == null) return p;
@@ -1186,14 +1404,13 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     await _seenStorage.markLabSeen(id);
     await _seenStorage.unmarkDoctorLabSeen(id);
 
-    _wsService.send({
-      'type': 'lab_result_ready',
-      'patient_id': id,
-    });
+    _wsService.send({'type': 'lab_result_ready', 'patient_id': id});
   }
 }
 
-final seenNotificationStorageProvider = Provider<SeenNotificationStorage>((ref) {
+final seenNotificationStorageProvider = Provider<SeenNotificationStorage>((
+  ref,
+) {
   return SeenNotificationStorage();
 });
 
@@ -1216,14 +1433,13 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     WebSocketService? wsService,
     this.inAppNotifier,
     this.currentRole,
-  })  : _api = api ?? PatientApi(),
-        _seenStorage = seenStorage ?? SeenNotificationStorage(),
-        _wsService = wsService ?? WebSocketService(),
-        super(const []) {
+  }) : _api = api ?? PatientApi(),
+       _seenStorage = seenStorage ?? SeenNotificationStorage(),
+       _wsService = wsService ?? WebSocketService(),
+       super(const []) {
     Future.microtask(() => fetchRecentNotifications());
     _initWebSocket();
     _initConnectionMonitor();
-    _initPeriodicFallback();
   }
 
   final PatientApi _api;
@@ -1234,7 +1450,6 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 
   StreamSubscription? _wsSubscription;
   StreamSubscription? _connSubscription;
-  Timer? _fallbackTimer;
   bool _isFirstLoad = true;
 
   bool _isWaitingDoctor(Patient p) {
@@ -1258,7 +1473,8 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
         if (currentRole == UserRole.pharmacy) {
           bannerPatientId = patientId;
         }
-      } else if ((type == 'patient_assigned' || type == 'patient_registered') && patientId != null) {
+      } else if ((type == 'patient_assigned' || type == 'patient_registered') &&
+          patientId != null) {
         await _seenStorage.unmarkDoctorSeen(patientId);
         if (currentRole == UserRole.dokter) {
           bannerPatientId = patientId;
@@ -1287,22 +1503,20 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   void _initConnectionMonitor() {
     _connSubscription = _wsService.onConnectionChanged.listen((connected) {
       if (connected) {
-        debugPrint('🔄 [NotificationsNotifier] Reconnected to ship Wi-Fi! Triggering catch-up sync...');
+        debugPrint(
+          '🔄 [NotificationsNotifier] Reconnected to ship Wi-Fi! Triggering catch-up sync...',
+        );
         fetchRecentNotifications();
       }
     });
   }
 
-  void _initPeriodicFallback() {
-    // 30-second silent background catch-up sync for ship Wi-Fi stability
-    _fallbackTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      fetchRecentNotifications();
-    });
-  }
 
   /// Triggered manually when tablet screen wakes up / resumes from background
   Future<void> catchUpSync() async {
-    debugPrint('📱 [NotificationsNotifier] App resumed, performing instant catch-up sync...');
+    debugPrint(
+      '📱 [NotificationsNotifier] App resumed, performing instant catch-up sync...',
+    );
     if (!_wsService.isConnected) {
       _wsService.connect();
     }
@@ -1320,7 +1534,8 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
       var patientList = paginated.data;
 
       // If a specific target patient was notified but not on page 1, fetch it individually
-      if (targetPatientId != null && !patientList.any((p) => p.id == targetPatientId)) {
+      if (targetPatientId != null &&
+          !patientList.any((p) => p.id == targetPatientId)) {
         try {
           final target = await _api.getPatient(targetPatientId);
           patientList = [target, ...patientList];
@@ -1338,17 +1553,30 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
       }).toList();
 
       final unread = patientList.where((p) {
-        final isUnreadDoc = _isWaitingDoctor(p) && !_seenStorage.isDoctorSeen(p.id);
-        final isUnreadDocLab = (p.labOrder?.status == LabOrderStatus.selesai) && !_seenStorage.isDoctorLabSeen(p.id);
-        final isUnreadPharm = (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)) && !_seenStorage.isPharmacySeen(p.id);
-        final isUnreadLab = (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) && !_seenStorage.isLabSeen(p.id);
+        final isUnreadDoc =
+            _isWaitingDoctor(p) && !_seenStorage.isDoctorSeen(p.id);
+        final isUnreadDocLab =
+            (p.labOrder?.status == LabOrderStatus.selesai) &&
+            !_seenStorage.isDoctorLabSeen(p.id);
+        final isUnreadPharm =
+            (p.statusPenanganan == 'Menunggu Obat' ||
+                p.resepStatus == ResepStatus.baru ||
+                (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)) &&
+            !_seenStorage.isPharmacySeen(p.id);
+        final isUnreadLab =
+            (p.statusPenanganan == 'Menunggu Lab' ||
+                (p.labOrder != null &&
+                    p.labOrder!.status == LabOrderStatus.baru)) &&
+            !_seenStorage.isLabSeen(p.id);
         return isUnreadDoc || isUnreadDocLab || isUnreadPharm || isUnreadLab;
       }).toList();
 
       // Check for new notifications to trigger floating in-app banner
       if (inAppNotifier != null) {
         if (triggerBannerForPatientId != null) {
-          final target = unread.where((p) => p.id == triggerBannerForPatientId).firstOrNull;
+          final target = unread
+              .where((p) => p.id == triggerBannerForPatientId)
+              .firstOrNull;
           if (target != null) {
             _dispatchBanner(target);
           }
@@ -1378,7 +1606,8 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
         InAppNotificationItem(
           id: 'lab_res_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
           title: 'Hasil Lab Selesai',
-          message: 'Hasil pemeriksaan laboratorium untuk ${p.nama} telah selesai.',
+          message:
+              'Hasil pemeriksaan laboratorium untuk ${p.nama} telah selesai.',
           type: InAppNotificationType.lab,
           patientId: p.id,
         ),
@@ -1387,7 +1616,8 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     }
 
     // 2. Pharmacy Order (intended for Pharmacy)
-    if (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru) {
+    if (p.statusPenanganan == 'Menunggu Obat' ||
+        p.resepStatus == ResepStatus.baru) {
       if (currentRole != null && currentRole != UserRole.pharmacy) return;
       inAppNotifier?.showNotification(
         InAppNotificationItem(
@@ -1402,7 +1632,8 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     }
 
     // 3. Lab Order (intended for Lab)
-    if (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) {
+    if (p.statusPenanganan == 'Menunggu Lab' ||
+        (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) {
       if (currentRole != null && currentRole != UserRole.lab) return;
       inAppNotifier?.showNotification(
         InAppNotificationItem(
@@ -1439,72 +1670,135 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 
   void markDoctorLabSeen(String id) {
     _seenStorage.markDoctorLabSeen(id);
-    state = state.where((p) => !(p.id == id && p.labOrder?.status == LabOrderStatus.selesai)).toList();
+    state = state
+        .where(
+          (p) => !(p.id == id && p.labOrder?.status == LabOrderStatus.selesai),
+        )
+        .toList();
   }
 
   void markAllDoctorSeen() {
     final docIds = state.where((p) => _isWaitingDoctor(p)).map((p) => p.id);
-    final labIds = state.where((p) => p.labOrder?.status == LabOrderStatus.selesai).map((p) => p.id);
+    final labIds = state
+        .where((p) => p.labOrder?.status == LabOrderStatus.selesai)
+        .map((p) => p.id);
     _seenStorage.markAllDoctorSeen(docIds);
     _seenStorage.markAllDoctorLabSeen(labIds);
-    state = state.where((p) => !_isWaitingDoctor(p) && p.labOrder?.status != LabOrderStatus.selesai).toList();
+    state = state
+        .where(
+          (p) =>
+              !_isWaitingDoctor(p) &&
+              p.labOrder?.status != LabOrderStatus.selesai,
+        )
+        .toList();
   }
 
   void markPharmacySeen(String id) {
     _seenStorage.markPharmacySeen(id);
-    state = state.where((p) => !(p.id == id && (p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)))).toList();
+    state = state
+        .where(
+          (p) =>
+              !(p.id == id &&
+                  (p.statusPenanganan == 'Menunggu Obat' ||
+                      p.resepStatus == ResepStatus.baru ||
+                      (p.resep.isNotEmpty &&
+                          p.resepStatus != ResepStatus.selesai))),
+        )
+        .toList();
   }
 
   void markAllPharmacySeen() {
-    final pharmIds = state.where((p) => p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)).map((p) => p.id);
+    final pharmIds = state
+        .where(
+          (p) =>
+              p.statusPenanganan == 'Menunggu Obat' ||
+              p.resepStatus == ResepStatus.baru ||
+              (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai),
+        )
+        .map((p) => p.id);
     _seenStorage.markAllPharmacySeen(pharmIds);
-    state = state.where((p) => !(p.statusPenanganan == 'Menunggu Obat' || p.resepStatus == ResepStatus.baru || (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai))).toList();
+    state = state
+        .where(
+          (p) =>
+              !(p.statusPenanganan == 'Menunggu Obat' ||
+                  p.resepStatus == ResepStatus.baru ||
+                  (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)),
+        )
+        .toList();
   }
 
   void markLabSeen(String id) {
     _seenStorage.markLabSeen(id);
-    state = state.where((p) => !(p.id == id && (p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)))).toList();
+    state = state
+        .where(
+          (p) =>
+              !(p.id == id &&
+                  (p.statusPenanganan == 'Menunggu Lab' ||
+                      (p.labOrder != null &&
+                          p.labOrder!.status == LabOrderStatus.baru))),
+        )
+        .toList();
   }
 
   void markAllLabSeen() {
-    final labIds = state.where((p) => p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)).map((p) => p.id);
+    final labIds = state
+        .where(
+          (p) =>
+              p.statusPenanganan == 'Menunggu Lab' ||
+              (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru),
+        )
+        .map((p) => p.id);
     _seenStorage.markAllLabSeen(labIds);
-    state = state.where((p) => !(p.statusPenanganan == 'Menunggu Lab' || (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru))).toList();
+    state = state
+        .where(
+          (p) =>
+              !(p.statusPenanganan == 'Menunggu Lab' ||
+                  (p.labOrder != null &&
+                      p.labOrder!.status == LabOrderStatus.baru)),
+        )
+        .toList();
   }
 
   @override
   void dispose() {
     _wsSubscription?.cancel();
     _connSubscription?.cancel();
-    _fallbackTimer?.cancel();
     super.dispose();
   }
 }
 
-final notificationsProvider = StateNotifierProvider<NotificationsNotifier, List<Patient>>((ref) {
-  final api = ref.watch(patientApiProvider);
-  final ws = ref.watch(webSocketServiceProvider);
-  final seenStorage = ref.watch(seenNotificationStorageProvider);
-  final inAppNotifier = ref.watch(inAppNotificationProvider.notifier);
-  final authState = ref.watch(authControllerProvider);
-  final userRole = authState.session?.user.role;
-  return NotificationsNotifier(
-    api: api,
-    wsService: ws,
-    seenStorage: seenStorage,
-    inAppNotifier: inAppNotifier,
-    currentRole: userRole,
-  );
-});
+final notificationsProvider =
+    StateNotifierProvider<NotificationsNotifier, List<Patient>>((ref) {
+      final api = ref.watch(patientApiProvider);
+      final ws = ref.watch(webSocketServiceProvider);
+      final seenStorage = ref.watch(seenNotificationStorageProvider);
+      final inAppNotifier = ref.watch(inAppNotificationProvider.notifier);
+      final authState = ref.watch(authControllerProvider);
+      final userRole = authState.session?.user.role;
+      return NotificationsNotifier(
+        api: api,
+        wsService: ws,
+        seenStorage: seenStorage,
+        inAppNotifier: inAppNotifier,
+        currentRole: userRole,
+      );
+    });
 
-final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>((ref) {
-  final api = ref.watch(patientApiProvider);
-  final ws = ref.watch(webSocketServiceProvider);
-  final seenStorage = ref.watch(seenNotificationStorageProvider);
-  final authState = ref.watch(authControllerProvider);
-  final hasSession = authState.session != null;
-  return PatientsNotifier(api: api, wsService: ws, seenStorage: seenStorage, autoFetch: hasSession);
-});
+final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>(
+  (ref) {
+    final api = ref.watch(patientApiProvider);
+    final ws = ref.watch(webSocketServiceProvider);
+    final seenStorage = ref.watch(seenNotificationStorageProvider);
+    final authState = ref.watch(authControllerProvider);
+    final hasSession = authState.session != null;
+    return PatientsNotifier(
+      api: api,
+      wsService: ws,
+      seenStorage: seenStorage,
+      autoFetch: hasSession,
+    );
+  },
+);
 
 final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {
   final api = ref.watch(patientApiProvider);
@@ -1520,31 +1814,32 @@ final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {
 });
 
 /// Fetches full patient details directly from GET /api/v1/patients/:id
-final patientDetailProvider = FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
-  final api = ref.watch(patientApiProvider);
-  final detail = await api.getPatientDetailRaw(id);
-  // Also fetch medical records in case they are separated
-  try {
-    final records = await api.getMedicalRecords(id);
-    if (records.isNotEmpty) {
-      final existing = detail['medical_records'];
-      if (existing == null || (existing is List && existing.isEmpty)) {
-        final merged = Map<String, dynamic>.from(detail);
-        merged['medical_records'] = records;
-        return merged;
-      }
-    }
-  } catch (_) {}
-  return detail;
-});
+final patientDetailProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+      final api = ref.watch(patientApiProvider);
+      final detail = await api.getPatientDetailRaw(id);
+      // Also fetch medical records in case they are separated
+      try {
+        final records = await api.getMedicalRecords(id);
+        if (records.isNotEmpty) {
+          final existing = detail['medical_records'];
+          if (existing == null || (existing is List && existing.isEmpty)) {
+            final merged = Map<String, dynamic>.from(detail);
+            merged['medical_records'] = records;
+            return merged;
+          }
+        }
+      } catch (_) {}
+      return detail;
+    });
 
 class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   MedicalHistoryNotifier({
     PatientApi? api,
     bool autoFetch = true,
     this.statusPenanganan,
-  })  : _api = api ?? PatientApi(),
-        super([]) {
+  }) : _api = api ?? PatientApi(),
+       super([]) {
     if (autoFetch) {
       Future.microtask(() => fetchHistory());
     }
@@ -1598,8 +1893,12 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       if (mounted) {
         final list = List<MedicalHistory>.from(res.data);
         list.sort((a, b) {
-          final timeA = DateTime.tryParse(a.createdAt ?? a.date ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-          final timeB = DateTime.tryParse(b.createdAt ?? b.date ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+          final timeA =
+              DateTime.tryParse(a.createdAt ?? a.date ?? '') ??
+              DateTime.fromMillisecondsSinceEpoch(0);
+          final timeB =
+              DateTime.tryParse(b.createdAt ?? b.date ?? '') ??
+              DateTime.fromMillisecondsSinceEpoch(0);
           return timeB.compareTo(timeA);
         });
         state = list;
@@ -1631,12 +1930,17 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       _total = res.total;
       _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
       final existingIds = {for (final m in state) m.id};
-      final newItems =
-          res.data.where((m) => !existingIds.contains(m.id)).toList();
+      final newItems = res.data
+          .where((m) => !existingIds.contains(m.id))
+          .toList();
       final combined = [...state, ...newItems];
       combined.sort((a, b) {
-        final timeA = DateTime.tryParse(a.createdAt ?? a.date ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final timeB = DateTime.tryParse(b.createdAt ?? b.date ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final timeA =
+            DateTime.tryParse(a.createdAt ?? a.date ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final timeB =
+            DateTime.tryParse(b.createdAt ?? b.date ?? '') ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return timeB.compareTo(timeA);
       });
       if (mounted) state = combined;
@@ -1663,23 +1967,25 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   }
 
   void upsertHistory(MedicalHistory history) {
-    final idx = state.indexWhere((h) =>
-        h.id == history.id ||
-        (history.patientId.isNotEmpty && h.patientId == history.patientId));
+    final idx = state.indexWhere(
+      (h) =>
+          h.id == history.id ||
+          (history.patientId.isNotEmpty && h.patientId == history.patientId),
+    );
     List<MedicalHistory> updated;
     if (idx >= 0) {
-      updated = [
-        ...state.sublist(0, idx),
-        history,
-        ...state.sublist(idx + 1),
-      ];
+      updated = [...state.sublist(0, idx), history, ...state.sublist(idx + 1)];
     } else {
       updated = [history, ...state];
       _total++;
     }
     updated.sort((a, b) {
-      final timeA = DateTime.tryParse(a.createdAt ?? a.date ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final timeB = DateTime.tryParse(b.createdAt ?? b.date ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final timeA =
+          DateTime.tryParse(a.createdAt ?? a.date ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
+      final timeB =
+          DateTime.tryParse(b.createdAt ?? b.date ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0);
       return timeB.compareTo(timeA);
     });
     state = updated;
@@ -1694,35 +2000,34 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
 
 final medicalHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
-  final api = ref.watch(patientApiProvider);
-  final authState = ref.watch(authControllerProvider);
-  final hasSession = authState.session != null;
-  return MedicalHistoryNotifier(api: api, autoFetch: hasSession);
-});
+      final api = ref.watch(patientApiProvider);
+      final authState = ref.watch(authControllerProvider);
+      final hasSession = authState.session != null;
+      return MedicalHistoryNotifier(api: api, autoFetch: hasSession);
+    });
 
 /// Dedicated medical history provider for Pharmacy (Antrian Resep) filtered by status_penanganan = 'Menunggu Obat'
 final pharmacyPrescriptionHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
-  final api = ref.watch(patientApiProvider);
-  final authState = ref.watch(authControllerProvider);
-  final hasSession = authState.session != null;
-  return MedicalHistoryNotifier(
-    api: api,
-    autoFetch: hasSession,
-    statusPenanganan: 'Menunggu Obat',
-  );
-});
+      final api = ref.watch(patientApiProvider);
+      final authState = ref.watch(authControllerProvider);
+      final hasSession = authState.session != null;
+      return MedicalHistoryNotifier(
+        api: api,
+        autoFetch: hasSession,
+        statusPenanganan: 'Menunggu Obat',
+      );
+    });
 
 /// Dedicated medical history provider for Lab (Daftar Order Lab) filtered by status_penanganan = 'Menunggu Lab'
 final labOrderHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
-  final api = ref.watch(patientApiProvider);
-  final authState = ref.watch(authControllerProvider);
-  final hasSession = authState.session != null;
-  return MedicalHistoryNotifier(
-    api: api,
-    autoFetch: hasSession,
-    statusPenanganan: 'Menunggu Lab',
-  );
-});
-
+      final api = ref.watch(patientApiProvider);
+      final authState = ref.watch(authControllerProvider);
+      final hasSession = authState.session != null;
+      return MedicalHistoryNotifier(
+        api: api,
+        autoFetch: hasSession,
+        statusPenanganan: 'Menunggu Lab',
+      );
+    });

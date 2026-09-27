@@ -286,8 +286,12 @@ class ProvisionHistoryItem extends Equatable {
   const ProvisionHistoryItem({
     required this.id,
     required this.scheduleCode,
+    this.type = 'sisa',
     required this.fuelOil,
     required this.water,
+    this.fuelOilAdded = 0,
+    this.waterAdded = 0,
+    this.notes,
     this.lat,
     this.lng,
     required this.createdAt,
@@ -296,12 +300,19 @@ class ProvisionHistoryItem extends Equatable {
 
   final String id;
   final String scheduleCode;
+  final String type;
   final int fuelOil;
   final int water;
+  final int fuelOilAdded;
+  final int waterAdded;
+  final String? notes;
   final double? lat;
   final double? lng;
   final DateTime createdAt;
   final bool isLatest;
+
+  bool get isTambah => type.toLowerCase() == 'tambah';
+  bool get isSisa => !isTambah;
 
   String get coordinateDisplay {
     if (lat != null && lng != null) {
@@ -328,11 +339,17 @@ class ProvisionHistoryItem extends Equatable {
       return null;
     }
 
+    final rawType = (json['type'] ?? 'sisa').toString().toLowerCase();
+
     return ProvisionHistoryItem(
       id: (json['id'] ?? '').toString(),
       scheduleCode: (json['schedule_code'] ?? '').toString(),
+      type: rawType == 'tambah' ? 'tambah' : 'sisa',
       fuelOil: (json['fuel_oil'] as num?)?.toInt() ?? 0,
       water: (json['water'] as num?)?.toInt() ?? 0,
+      fuelOilAdded: (json['fuel_oil_added'] as num?)?.toInt() ?? 0,
+      waterAdded: (json['water_added'] as num?)?.toInt() ?? 0,
+      notes: json['notes']?.toString(),
       lat: parseNum(json['lat']),
       lng: parseNum(json['lng']),
       createdAt: parseDate(json['created_at']),
@@ -344,8 +361,12 @@ class ProvisionHistoryItem extends Equatable {
   List<Object?> get props => [
         id,
         scheduleCode,
+        type,
         fuelOil,
         water,
+        fuelOilAdded,
+        waterAdded,
+        notes,
         lat,
         lng,
         createdAt,

@@ -8,7 +8,7 @@ import '../../features/environment/presentation/environment_controller.dart';
 
 /// Resolves the active `ship_code` from on-device local storage (FlutterSecureStorage,
 /// EnvironmentStorage, SessionStorage) with fallback to memory state.
-Future<String> resolveLocalStorageShipCode([Ref? ref]) async {
+Future<String> resolveLocalStorageShipCode([dynamic ref]) async {
   // 1. Direct FlutterSecureStorage keys
   try {
     const storage = FlutterSecureStorage();
