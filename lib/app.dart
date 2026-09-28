@@ -33,9 +33,9 @@ class _BayanRmeAppState extends ConsumerState<BayanRmeApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       debugPrint(
-        '📱 [AppLifecycle] App resumed on ship tablet. Triggering catch-up sync...',
+        '📱 [AppLifecycle] App resumed on ship tablet. Ensuring WebSocket connected...',
       );
-      ref.read(notificationsProvider.notifier).catchUpSync();
+      ref.read(notificationsProvider.notifier).ensureWebSocketConnected();
     }
   }
 

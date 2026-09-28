@@ -1512,11 +1512,16 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   }
 
 
-  /// Triggered manually when tablet screen wakes up / resumes from background
+  /// Triggered when tablet screen wakes up / resumes from background.
+  /// Only reconnects WebSocket if disconnected, without performing any HTTP requests.
+  void ensureWebSocketConnected() {
+    if (!_wsService.isConnected) {
+      _wsService.connect();
+    }
+  }
+
+  /// Triggered manually when tablet screen wakes up or user taps manual sync
   Future<void> catchUpSync() async {
-    debugPrint(
-      '📱 [NotificationsNotifier] App resumed, performing instant catch-up sync...',
-    );
     if (!_wsService.isConnected) {
       _wsService.connect();
     }
