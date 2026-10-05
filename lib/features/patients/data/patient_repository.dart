@@ -1843,6 +1843,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     PatientApi? api,
     bool autoFetch = true,
     this.statusPenanganan,
+    this.userId,
   }) : _api = api ?? PatientApi(),
        super([]) {
     if (autoFetch) {
@@ -1852,6 +1853,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
 
   final PatientApi _api;
   String? statusPenanganan;
+  String? userId;
   bool _isLoading = false;
   bool _isLoadingMore = false;
   int _currentPage = 1;
@@ -1875,6 +1877,14 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     fetchHistory(refresh: true);
   }
 
+  void setUserId(String? newUserId) {
+    if (userId == newUserId) return;
+    userId = newUserId;
+    fetchHistory(refresh: true);
+  }
+
+  void setDoctorId(String? newDoctorId) => setUserId(newDoctorId);
+
   Future<void> fetchHistory({bool refresh = false}) async {
     if (refresh) {
       _currentPage = 1;
@@ -1888,6 +1898,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         limit: _limit,
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
+        userId: userId,
         sortBy: 'created_at',
         order: 'desc',
       );
@@ -1898,12 +1909,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       if (mounted) {
         final list = List<MedicalHistory>.from(res.data);
         list.sort((a, b) {
-          final timeA =
-              DateTime.tryParse(a.createdAt ?? a.date ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0);
-          final timeB =
-              DateTime.tryParse(b.createdAt ?? b.date ?? '') ??
-              DateTime.fromMillisecondsSinceEpoch(0);
+          final timeA = a.createdAt ?? a.date ?? '';
+          final timeB = b.createdAt ?? b.date ?? '';
           return timeB.compareTo(timeA);
         });
         state = list;
@@ -1927,6 +1934,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         limit: _limit,
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
+        userId: userId,
         sortBy: 'created_at',
         order: 'desc',
       );
@@ -1940,12 +1948,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
           .toList();
       final combined = [...state, ...newItems];
       combined.sort((a, b) {
-        final timeA =
-            DateTime.tryParse(a.createdAt ?? a.date ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
-        final timeB =
-            DateTime.tryParse(b.createdAt ?? b.date ?? '') ??
-            DateTime.fromMillisecondsSinceEpoch(0);
+        final timeA = a.createdAt ?? a.date ?? '';
+        final timeB = b.createdAt ?? b.date ?? '';
         return timeB.compareTo(timeA);
       });
       if (mounted) state = combined;
@@ -1985,12 +1989,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       _total++;
     }
     updated.sort((a, b) {
-      final timeA =
-          DateTime.tryParse(a.createdAt ?? a.date ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
-      final timeB =
-          DateTime.tryParse(b.createdAt ?? b.date ?? '') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
+      final timeA = a.createdAt ?? a.date ?? '';
+      final timeB = b.createdAt ?? b.date ?? '';
       return timeB.compareTo(timeA);
     });
     state = updated;
@@ -2007,9 +2007,35 @@ final medicalHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
       final api = ref.watch(patientApiProvider);
       final authState = ref.watch(authControllerProvider);
+      final user = authState.session?.user;
       final hasSession = authState.session != null;
-      return MedicalHistoryNotifier(api: api, autoFetch: hasSession);
+      final userId = (user != null && user.role == UserRole.dokter)
+          ? user.id
+          : null;
+      return MedicalHistoryNotifier(
+        api: api,
+        autoFetch: hasSession,
+        userId: userId,
+      );
     });
+
+/// Provider family for fetching medical history filtered by a specific user ID via query param (?user_id=...)
+final medicalHistoryByUserProvider = StateNotifierProvider.family<
+    MedicalHistoryNotifier,
+    List<MedicalHistory>,
+    String?>((ref, userId) {
+  final api = ref.watch(patientApiProvider);
+  final authState = ref.watch(authControllerProvider);
+  final hasSession = authState.session != null;
+  return MedicalHistoryNotifier(
+    api: api,
+    autoFetch: hasSession,
+    userId: userId,
+  );
+});
+
+/// Alias for backwards compatibility
+final medicalHistoryByDoctorProvider = medicalHistoryByUserProvider;
 
 /// Dedicated medical history provider for Pharmacy (Antrian Resep) filtered by status_penanganan = 'Menunggu Obat'
 final pharmacyPrescriptionHistoryProvider =

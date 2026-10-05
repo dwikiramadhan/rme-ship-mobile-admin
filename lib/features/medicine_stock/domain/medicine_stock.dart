@@ -46,22 +46,12 @@ class StokObat extends Equatable {
   List<Object?> get props => [id, nama, kategori, satuan, jumlah, minimum, kadaluarsa];
 }
 
-/// In-memory ship stock, mirroring the mock patient repository pattern.
+/// In-memory ship stock notifier.
 /// RBAC (Ship Web Admin matrix): Pharmacist C/R/U/D, Doctor R, Perawat R.
 class StokObatNotifier extends StateNotifier<List<StokObat>> {
-  StokObatNotifier() : super(_seed());
+  StokObatNotifier() : super(const []);
 
-  static List<StokObat> _seed() {
-    final now = DateTime.now();
-    return [
-      StokObat(id: 'S001', nama: 'Paracetamol 500mg', kategori: 'Analgesik', satuan: 'tablet', jumlah: 240, minimum: 50, kadaluarsa: now.add(const Duration(days: 365))),
-      StokObat(id: 'S002', nama: 'Amlodipine 5mg', kategori: 'Antihipertensi', satuan: 'tablet', jumlah: 90, minimum: 30, kadaluarsa: now.add(const Duration(days: 540))),
-      StokObat(id: 'S003', nama: 'Omeprazole 20mg', kategori: 'Antasida', satuan: 'kapsul', jumlah: 25, minimum: 30, kadaluarsa: now.add(const Duration(days: 300))),
-      StokObat(id: 'S004', nama: 'Cairan Infus NaCl 0.9%', kategori: 'Cairan', satuan: 'botol', jumlah: 40, minimum: 10, kadaluarsa: now.add(const Duration(days: 700))),
-    ];
-  }
-
-  int _next = 5;
+  int _next = 1;
 
   void add({required String nama, required String kategori, required String satuan, required int jumlah, required int minimum, DateTime? kadaluarsa}) {
     final id = 'S${_next.toString().padLeft(3, '0')}';

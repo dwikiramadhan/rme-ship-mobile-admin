@@ -46,6 +46,7 @@ class TambahKunjunganScreen extends ConsumerStatefulWidget {
       _TambahKunjunganScreenState();
 }
 
+typedef AddVisitScreen = TambahKunjunganScreen;
 typedef TambahRiwayatKunjunganPage = TambahKunjunganScreen;
 
 class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {

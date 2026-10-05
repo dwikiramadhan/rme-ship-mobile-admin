@@ -57,6 +57,7 @@ class _MockPatientApi implements PatientApi {
     int limit = 10,
     String? search,
     String? statusPenanganan,
+    String? userId,
     String sortBy = 'created_at',
     String order = 'desc',
   }) async {

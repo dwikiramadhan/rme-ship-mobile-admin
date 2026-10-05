@@ -7,7 +7,7 @@ import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
-import '../../history/presentation/tambah_kunjungan_screen.dart';
+import '../../history/presentation/add_visit_screen.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/medical_history.dart';

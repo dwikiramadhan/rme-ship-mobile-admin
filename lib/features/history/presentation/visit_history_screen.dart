@@ -9,6 +9,10 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../domain/visit_history.dart';
 
+import '../../auth/domain/user_role.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../patients/data/patient_repository.dart';
+
 /// Riwayat Kunjungan (Rekam Medis) — RBAC: Doctor C/R/U ([canEdit] true),
 /// Perawat R only ([canEdit] false).
 class VisitHistoryScreen extends ConsumerWidget {
@@ -19,14 +23,58 @@ class VisitHistoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final riwayat = [...ref.watch(riwayatKunjunganProvider)]..sort((a, b) => b.tanggal.compareTo(a.tanggal));
+    final authState = ref.watch(authControllerProvider);
+    final user = authState.session?.user;
+    final isDoctor = canEdit || user?.role == UserRole.dokter;
+
+    final effectiveDoctorName = dokterNama.trim().isNotEmpty
+        ? dokterNama.trim()
+        : (user?.name ?? '').trim().isNotEmpty
+            ? (user?.name ?? '').trim()
+            : 'Dokter Pemeriksa';
+    final effectiveDoctorId = user?.id ?? '';
+
+    final activeUserId = user?.id ?? '';
+
+    // Filtered directly from endpoint query parameter (?user_id=...)
+    final historyProvider = (isDoctor && activeUserId.isNotEmpty)
+        ? medicalHistoryByUserProvider(activeUserId)
+        : medicalHistoryProvider;
+    final apiHistories = ref.watch(historyProvider);
+    final historyNotifier = ref.read(historyProvider.notifier);
+
+    final List<RiwayatKunjungan> riwayat = apiHistories.map((m) => RiwayatKunjungan(
+      id: m.id,
+      pasienNama: m.patientName,
+      pasienNik: m.patientNik,
+      tanggal: DateTime.tryParse(m.createdAt ?? m.date ?? '') ?? DateTime.now(),
+      keluhan: m.complaint ?? '',
+      diagnosa: m.diagnosis ?? '',
+      tindakan: m.treatment ?? '',
+      dokterNama: m.doctorName ?? effectiveDoctorName,
+      dokterId: m.doctorId ?? effectiveDoctorId,
+    )).toList();
 
     return ResponsiveMasterDetail(
       title: 'Riwayat Kunjungan',
       subtitle: '${riwayat.length} rekam medis',
       searchPlaceholder: 'Cari nama atau NIK pasien...',
+      isLoading: historyNotifier.isLoading,
+      hasMore: historyNotifier.hasMore,
+      isLoadingMore: historyNotifier.isLoadingMore,
+      onLoadMore: () => historyNotifier.loadMore(),
+      onRefresh: () => historyNotifier.fetchHistory(refresh: true),
+      onSearchChanged: (q) => historyNotifier.searchHistory(q),
       trailing: canEdit
-          ? HeaderActionButton(icon: LucideIcons.plus, onPressed: () => _showForm(context, ref))
+          ? HeaderActionButton(
+              icon: LucideIcons.plus,
+              onPressed: () => _showForm(
+                context,
+                ref,
+                effectiveDoctorName: effectiveDoctorName,
+                effectiveDoctorId: effectiveDoctorId,
+              ),
+            )
           : null,
       entries: [
         for (final r in riwayat)
@@ -40,8 +88,7 @@ class VisitHistoryScreen extends ConsumerWidget {
           ),
       ],
       detailBuilder: (context, id) {
-        final list = ref.watch(riwayatKunjunganProvider);
-        final r = list.where((e) => e.id == id).firstOrNull;
+        final r = riwayat.where((e) => e.id == id).firstOrNull;
         if (r == null) {
           return const Center(
             child: Padding(
@@ -53,16 +100,30 @@ class VisitHistoryScreen extends ConsumerWidget {
         return _RiwayatDetail(
           item: r,
           canEdit: canEdit,
-          onEdit: () => _showForm(context, ref, existing: r),
+          onEdit: () => _showForm(
+            context,
+            ref,
+            existing: r,
+            effectiveDoctorName: effectiveDoctorName,
+            effectiveDoctorId: effectiveDoctorId,
+          ),
         );
       },
       emptyIcon: LucideIcons.bookOpen,
       emptyTitle: 'Pilih kunjungan',
-      emptySubtitle: 'Pilih rekam medis untuk melihat detail kunjungan.',
+      emptySubtitle: isDoctor
+          ? 'Belum ada rekam medis kunjungan untuk dokter ini.'
+          : 'Pilih rekam medis untuk melihat detail kunjungan.',
     );
   }
 
-  void _showForm(BuildContext context, WidgetRef ref, {RiwayatKunjungan? existing}) {
+  void _showForm(
+    BuildContext context,
+    WidgetRef ref, {
+    RiwayatKunjungan? existing,
+    required String effectiveDoctorName,
+    String? effectiveDoctorId,
+  }) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -79,7 +140,8 @@ class VisitHistoryScreen extends ConsumerWidget {
                 keluhan: keluhan,
                 diagnosa: diagnosa,
                 tindakan: tindakan,
-                dokterNama: dokterNama,
+                dokterNama: effectiveDoctorName,
+                dokterId: effectiveDoctorId,
               );
             } else {
               notifier.update(existing.id, (r) => r.copyWith(keluhan: keluhan, diagnosa: diagnosa, tindakan: tindakan));

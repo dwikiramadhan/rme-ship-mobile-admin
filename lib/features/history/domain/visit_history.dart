@@ -13,6 +13,7 @@ class RiwayatKunjungan extends Equatable {
     required this.diagnosa,
     required this.tindakan,
     required this.dokterNama,
+    this.dokterId,
   });
 
   final String id;
@@ -23,11 +24,14 @@ class RiwayatKunjungan extends Equatable {
   final String diagnosa;
   final String tindakan;
   final String dokterNama;
+  final String? dokterId;
 
   RiwayatKunjungan copyWith({
     String? keluhan,
     String? diagnosa,
     String? tindakan,
+    String? dokterNama,
+    String? dokterId,
   }) {
     return RiwayatKunjungan(
       id: id,
@@ -37,45 +41,20 @@ class RiwayatKunjungan extends Equatable {
       keluhan: keluhan ?? this.keluhan,
       diagnosa: diagnosa ?? this.diagnosa,
       tindakan: tindakan ?? this.tindakan,
-      dokterNama: dokterNama,
+      dokterNama: dokterNama ?? this.dokterNama,
+      dokterId: dokterId ?? this.dokterId,
     );
   }
 
   @override
-  List<Object?> get props => [id, pasienNama, pasienNik, tanggal, keluhan, diagnosa, tindakan, dokterNama];
+  List<Object?> get props => [id, pasienNama, pasienNik, tanggal, keluhan, diagnosa, tindakan, dokterNama, dokterId];
 }
 
-/// In-memory visit history, same mock pattern as the patient repository.
+/// In-memory visit history state notifier.
 class RiwayatKunjunganNotifier extends StateNotifier<List<RiwayatKunjungan>> {
-  RiwayatKunjunganNotifier() : super(_seed());
+  RiwayatKunjunganNotifier() : super(const []);
 
-  static List<RiwayatKunjungan> _seed() {
-    final now = DateTime.now();
-    return [
-      RiwayatKunjungan(
-        id: 'R001',
-        pasienNama: 'Budi Santoso',
-        pasienNik: '3374031203680001',
-        tanggal: now.subtract(const Duration(days: 30)),
-        keluhan: 'Pusing dan tekanan darah tinggi saat kontrol rutin',
-        diagnosa: 'Hipertensi esensial (I10)',
-        tindakan: 'Pemberian Amlodipine 5mg, edukasi diet rendah garam',
-        dokterNama: 'dr. Ahmad Fauzi',
-      ),
-      RiwayatKunjungan(
-        id: 'R002',
-        pasienNama: 'Siti Rahayu',
-        pasienNik: '3171065506940002',
-        tanggal: now.subtract(const Duration(days: 12)),
-        keluhan: 'Batuk berdahak 1 minggu',
-        diagnosa: 'ISPA (J06.9)',
-        tindakan: 'Terapi simtomatik, istirahat cukup',
-        dokterNama: 'dr. Rina Melati',
-      ),
-    ];
-  }
-
-  int _next = 3;
+  int _next = 1;
 
   void add({
     required String pasienNama,
@@ -84,6 +63,7 @@ class RiwayatKunjunganNotifier extends StateNotifier<List<RiwayatKunjungan>> {
     required String diagnosa,
     required String tindakan,
     required String dokterNama,
+    String? dokterId,
   }) {
     final id = 'R${_next.toString().padLeft(3, '0')}';
     _next++;
@@ -98,6 +78,7 @@ class RiwayatKunjunganNotifier extends StateNotifier<List<RiwayatKunjungan>> {
         diagnosa: diagnosa,
         tindakan: tindakan,
         dokterNama: dokterNama,
+        dokterId: dokterId,
       ),
     ];
   }

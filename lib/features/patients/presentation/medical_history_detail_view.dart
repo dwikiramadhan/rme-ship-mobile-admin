@@ -499,7 +499,11 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                             ? Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
                                     children: [
                                       Container(
                                         padding: const EdgeInsets.symmetric(
@@ -508,7 +512,8 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                         ),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF0F9FF),
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
                                           border: Border.all(
                                             color: const Color(0xFFBAE6FD),
                                             width: 0.8,
@@ -516,27 +521,33 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            const Icon(
-                                              LucideIcons.flaskConical,
-                                              size: 12,
-                                              color: Color(0xFF0284C7),
+                                            const Padding(
+                                              padding: EdgeInsets.only(top: 2),
+                                              child: Icon(
+                                                LucideIcons.flaskConical,
+                                                size: 12,
+                                                color: Color(0xFF0284C7),
+                                              ),
                                             ),
                                             const SizedBox(width: 5),
-                                            Text(
-                                              labJenisText,
-                                              style: const TextStyle(
-                                                fontSize: 11.5,
-                                                fontWeight: FontWeight.w600,
-                                                color: Color(0xFF0369A1),
-                                                letterSpacing: 0,
+                                            Flexible(
+                                              child: Text(
+                                                labJenisText,
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Color(0xFF0369A1),
+                                                  letterSpacing: 0,
+                                                ),
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
                                       if (labStatusBadge != null) ...[
-                                        const SizedBox(width: 6),
                                         labStatusBadge,
                                       ],
                                     ],

@@ -15,7 +15,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/utils/ship_code_helper.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../patients/data/wilayah_api.dart';
+import '../../patients/data/region_api.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/domain/vitals.dart';

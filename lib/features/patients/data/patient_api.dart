@@ -309,6 +309,7 @@ class PatientApi {
     int limit = 10,
     String? search,
     String? statusPenanganan,
+    String? userId,
     String sortBy = 'created_at',
     String order = 'desc',
   }) async {
@@ -324,6 +325,9 @@ class PatientApi {
       }
       if (statusPenanganan != null && statusPenanganan.trim().isNotEmpty) {
         queryParams['status_penanganan'] = statusPenanganan.trim();
+      }
+      if (userId != null && userId.trim().isNotEmpty) {
+        queryParams['user_id'] = userId.trim();
       }
 
       final response = await _dio.get(

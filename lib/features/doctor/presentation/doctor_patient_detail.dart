@@ -589,12 +589,14 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 color: AppColors.purple,
               ),
               const SizedBox(width: 6),
-              Text(
-                'Pemeriksaan Lab: ${p.labOrder!.jenis}',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.text,
+              Expanded(
+                child: Text(
+                  'Pemeriksaan Lab: ${p.labOrder!.jenis}',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
                 ),
               ),
             ],

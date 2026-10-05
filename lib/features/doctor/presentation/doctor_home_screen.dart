@@ -7,9 +7,10 @@ import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
-import '../../history/presentation/tambah_kunjungan_screen.dart';
+import '../../history/presentation/add_visit_screen.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
 import '../../notifications/presentation/notifications_view.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/medical_history.dart';
@@ -147,8 +148,13 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
   }
 
   Widget _buildRiwayatKunjungan() {
-    final histories = ref.watch(medicalHistoryProvider);
-    final notifier = ref.read(medicalHistoryProvider.notifier);
+    final authState = ref.watch(authControllerProvider);
+    final userId = authState.session?.user.id ?? '';
+    final historyProvider = userId.isNotEmpty
+        ? medicalHistoryByUserProvider(userId)
+        : medicalHistoryProvider;
+    final histories = ref.watch(historyProvider);
+    final notifier = ref.read(historyProvider.notifier);
 
     return ResponsiveMasterDetail(
       title: 'Riwayat Kunjungan',

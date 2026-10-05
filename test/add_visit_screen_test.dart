@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:bayan_rme/features/history/presentation/tambah_kunjungan_screen.dart';
+import 'package:bayan_rme/features/history/presentation/add_visit_screen.dart';
 import 'package:bayan_rme/features/patients/domain/patient.dart';
 import 'package:bayan_rme/features/patients/domain/vitals.dart';
 

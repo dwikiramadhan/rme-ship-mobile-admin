@@ -72,12 +72,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return switch (lower) {
       _ when lower.contains('sesi') || lower.contains('session') =>
         'Sesi telah berakhir. Silakan login kembali.',
-      _ when lower.contains('credential') ||
-          lower.contains('unauthorized') ||
-          lower.contains('password') ||
-          lower.contains('401') ||
-          lower.contains('tidak valid') ||
-          lower.contains('salah') =>
+      _
+          when lower.contains('credential') ||
+              lower.contains('unauthorized') ||
+              lower.contains('password') ||
+              lower.contains('401') ||
+              lower.contains('tidak valid') ||
+              lower.contains('salah') =>
         'Email atau password salah',
       _ => message,
     };
@@ -329,7 +330,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               color: _serverChecking
                                   ? AppColors.skyBlue.withValues(alpha: 0.3)
                                   : (_serverOnline
-                                        ? const Color(0xFF10B981).withValues(alpha: 0.3)
+                                        ? const Color(
+                                            0xFF10B981,
+                                          ).withValues(alpha: 0.3)
                                         : AppColors.red.withValues(alpha: 0.3)),
                             ),
                           ),
@@ -464,9 +467,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               textCapitalization: TextCapitalization.none,
               inputFormatters: [
                 TextInputFormatter.withFunction(
-                  (oldValue, newValue) => newValue.copyWith(
-                    text: newValue.text.toLowerCase(),
-                  ),
+                  (oldValue, newValue) =>
+                      newValue.copyWith(text: newValue.text.toLowerCase()),
                 ),
               ],
               textInputAction: TextInputAction.next,
@@ -716,8 +718,8 @@ class _LoginHero extends StatelessWidget {
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 14,
+                    horizontal: 16,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.08),
@@ -731,21 +733,35 @@ class _LoginHero extends StatelessWidget {
                     children: [
                       Image.asset(
                         'assets/images/bayan_logo.png',
-                        width: 58,
-                        height: 58,
+                        width: 54,
+                        height: 54,
                         fit: BoxFit.contain,
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
                       Container(
                         width: 1.5,
-                        height: 44,
+                        height: 40,
                         color: Colors.white.withValues(alpha: 0.2),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
+                      Image.asset(
+                        'assets/images/bayan-peduli-logo.png',
+                        width: 65,
+                        height: 54,
+                        fit: BoxFit.contain,
+                      ),
+
+                      const SizedBox(width: 14),
+                      Container(
+                        width: 1.5,
+                        height: 40,
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                      const SizedBox(width: 14),
                       Image.asset(
                         'assets/images/doctorshare_logo.png',
-                        width: 95,
-                        height: 58,
+                        width: 88,
+                        height: 54,
                         fit: BoxFit.contain,
                       ),
                     ],
@@ -753,7 +769,7 @@ class _LoginHero extends StatelessWidget {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Bayan Resources',
+                  'Bayan Peduli',
                   style: TextStyle(
                     fontSize: 23,
                     fontWeight: FontWeight.w900,

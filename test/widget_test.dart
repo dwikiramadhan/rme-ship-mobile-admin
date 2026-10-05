@@ -40,7 +40,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    expect(find.text('Bayan Resources'), findsWidgets);
+    expect(find.text('Bayan Peduli'), findsWidgets);
     expect(find.text('Email'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Masuk'), findsOneWidget);
