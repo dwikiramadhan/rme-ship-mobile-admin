@@ -137,6 +137,7 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
   final ShipMedicineApi api;
   final String shipCode;
   Timer? _debounceTimer;
+  bool _isRefreshing = false;
 
   @override
   void dispose() {
@@ -146,8 +147,11 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
 
   Future<void> loadInitial({bool refresh = false}) async {
     if (shipCode.trim().isEmpty) return;
+    if (_isRefreshing || state.isLoading) return;
 
-    if (!refresh) {
+    if (refresh) {
+      _isRefreshing = true;
+    } else {
       state = state.copyWith(isLoading: true, clearError: true);
     }
 
@@ -161,6 +165,7 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
       state = state.copyWith(
         items: res.items,
         isLoading: false,
+        isLoadingMore: false,
         clearError: true,
         page: 1,
         total: res.total,
@@ -172,6 +177,8 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
         isLoading: false,
         errorMessage: e.toString(),
       );
+    } finally {
+      _isRefreshing = false;
     }
   }
 
@@ -185,7 +192,7 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
   }
 
   Future<void> loadMore() async {
-    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+    if (_isRefreshing || state.isLoading || state.isLoadingMore || !state.hasMore) return;
     if (shipCode.trim().isEmpty) return;
 
     state = state.copyWith(isLoadingMore: true);
@@ -286,6 +293,7 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
   final ShipMedicineApi api;
   final String shipCode;
   Timer? _debounceTimer;
+  bool _isRefreshing = false;
 
   @override
   void dispose() {
@@ -294,7 +302,11 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
   }
 
   Future<void> loadInitial({bool refresh = false}) async {
-    if (!refresh) {
+    if (_isRefreshing || state.isLoading) return;
+
+    if (refresh) {
+      _isRefreshing = true;
+    } else {
       state = state.copyWith(isLoading: true, clearError: true);
     }
 
@@ -308,6 +320,7 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
       state = state.copyWith(
         items: res.items,
         isLoading: false,
+        isLoadingMore: false,
         clearError: true,
         page: 1,
         total: res.total,
@@ -319,6 +332,8 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
         isLoading: false,
         errorMessage: e.toString(),
       );
+    } finally {
+      _isRefreshing = false;
     }
   }
 
@@ -332,7 +347,7 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
   }
 
   Future<void> loadMore() async {
-    if (state.isLoading || state.isLoadingMore || !state.hasMore) return;
+    if (_isRefreshing || state.isLoading || state.isLoadingMore || !state.hasMore) return;
 
     state = state.copyWith(isLoadingMore: true);
     final nextPage = state.page + 1;

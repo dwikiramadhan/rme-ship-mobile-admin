@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../../../core/widgets/status_filter_button.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../domain/ship_medicine_history.dart';
 import '../domain/ship_medicine_stock.dart';
@@ -36,6 +38,7 @@ class MedicineStockScreen extends ConsumerStatefulWidget {
 class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
   int _selectedTabIndex = 0;
   int _previousTabIndex = 0;
+  String _stockFilter = 'TERSEDIA';
   final _stockScrollController = ScrollController();
   final _historyScrollController = ScrollController();
 
@@ -83,7 +86,9 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
   void _onStockScroll() {
     if (!_stockScrollController.hasClients) return;
     final pos = _stockScrollController.position;
-    if (pos.pixels >= pos.maxScrollExtent - 250) {
+    if (pos.maxScrollExtent > 100 &&
+        pos.pixels > 50 &&
+        pos.pixels >= pos.maxScrollExtent - 150) {
       final code = _resolveShipCode(isWatching: false);
       if (code.isNotEmpty) {
         ref.read(shipMedicineStockProvider(code).notifier).loadMore();
@@ -91,30 +96,12 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
     }
   }
 
-  void _checkAndLoadMoreIfUnderfilled() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (_selectedTabIndex != 0) return;
-      final code = _resolveShipCode(isWatching: false);
-      if (code.isEmpty) return;
-      final stockState = ref.read(shipMedicineStockProvider(code));
-      if (!stockState.hasMore ||
-          stockState.isLoading ||
-          stockState.isLoadingMore) {
-        return;
-      }
-      if (_stockScrollController.hasClients) {
-        final position = _stockScrollController.position;
-        if (position.maxScrollExtent <= 80) {
-          ref.read(shipMedicineStockProvider(code).notifier).loadMore();
-        }
-      }
-    });
-  }
-
   void _onHistoryScroll() {
-    if (_historyScrollController.position.pixels >=
-        _historyScrollController.position.maxScrollExtent - 200) {
+    if (!_historyScrollController.hasClients) return;
+    final pos = _historyScrollController.position;
+    if (pos.maxScrollExtent > 100 &&
+        pos.pixels > 50 &&
+        pos.pixels >= pos.maxScrollExtent - 150) {
       final code = _resolveShipCode(isWatching: false);
       ref.read(shipMedicineHistoryProvider(code).notifier).loadMore();
     }
@@ -128,27 +115,26 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
       shipMedicineHistoryProvider(effectiveShipCode),
     );
 
-    ref.listen<ShipMedicineStockState>(
-      shipMedicineStockProvider(effectiveShipCode),
-      (previous, next) {
-        if (next.items.length != previous?.items.length && next.hasMore) {
-          _checkAndLoadMoreIfUnderfilled();
-        }
-      },
-    );
 
-    if (stockState.items.isNotEmpty &&
-        stockState.hasMore &&
-        !stockState.isLoading &&
-        !stockState.isLoadingMore) {
-      _checkAndLoadMoreIfUnderfilled();
-    }
+    final filteredStockItems = stockState.items.where((item) {
+      if (_stockFilter == 'TERSEDIA') return !item.isOutOfStock;
+      if (_stockFilter == 'HABIS') return item.isOutOfStock;
+      return true;
+    }).toList();
 
     final isStockTab = _selectedTabIndex == 0;
     final subtitle = isStockTab
         ? (stockState.isLoading
               ? 'Memuat data inventaris...'
-              : '${stockState.total} jenis obat')
+              : _stockFilter == 'SEMUA'
+                  ? '${stockState.total} jenis obat'
+                  : _stockFilter == 'TERSEDIA'
+                      ? (stockState.hasMore
+                          ? '${filteredStockItems.length} obat tersedia dimuat'
+                          : '${filteredStockItems.length} jenis obat tersedia')
+                      : (stockState.hasMore
+                          ? '${filteredStockItems.length} obat habis dimuat'
+                          : '${filteredStockItems.length} jenis obat habis'))
         : (historyState.isLoading
               ? 'Memuat riwayat transaksi...'
               : '${historyState.total} transaksi tercatat');
@@ -372,6 +358,15 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
             _stockSearchController.clear();
             notifier.onSearchChanged('');
           },
+          trailing: StatusFilterButton(
+            selectedValue: _stockFilter,
+            options: stockStatusFilterOptions,
+            onSelected: (val) {
+              setState(() => _stockFilter = val);
+            },
+            tooltip: 'Filter Status Stok',
+            showLabel: true,
+          ),
         ),
         Expanded(
           child: RefreshIndicator(
@@ -435,6 +430,12 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
       );
     }
 
+    final filteredItems = state.items.where((item) {
+      if (_stockFilter == 'TERSEDIA') return !item.isOutOfStock;
+      if (_stockFilter == 'HABIS') return item.isOutOfStock;
+      return true;
+    }).toList();
+
     if (state.items.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -449,51 +450,79 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
       );
     }
 
-    final rowCount = (state.items.length / 3).ceil();
-
-    return CustomScrollView(
-      controller: _stockScrollController,
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
-            sliver: SliverList.separated(
-              itemCount: rowCount,
-              separatorBuilder: (_, _) => const SizedBox(height: 6),
-              itemBuilder: (context, rowIndex) {
-                final i1 = rowIndex * 3;
-                final i2 = i1 + 1;
-                final i3 = i1 + 2;
-
-                final item1 = state.items[i1];
-                final item2 = i2 < state.items.length ? state.items[i2] : null;
-                final item3 = i3 < state.items.length ? state.items[i3] : null;
-
-                return IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Expanded(child: _StockItemCard(item: item1)),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: item2 != null
-                            ? _StockItemCard(item: item2)
-                            : const SizedBox.shrink(),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: item3 != null
-                            ? _StockItemCard(item: item3)
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
+    if (filteredItems.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 60),
+          EmptyState(
+            icon: LucideIcons.packageOpen,
+            title: _stockFilter == 'TERSEDIA'
+                ? 'Tidak Ada Obat Tersedia'
+                : 'Tidak Ada Obat Habis',
+            subtitle: _stockFilter == 'TERSEDIA'
+                ? 'Semua obat yang dimuat saat ini berstatus habis.'
+                : 'Tidak ada obat yang berstatus habis stok.',
           ),
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isTablet = isTabletLayout(context);
+        final width = constraints.maxWidth;
+        final int columnCount;
+        if (isTablet) {
+          columnCount = width >= 800 ? 3 : 2;
+        } else {
+          // Bukan tablet (ponsel): sesuaikan dengan lebar device
+          if (width >= 600) {
+            columnCount = 2;
+          } else {
+            columnCount = 1;
+          }
+        }
+
+        final rowCount = (filteredItems.length / columnCount).ceil();
+
+        return CustomScrollView(
+          controller: _stockScrollController,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
+              sliver: SliverList.separated(
+                itemCount: rowCount,
+                separatorBuilder: (_, _) => const SizedBox(height: 6),
+                itemBuilder: (context, rowIndex) {
+                  if (columnCount == 1) {
+                    return _StockItemCard(item: filteredItems[rowIndex]);
+                  }
+
+                  final startIndex = rowIndex * columnCount;
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (int c = 0; c < columnCount; c++) ...[
+                          if (c > 0) const SizedBox(width: 6),
+                          Expanded(
+                            child: (startIndex + c < filteredItems.length)
+                                ? _StockItemCard(
+                                    item: filteredItems[startIndex + c],
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
@@ -520,41 +549,11 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
                           ),
                         ],
                       )
-                    : state.hasMore
-                    ? OutlinedButton.icon(
-                        onPressed: () {
-                          final code = _resolveShipCode(isWatching: false);
-                          if (code.isNotEmpty) {
-                            ref
-                                .read(shipMedicineStockProvider(code).notifier)
-                                .loadMore();
-                          }
-                        },
-                        icon: const Icon(LucideIcons.chevronDown, size: 14),
-                        label: Text(
-                          'Muat Lebih Banyak (${state.items.length} dari ${state.total})',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.blue,
-                          side: BorderSide(
-                            color: AppColors.blue.withValues(alpha: 0.3),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                      )
-                    : (state.items.isNotEmpty
+                    : (filteredItems.isNotEmpty && !state.hasMore
                           ? Text(
-                              'Semua ${state.total} jenis obat telah dimuat',
+                              _stockFilter == 'SEMUA'
+                                  ? 'Semua ${state.total} jenis obat telah dimuat'
+                                  : 'Semua ${state.total} jenis obat telah dimuat (${filteredItems.length} sesuai filter)',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 color: AppColors.sub,
@@ -567,6 +566,8 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       );
+    },
+  );
   }
 
   // ==========================================
@@ -703,72 +704,90 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
     required String hintText,
     required ValueChanged<String> onChanged,
     required VoidCallback onClear,
+    Widget? trailing,
   }) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 14),
       color: scheme.surface,
-      child: ValueListenableBuilder<TextEditingValue>(
-        valueListenable: controller,
-        builder: (context, value, _) {
-          return TextField(
-            controller: controller,
-            onChanged: onChanged,
-            style: TextStyle(
-              fontSize: 12.5,
-              color: scheme.onSurface,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0,
-            ),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: hintText,
-              hintStyle: const TextStyle(fontSize: 12, color: AppColors.sub, letterSpacing: 0),
-              prefixIcon: const Icon(
-                LucideIcons.search,
-                size: 15,
-                color: AppColors.sub,
-              ),
-              prefixIconConstraints: const BoxConstraints(
-                minWidth: 38,
-                minHeight: 36,
-              ),
-              suffixIcon: value.text.isNotEmpty
-                  ? IconButton(
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 34,
-                        minHeight: 32,
+      child: Row(
+        children: [
+          Expanded(
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: controller,
+              builder: (context, value, _) {
+                return TextField(
+                  controller: controller,
+                  onChanged: onChanged,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0,
+                  ),
+                  decoration: InputDecoration(
+                    isDense: true,
+                    hintText: hintText,
+                    hintStyle: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.sub,
+                      letterSpacing: 0,
+                    ),
+                    prefixIcon: const Icon(
+                      LucideIcons.search,
+                      size: 15,
+                      color: AppColors.sub,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 38,
+                      minHeight: 36,
+                    ),
+                    suffixIcon: value.text.isNotEmpty
+                        ? IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 34,
+                              minHeight: 32,
+                            ),
+                            icon: const Icon(
+                              LucideIcons.x,
+                              size: 14,
+                              color: AppColors.sub,
+                            ),
+                            onPressed: onClear,
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: AppColors.inputBg,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: AppColors.blue,
+                        width: 1.2,
                       ),
-                      icon: const Icon(
-                        LucideIcons.x,
-                        size: 14,
-                        color: AppColors.sub,
-                      ),
-                      onPressed: onClear,
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppColors.inputBg,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.blue, width: 1.2),
-              ),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing,
+          ],
+        ],
       ),
     );
   }

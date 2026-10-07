@@ -311,7 +311,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       InkWell(
                         onTap: () async {
                           await ServerSettingsDialog.show(context);
-                          if (mounted) _autoDiscoverServer();
+                          if (mounted) await _autoDiscoverServer();
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: Container(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
@@ -511,8 +512,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       setState(() => _saving = false);
 
       // Auto refresh providers so other screens/tabs are up-to-date
-      ref.read(patientsProvider.notifier).fetchPatients();
-      ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+      unawaited(ref.read(patientsProvider.notifier).fetchPatients());
+      unawaited(
+        ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

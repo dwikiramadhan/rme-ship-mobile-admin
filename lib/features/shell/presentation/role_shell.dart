@@ -137,6 +137,8 @@ class _RoleShellState extends State<RoleShell> {
         ),
       ),
       bottomNavigationBar: NavigationBar(
+        height: 64,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
         selectedIndex: activeIndex,
         onDestinationSelected: (index) =>
             widget.onChange(widget.items[index].key),

@@ -3434,50 +3434,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     );
   }
 
-  void _confirmDeleteProvision(BuildContext context, String id) {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Catatan Logistik?'),
-        content: const Text(
-          'Catatan sisa logistik ini akan dihapus secara permanen.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Batal', style: TextStyle(fontSize: 12)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(dialogCtx);
-              try {
-                await ref
-                    .read(tripDetailNotifierProvider(widget.item).notifier)
-                    .deleteProvision(id);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Catatan logistik berhasil dihapus'),
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal menghapus logistik: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Hapus', style: TextStyle(fontSize: 12)),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ==========================================
   // TAB 4: KENDALA PERJALANAN
   // ==========================================
@@ -3978,7 +3934,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final lngController = TextEditingController(
       text: issue.lng != null ? issue.lng!.toString() : '',
     );
-    DateTime selectedTime = issue.occurredAt ?? DateTime.now();
+    DateTime selectedTime = issue.occurredAt;
     bool isSubmitting = false;
 
     showDialog(
@@ -4313,52 +4269,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           },
         );
       },
-    );
-  }
-
-  void _confirmDeleteTripIssue(BuildContext context, String id) {
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Kendala?'),
-        content: const Text(
-          'Data kendala perjalanan ini akan dihapus secara permanen.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Batal', style: TextStyle(fontSize: 12)),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              Navigator.pop(dialogCtx);
-              try {
-                await ref
-                    .read(tripDetailNotifierProvider(widget.item).notifier)
-                    .deleteTripIssue(id);
-                if (context.mounted) {
-                  _showTopRightSuccessToast(
-                    context,
-                    'Kendala perjalanan berhasil dihapus',
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Gagal menghapus kendala: $e'),
-                      backgroundColor: Colors.red.shade700,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Hapus', style: TextStyle(fontSize: 12)),
-          ),
-        ],
-      ),
     );
   }
 }

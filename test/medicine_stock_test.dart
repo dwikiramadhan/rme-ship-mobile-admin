@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:bayan_rme/core/widgets/status_filter_button.dart';
 import 'package:bayan_rme/features/auth/domain/app_user.dart';
 import 'package:bayan_rme/features/auth/domain/auth_repository.dart';
 import 'package:bayan_rme/features/auth/domain/user_role.dart';
@@ -220,14 +221,34 @@ void main() {
       expect(find.text('Inventaris Obat'), findsAtLeastNWidgets(1));
       expect(find.text('Riwayat Tambah Obat'), findsOneWidget);
 
-      // Verify Tab 1 data
+      // Verify Tab 1 data with default filter: 'Tersedia'
       expect(find.text('Paracetamol 500mg'), findsOneWidget);
       expect(find.text('MED-001'), findsOneWidget);
+      expect(find.text('Tersedia'), findsAtLeastNWidgets(1));
+      expect(find.text('Amoxicillin 500mg'), findsNothing);
+
+      // Change filter to 'Semua Stok'
+      await tester.tap(find.byType(StatusFilterButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Semua Stok'));
+      await tester.pumpAndSettle();
+
+      // Now both items should be visible
+      expect(find.text('Paracetamol 500mg'), findsOneWidget);
       expect(find.text('Amoxicillin 500mg'), findsOneWidget);
       expect(find.text('Habis'), findsOneWidget);
-      expect(find.text('Tersedia'), findsOneWidget);
       // Verify date is hidden for out-of-stock item ('Habis') and '-' is not rendered
       expect(find.text('-'), findsNothing);
+
+      // Change filter to 'Habis'
+      await tester.tap(find.byType(StatusFilterButton));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Habis').last);
+      await tester.pumpAndSettle();
+
+      // Only 'Amoxicillin 500mg' is visible
+      expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+      expect(find.text('Paracetamol 500mg'), findsNothing);
 
       // Tap Tab 2: Riwayat Tambah Obat
       await tester.tap(find.text('Riwayat Tambah Obat'));

@@ -221,8 +221,12 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
         _saving = false;
         _isEditing = false;
       });
-      ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
-      ref.read(patientsProvider.notifier).fetchPatients();
+      unawaited(
+        ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
+      );
+      unawaited(
+        ref.read(patientsProvider.notifier).fetchPatients(),
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Diagnosa & resep berhasil disimpan ke rekam medis!'),

@@ -463,7 +463,6 @@ class SchedulesNotifier
   final Ref _ref;
 
   int _currentPage = 1;
-  static const int _limit = 10;
   bool _hasMore = false;
   bool _isLoadingMore = false;
   String? _resolvedShipCode;

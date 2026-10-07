@@ -83,7 +83,7 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
             );
 
         // Refresh real prescription list for pharmacy
-        ref
+        await ref
             .read(pharmacyPrescriptionHistoryProvider.notifier)
             .fetchHistory(refresh: true);
 
