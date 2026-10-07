@@ -17,7 +17,6 @@ import '../../doctor/data/icd10_api.dart';
 import '../../doctor/data/icd9_api.dart';
 import '../../doctor/presentation/widgets/examination_input_modal.dart';
 import '../data/patient_repository.dart';
-import '../domain/lab_order.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
 import '../domain/vitals.dart';
@@ -46,14 +45,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
         : medicalHistoryProvider;
     final allHistories = ref.watch(historyProvider);
     final history =
-        allHistories
-            .where(
-              (h) =>
-                  h.id == this.history.id ||
-                  (this.history.patientId.isNotEmpty &&
-                      h.patientId == this.history.patientId),
-            )
-            .firstOrNull ??
+        allHistories.where((h) => h.id == this.history.id).firstOrNull ??
         this.history;
 
     final patientObj = history.toPatient();
@@ -61,118 +53,50 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
     final userRole = authState.session?.user.role;
     final isDoctor = canExamine ?? (userRole == UserRole.dokter);
-    final statusPenanganan =
-        (history.statusPenanganan ?? patientObj.statusPenanganan ?? '').trim();
-    final lowerStatus = statusPenanganan.toLowerCase();
-    final isMenungguDokter =
-        lowerStatus == 'menunggu dokter' ||
-        lowerStatus == 'antrian' ||
-        lowerStatus == 'waiting';
-    final hasDiagnosis =
-        (history.diagnosis != null &&
-            history.diagnosis!.trim().isNotEmpty &&
-            history.diagnosis != '—' &&
-            history.diagnosis != '-') ||
-        (history.diagnosisDetail != null &&
-            history.diagnosisDetail!.trim().isNotEmpty &&
-            history.diagnosisDetail != '—' &&
-            history.diagnosisDetail != '-');
+    final statusPenanganan = (history.statusPenanganan ?? '').trim();
+    final isMenungguDokter = statusPenanganan == 'Menunggu Dokter';
+    final hasDiagnosis = (history.diagnosis?.trim().isNotEmpty ?? false) ||
+        (history.diagnosisDetail?.trim().isNotEmpty ?? false);
     final isDiagnosed = !isMenungguDokter && hasDiagnosis;
 
-    final hasTreatment =
-        (history.treatment != null &&
-            history.treatment!.trim().isNotEmpty &&
-            history.treatment != '—' &&
-            history.treatment != '-') ||
-        (history.tindakanDetail != null &&
-            history.tindakanDetail!.trim().isNotEmpty &&
-            history.tindakanDetail != '—' &&
-            history.tindakanDetail != '-');
+    final hasTreatment = (history.treatment?.trim().isNotEmpty ?? false) ||
+        (history.tindakanDetail?.trim().isNotEmpty ?? false);
 
-    final isMenungguLab = lowerStatus.contains('lab');
-    final isSelesai =
-        lowerStatus.contains('selesai') ||
-        lowerStatus == 'completed' ||
-        lowerStatus == 'done';
-    final isMenungguObat =
-        lowerStatus.contains('obat') ||
-        lowerStatus.contains('farmasi') ||
-        lowerStatus.contains('resep');
+    final isMenungguLab = statusPenanganan == 'Menunggu Lab';
+    final isSelesai = statusPenanganan == 'Selesai';
+    final isMenungguObat = statusPenanganan == 'Menunggu Obat';
 
     // Operation info
-    final opVal =
-        (history.operation ??
-                history.rawJson['operation']?.toString() ??
-                history.rawJson['Operation']?.toString() ??
-                '')
-            .trim();
+    final opVal = (history.operation ?? '').trim().toLowerCase();
     final hasOperation = opVal.isNotEmpty && opVal != '-' && opVal != '—';
-    final isMajorOp = opVal.toLowerCase() == 'major';
-    final isMinorOp = opVal.toLowerCase() == 'minor';
+    final isMajorOp = opVal == 'major';
+    final isMinorOp = opVal == 'minor';
 
     // Lab info (from lab_examination)
-    final effectiveAttachmentUrl = history.labAttachmentUrl ??
-        this.history.labAttachmentUrl ??
-        patientObj.labOrder?.hasil?.fileName ??
-        this.history.patient?.labOrder?.hasil?.fileName;
-    final labExam = history.labExamination ?? this.history.labExamination;
-    final labItems = history.labExaminationItems.isNotEmpty
-        ? history.labExaminationItems
-        : this.history.labExaminationItems;
-    final labOrder = patientObj.labOrder ?? this.history.patient?.labOrder;
-    String labJenisText = labOrder?.jenis ?? '';
-    if (labJenisText.isEmpty && history.labExaminationCode != null) {
-      labJenisText = 'Pemeriksaan Lab (${history.labExaminationCode})';
-    }
-    if (labJenisText.isEmpty && this.history.labExaminationCode != null) {
-      labJenisText = 'Pemeriksaan Lab (${this.history.labExaminationCode})';
-    }
-    if (labJenisText.isEmpty && history.rawJson['lab_order'] is Map) {
-      final lo = history.rawJson['lab_order'] as Map;
-      labJenisText = (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '')
-          .toString();
-    }
-    if (labJenisText.isEmpty && history.rawJson['order_lab'] is Map) {
-      final lo = history.rawJson['order_lab'] as Map;
-      labJenisText = (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '')
-          .toString();
-    }
-    if (labJenisText.isEmpty && (labExam != null || labItems.isNotEmpty)) {
-      labJenisText = 'Pemeriksaan Laboratorium';
-    }
-    if (labJenisText.isEmpty && isMenungguLab) {
-      labJenisText = 'Rujukan Lab';
-    }
+    final labAttachmentUrl = history.labAttachmentUrl;
+    final labExam = history.labExamination;
+    final labItems = history.labExaminationItems;
+    final labCode = history.labExaminationCode;
 
-    String labCatatanText = labOrder?.catatan ?? '';
-    if (labCatatanText.isEmpty && labExam?['notes'] != null) {
-      labCatatanText = labExam!['notes'].toString();
-    }
-    if (labCatatanText.isEmpty && history.rawJson['lab_order'] is Map) {
-      final lo = history.rawJson['lab_order'] as Map;
-      labCatatanText = (lo['catatan'] ?? lo['notes'] ?? '').toString();
-    }
+    final String labJenisText = labCode != null && labCode.isNotEmpty
+        ? 'Pemeriksaan Lab ($labCode)'
+        : (labItems.isNotEmpty
+            ? 'Pemeriksaan Laboratorium'
+            : (isMenungguLab ? 'Rujukan Lab' : ''));
 
-    final hasLab =
-        labExam != null ||
+    final hasLab = labExam != null ||
         labItems.isNotEmpty ||
-        labJenisText.trim().isNotEmpty ||
-        (effectiveAttachmentUrl != null && effectiveAttachmentUrl.trim().isNotEmpty) ||
+        (labAttachmentUrl != null && labAttachmentUrl.isNotEmpty) ||
         isMenungguLab;
 
     Widget? labStatusBadge;
     if (hasLab) {
-      final labStatus = labOrder?.status;
-      final isLabSelesai =
-          labExam != null ||
-          labItems.isNotEmpty ||
-          labStatus == LabOrderStatus.selesai ||
+      final isLabSelesai = labItems.isNotEmpty ||
+          (labAttachmentUrl != null && labAttachmentUrl.isNotEmpty) ||
           isSelesai;
       final statusLabel = isLabSelesai
           ? 'Selesai'
-          : (labStatus == LabOrderStatus.diproses
-                ? 'Diproses'
-                : (isMenungguLab ? 'Menunggu Lab' : null));
+          : (isMenungguLab ? 'Menunggu Lab' : null);
       if (statusLabel != null) {
         final isDone = statusLabel == 'Selesai';
         labStatusBadge = Container(
@@ -655,8 +579,10 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                       ),
                                   ],
 
-                                  if (effectiveAttachmentUrl != null &&
-                                      effectiveAttachmentUrl.trim().isNotEmpty) ...[
+                                  if (labAttachmentUrl != null &&
+                                      labAttachmentUrl
+                                          .trim()
+                                          .isNotEmpty) ...[
                                     const SizedBox(height: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -677,7 +603,8 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                             padding: const EdgeInsets.all(6),
                                             decoration: BoxDecoration(
                                               color: const Color(0xFFE0F2FE),
-                                              borderRadius: BorderRadius.circular(6),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
                                             child: const Icon(
                                               LucideIcons.fileText,
@@ -702,13 +629,14 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                                 ),
                                                 const SizedBox(height: 1),
                                                 Text(
-                                                  effectiveAttachmentUrl,
+                                                  labAttachmentUrl,
                                                   style: const TextStyle(
                                                     fontSize: 10.5,
                                                     color: AppColors.sub,
                                                     letterSpacing: 0,
                                                   ),
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ],
                                             ),
@@ -717,12 +645,13 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                           OutlinedButton.icon(
                                             onPressed: () {
                                               final rawUrl =
-                                                  effectiveAttachmentUrl.trim();
-                                              final fullUrl = rawUrl.startsWith('http')
+                                                  labAttachmentUrl.trim();
+                                              final fullUrl =
+                                                  rawUrl.startsWith('http')
                                                   ? rawUrl
                                                   : (rawUrl.startsWith('/')
-                                                      ? '${ApiConfig.baseUrl}$rawUrl'
-                                                      : '${ApiConfig.baseUrl}/$rawUrl');
+                                                        ? '${ApiConfig.baseUrl}$rawUrl'
+                                                        : '${ApiConfig.baseUrl}/$rawUrl');
                                               _showLabDocument(
                                                 context,
                                                 fullUrl,
@@ -742,18 +671,24 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                               ),
                                             ),
                                             style: OutlinedButton.styleFrom(
-                                              foregroundColor: const Color(0xFF0284C7),
+                                              foregroundColor: const Color(
+                                                0xFF0284C7,
+                                              ),
                                               side: const BorderSide(
                                                 color: Color(0xFFBAE6FD),
                                               ),
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 9,
-                                                vertical: 6,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 9,
+                                                    vertical: 6,
+                                                  ),
                                               minimumSize: Size.zero,
-                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              tapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
                                               shape: RoundedRectangleBorder(
-                                                borderRadius: BorderRadius.circular(6),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
                                               ),
                                             ),
                                           ),
@@ -919,25 +854,30 @@ class MedicalHistoryDetailView extends ConsumerWidget {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: const BoxDecoration(
                   color: Color(0xFFF8FAFC),
-                  border: Border(
-                    bottom: BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
+                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: isPdf ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE),
+                        color: isPdf
+                            ? const Color(0xFFFEE2E2)
+                            : const Color(0xFFE0F2FE),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         isPdf ? LucideIcons.fileText : LucideIcons.image,
                         size: 16,
-                        color: isPdf ? const Color(0xFFDC2626) : const Color(0xFF0284C7),
+                        color: isPdf
+                            ? const Color(0xFFDC2626)
+                            : const Color(0xFF0284C7),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -969,10 +909,17 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(LucideIcons.x, size: 18, color: AppColors.sub),
+                      icon: const Icon(
+                        LucideIcons.x,
+                        size: 18,
+                        color: AppColors.sub,
+                      ),
                       onPressed: () => Navigator.of(ctx).pop(),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                     ),
                   ],
                 ),
@@ -1021,7 +968,10 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                               ),
                               const SizedBox(height: 14),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF1F5F9),
                                   borderRadius: BorderRadius.circular(6),
@@ -1049,37 +999,47 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                             child: Image.network(
                               url,
                               fit: BoxFit.contain,
-                              loadingBuilder: (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return const Padding(
-                                  padding: EdgeInsets.all(40),
-                                  child: CircularProgressIndicator(color: Colors.white),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) => Padding(
-                                padding: const EdgeInsets.all(32),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      LucideIcons.alertCircle,
-                                      size: 36,
-                                      color: Colors.white70,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return const Padding(
+                                      padding: EdgeInsets.all(40),
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                      ),
+                                    );
+                                  },
+                              errorBuilder: (context, error, stackTrace) =>
+                                  Padding(
+                                    padding: const EdgeInsets.all(32),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          LucideIcons.alertCircle,
+                                          size: 36,
+                                          color: Colors.white70,
+                                        ),
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'Gagal memuat dokumen gambar',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          fileName,
+                                          style: const TextStyle(
+                                            color: Colors.white60,
+                                            fontSize: 11,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
                                     ),
-                                    const SizedBox(height: 10),
-                                    const Text(
-                                      'Gagal memuat dokumen gambar',
-                                      style: TextStyle(color: Colors.white, fontSize: 13),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      fileName,
-                                      style: const TextStyle(color: Colors.white60, fontSize: 11),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ],
-                                ),
-                              ),
+                                  ),
                             ),
                           ),
                         ),
