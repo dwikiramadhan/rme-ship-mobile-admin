@@ -200,11 +200,11 @@ class _ShipAdminHomeScreenState extends ConsumerState<ShipAdminHomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(
+                    const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Informasi Hak Akses',
                             style: TextStyle(
                               fontSize: 13.5,
@@ -212,8 +212,8 @@ class _ShipAdminHomeScreenState extends ConsumerState<ShipAdminHomeScreen> {
                               color: AppColors.text,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
+                          SizedBox(height: 4),
+                          Text(
                             'Akses Admin Kapal terbatas pada pemantauan dashboard operasional dan jadwal perjalanan kapal. '
                             'Data rekam medis pasien dikelola khusus oleh tenaga medis terverifikasi.',
                             style: TextStyle(

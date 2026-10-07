@@ -61,7 +61,7 @@ void main() {
   testWidgets('PrescriptionMedicineRow renders layout matching screenshot', (
     tester,
   ) async {
-    final item = ResepItem(
+    const item = ResepItem(
       obat: 'Cairan D 40% 25 Ml',
       dosis: '3x1',
       instruksi: 'Sesudah makan',
@@ -74,7 +74,6 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: PrescriptionMedicineRow(
-            index: 0,
             item: item,
             disabled: false,
             onGanti: (_, _) {},
@@ -104,9 +103,9 @@ void main() {
     expect(find.byIcon(LucideIcons.pencil), findsOneWidget);
   });
 
-  testWidgets(
-      'PrescriptionMedicineRow renders unit_of_measurement properly',
-      (tester) async {
+  testWidgets('PrescriptionMedicineRow renders unit_of_measurement properly', (
+    tester,
+  ) async {
     final item = ResepItem.fromJson(const {
       'name': 'Amoxicillin 500mg',
       'dosis': '3x1',
@@ -119,7 +118,6 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: PrescriptionMedicineRow(
-            index: 0,
             item: item,
             disabled: false,
             onGanti: (_, _) {},
@@ -132,78 +130,76 @@ void main() {
   });
 
   testWidgets(
-      'PrescriptionMedicineRow shows replacement form matching Form Input Rekam Medis without Obat Utama',
-      (tester) async {
-    const item = ResepItem(
-      obat: 'Amoxicillin 500mg',
-      dosis: '3x1',
-      instruksi: 'Sesudah makan',
-      jumlah: '10',
-      satuan: 'Tablet',
-    );
+    'PrescriptionMedicineRow shows replacement form matching Form Input Rekam Medis without Obat Utama',
+    (tester) async {
+      const item = ResepItem(
+        obat: 'Amoxicillin 500mg',
+        dosis: '3x1',
+        instruksi: 'Sesudah makan',
+        jumlah: '10',
+        satuan: 'Tablet',
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: PrescriptionMedicineRow(
-            index: 0,
-            item: item,
-            disabled: false,
-            onGanti: (_, _) {},
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PrescriptionMedicineRow(
+              item: item,
+              disabled: false,
+              onGanti: (_, _) {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    // Tap 'Ubah' to open replacement form
-    await tester.tap(find.text('Ubah'));
-    await tester.pumpAndSettle();
+      // Tap 'Ubah' to open replacement form
+      await tester.tap(find.text('Ubah'));
+      await tester.pumpAndSettle();
 
-    // Verify 'Obat Utama' text is NOT present
-    expect(find.text('Obat Utama'), findsNothing);
+      // Verify 'Obat Utama' text is NOT present
+      expect(find.text('Obat Utama'), findsNothing);
 
-    // Verify circle index badge #1
-    expect(find.text('1'), findsWidgets);
+      // Verify circle index badge #1
+      expect(find.text('1'), findsWidgets);
 
-    // Verify fields
-    expect(find.text('Nama Obat'), findsOneWidget);
-    expect(find.text('Dosis'), findsOneWidget);
-    expect(find.text('Aturan Pakai'), findsOneWidget);
-    expect(find.text('Alasan Penggantian'), findsOneWidget);
-    expect(find.text('Simpan'), findsOneWidget);
-    expect(find.byIcon(LucideIcons.minus), findsOneWidget);
-    expect(find.byIcon(LucideIcons.plus), findsOneWidget);
-  });
+      // Verify fields
+      expect(find.text('Nama Obat'), findsOneWidget);
+      expect(find.text('Dosis'), findsOneWidget);
+      expect(find.text('Aturan Pakai'), findsOneWidget);
+      expect(find.text('Alasan Penggantian'), findsOneWidget);
+      expect(find.text('Simpan'), findsOneWidget);
+      expect(find.byIcon(LucideIcons.minus), findsOneWidget);
+      expect(find.byIcon(LucideIcons.plus), findsOneWidget);
+    },
+  );
 
   testWidgets(
-      'PrescriptionMedicineRow renders - when dosis, instruksi, and qty are empty',
-      (tester) async {
-    const item = ResepItem(
-      obat: 'Paracetamol',
-      dosis: '',
-      instruksi: '',
-      sku: '',
-      jumlah: null,
-      satuan: null,
-    );
+    'PrescriptionMedicineRow renders - when dosis, instruksi, and qty are empty',
+    (tester) async {
+      const item = ResepItem(
+        obat: 'Paracetamol',
+        dosis: '',
+        instruksi: '',
+        sku: '',
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: PrescriptionMedicineRow(
-            index: 0,
-            item: item,
-            disabled: false,
-            onGanti: (_, _) {},
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PrescriptionMedicineRow(
+              item: item,
+              disabled: false,
+              onGanti: (_, _) {},
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.textContaining('Dosis: -'), findsOneWidget);
-    expect(find.textContaining('Aturan: -'), findsOneWidget);
-    expect(find.text('-'), findsWidgets);
-  });
+      expect(find.textContaining('Dosis: -'), findsOneWidget);
+      expect(find.textContaining('Aturan: -'), findsOneWidget);
+      expect(find.text('-'), findsWidgets);
+    },
+  );
 
   testWidgets('PrescriptionDetail displays updated header and diagnosa', (
     tester,
@@ -452,9 +448,7 @@ void main() {
           child: const MaterialApp(
             home: Scaffold(
               body: SingleChildScrollView(
-                child: PrescriptionDetail(
-                  patientId: 'p-4',
-                ),
+                child: PrescriptionDetail(patientId: 'p-4'),
               ),
             ),
           ),

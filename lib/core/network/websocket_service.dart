@@ -8,15 +8,28 @@ import 'api_config.dart';
 /// Dispatches incoming real-time events to listeners and automatically
 /// handles reconnection if the connection drops.
 class WebSocketService {
-  WebSocketService({String? url}) : _url = url ?? ApiConfig.wsUrl;
+  WebSocketService({String? url}) : _customUrl = url {
+    _baseUrlSub = ApiConfig.onBaseUrlChanged.listen((_) {
+      if (!_isDisposed) {
+        debugPrint(
+          '🔄 [WebSocket] Base URL changed. Reconnecting to ${ApiConfig.wsUrl}...',
+        );
+        reconnect();
+      }
+    });
+  }
 
-  final String _url;
+  final String? _customUrl;
+  String get _url => _customUrl ?? ApiConfig.wsUrl;
+
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
+  StreamSubscription? _baseUrlSub;
   Timer? _reconnectTimer;
   Timer? _pingTimer;
 
   bool _isConnected = false;
+  bool _isConnecting = false;
   bool _isDisposed = false;
   int _reconnectAttempts = 0;
 
@@ -27,39 +40,63 @@ class WebSocketService {
   Stream<bool> get onConnectionChanged => _connectionController.stream;
   bool get isConnected => _isConnected;
 
-  void connect() {
-    if (_isDisposed || _isConnected) return;
+  Future<void> connect() async {
+    if (_isDisposed || _isConnected || _isConnecting) return;
+    _isConnecting = true;
 
+    final targetUrl = _url;
     try {
-      final uri = Uri.parse(_url);
+      final uri = Uri.parse(targetUrl);
       debugPrint('🔌 [WebSocket] Connecting to $uri...');
-      _channel = WebSocketChannel.connect(uri);
+      final channel = WebSocketChannel.connect(uri);
+      _channel = channel;
 
-      _subscription = _channel!.stream.listen(
+      _subscription = channel.stream.listen(
         (data) {
-          _updateConnection(true);
-          _reconnectAttempts = 0;
           _handleMessage(data);
         },
         onError: (error) {
-          debugPrint('⚠️ [WebSocket] Error: $error');
+          debugPrint('⚠️ [WebSocket] Stream error: $error');
+          _isConnecting = false;
           _scheduleReconnect();
         },
         onDone: () {
           debugPrint('🔌 [WebSocket] Connection closed.');
+          _isConnecting = false;
           _scheduleReconnect();
         },
         cancelOnError: true,
       );
 
+      // Verify connection establishment before declaring connected
+      await channel.ready;
+      if (_channel != channel || _isDisposed) return;
+
+      _isConnecting = false;
       _updateConnection(true);
       _reconnectAttempts = 0;
       _startHeartbeat();
-      debugPrint('✅ [WebSocket] Connected successfully.');
+      debugPrint('✅ [WebSocket] Connected successfully to $uri.');
     } catch (e) {
+      _isConnecting = false;
       debugPrint('⚠️ [WebSocket] Failed to connect: $e');
       _scheduleReconnect();
     }
+  }
+
+  void reconnect({bool resetAttempts = true}) {
+    if (resetAttempts) _reconnectAttempts = 0;
+    _reconnectTimer?.cancel();
+    _subscription?.cancel();
+    _subscription = null;
+    _pingTimer?.cancel();
+    try {
+      _channel?.sink.close();
+    } catch (_) {}
+    _channel = null;
+    _isConnecting = false;
+    _updateConnection(false);
+    connect();
   }
 
   void _updateConnection(bool connected) {
@@ -139,6 +176,7 @@ class WebSocketService {
     _reconnectTimer?.cancel();
     _pingTimer?.cancel();
     _subscription?.cancel();
+    _baseUrlSub?.cancel();
     _channel?.sink.close();
     _eventController.close();
     _connectionController.close();

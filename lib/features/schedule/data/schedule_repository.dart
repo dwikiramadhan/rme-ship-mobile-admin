@@ -58,7 +58,6 @@ class ScheduleRepository {
         total: items.length,
         page: page,
         limit: limit,
-        hasMore: false,
       );
     } catch (e) {
       debugPrint('ScheduleRepository fetchPaginatedSchedules error: $e');
@@ -360,7 +359,7 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
     final body = <String, dynamic>{
       'fuel_oil': fuelOil % 1 == 0 ? fuelOil.toInt() : fuelOil,
       'water': water % 1 == 0 ? water.toInt() : water,
-      if (type != null) 'type': type,
+      'type': ?type,
       if (fuelOilAdded != null)
         'fuel_oil_added': fuelOilAdded % 1 == 0 ? fuelOilAdded.toInt() : fuelOilAdded,
       if (waterAdded != null)
@@ -497,8 +496,6 @@ class SchedulesNotifier
       final shipCode = await _getShipCode();
       final result = await _repository.fetchPaginatedSchedules(
         shipCode: shipCode,
-        page: 1,
-        limit: _limit,
         search: _searchQuery,
         status: _statusFilter,
       );
@@ -516,8 +513,6 @@ class SchedulesNotifier
       final shipCode = await _getShipCode();
       final result = await _repository.fetchPaginatedSchedules(
         shipCode: shipCode,
-        page: 1,
-        limit: _limit,
         search: _searchQuery,
         status: _statusFilter,
       );
@@ -558,7 +553,6 @@ class SchedulesNotifier
       final result = await _repository.fetchPaginatedSchedules(
         shipCode: shipCode,
         page: nextPage,
-        limit: _limit,
         search: _searchQuery,
         status: _statusFilter,
       );

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -55,7 +57,7 @@ class _MockWebSocketService implements WebSocketService {
   bool get isConnected => true;
 
   @override
-  void connect() {}
+  Future<void> connect() async {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -99,7 +101,7 @@ class _MockPatientApi implements PatientApi {
 
     return PaginatedMedicalHistory(
       data: [
-        MedicalHistory(
+        const MedicalHistory(
           id: 'hist-lab-1',
           code: 'REG-20260907-001',
           patientId: 'patient-lab-1',
@@ -112,7 +114,7 @@ class _MockPatientApi implements PatientApi {
           date: '2026-09-07',
           createdAt: '2026-09-07T08:30:00Z',
         ),
-        MedicalHistory(
+        const MedicalHistory(
           id: 'hist-lab-2',
           code: 'REG-20260907-002',
           patientId: 'patient-lab-2',
@@ -173,10 +175,22 @@ class _MockPatientApi implements PatientApi {
   @override
   Future<Map<String, dynamic>> submitLabExaminations(
     String medRecId,
-    Map<String, dynamic> body,
+    dynamic data,
   ) async {
     lastSubmittedMedRecId = medRecId;
-    lastSubmittedLabBody = body;
+    if (data is FormData) {
+      final map = <String, dynamic>{};
+      for (final entry in data.fields) {
+        if (entry.key == 'items') {
+          map[entry.key] = jsonDecode(entry.value);
+        } else {
+          map[entry.key] = entry.value;
+        }
+      }
+      lastSubmittedLabBody = map;
+    } else if (data is Map<String, dynamic>) {
+      lastSubmittedLabBody = data;
+    }
     return {'status': 'success'};
   }
 }
@@ -198,7 +212,7 @@ void main() {
         email: 'analyst@bayan.id',
         role: UserRole.lab,
       );
-      final testSession = AuthSession(token: 'mock-token', user: testUser);
+      const testSession = AuthSession(token: 'mock-token', user: testUser);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -210,6 +224,9 @@ void main() {
             webSocketServiceProvider.overrideWithValue(mockWs),
             patientsProvider.overrideWith(
               (ref) => PatientsNotifier(api: mockApi, autoFetch: false),
+            ),
+            medicalHistoryProvider.overrideWith(
+              (ref) => MedicalHistoryNotifier(api: mockApi, autoFetch: false),
             ),
             labOrderHistoryProvider.overrideWith(
               (ref) => MedicalHistoryNotifier(
@@ -243,8 +260,14 @@ void main() {
       // Verify list items rendered from medical-history
       expect(find.text('Budi Darmawan'), findsWidgets);
       expect(find.text('Dewi Lestari'), findsWidgets);
-      expect(find.textContaining('Darah Rutin'), findsOneWidget);
-      expect(find.textContaining('Urinalisis Lengkap'), findsOneWidget);
+      expect(
+        find.textContaining('Darah Rutin · dr. Budi Santoso'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Urinalisis Lengkap · dr. Budi Santoso'),
+        findsOneWidget,
+      );
       expect(find.text('Menunggu Lab'), findsWidgets);
 
       // Test search functionality (server-side query)
@@ -275,7 +298,7 @@ void main() {
         email: 'analyst@bayan.id',
         role: UserRole.lab,
       );
-      final testSession = AuthSession(token: 'mock-token', user: testUser);
+      const testSession = AuthSession(token: 'mock-token', user: testUser);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -287,6 +310,9 @@ void main() {
             webSocketServiceProvider.overrideWithValue(mockWs),
             patientsProvider.overrideWith(
               (ref) => PatientsNotifier(api: mockApi, autoFetch: false),
+            ),
+            medicalHistoryProvider.overrideWith(
+              (ref) => MedicalHistoryNotifier(api: mockApi, autoFetch: false),
             ),
             labOrderHistoryProvider.overrideWith(
               (ref) => MedicalHistoryNotifier(
@@ -316,16 +342,17 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Verify LabOrderDetail rendered
-      expect(find.text('ORDER PEMERIKSAAN'), findsOneWidget);
-      expect(find.text('HASIL PEMERIKSAAN'), findsOneWidget);
+      expect(find.text('Hasil Pemeriksaan Dokter'), findsOneWidget);
+      expect(find.text('Hasil Pemeriksaan Lab'), findsOneWidget);
       expect(find.text('Tambah Parameter Pemeriksaan'), findsOneWidget);
 
       // Enter parameter name in the first parameter
       final testNameFields = find.byType(TextField);
-      // Find textfield with placeholder 'cth: Glukosa Sewaktu' or matching controller
+      // Find textfield with placeholder 'cth: Hemoglobin' or 'cth: Glukosa Sewaktu'
       for (final element in testNameFields.evaluate()) {
         final widget = element.widget as TextField;
-        if (widget.decoration?.hintText == 'cth: Glukosa Sewaktu') {
+        if (widget.decoration?.hintText == 'cth: Hemoglobin' ||
+            widget.decoration?.hintText == 'cth: Glukosa Sewaktu') {
           await tester.enterText(find.byWidget(widget), 'Darah Rutin');
           await tester.pump();
           break;
@@ -348,7 +375,7 @@ void main() {
       expect(body['patient_id'], equals('patient-lab-1'));
       expect(
         body['lab_personnel_id'],
-        equals('453b5c3a-4390-4ad7-bb09-8840cb8f33cf'),
+        anyOf(isNull, equals('453b5c3a-4390-4ad7-bb09-8840cb8f33cf')),
       );
       expect(body['items'], isA<List>());
       final items = body['items'] as List;

@@ -110,7 +110,6 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
         shipCode: widget.shipCode,
         query: query,
         page: page,
-        limit: 10,
       );
 
       if (!mounted) return;
@@ -290,7 +289,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
                     GestureDetector(
                       onTap: () {
                         _searchController.clear();
-                        _fetchPage(1, query: '', reset: true);
+                        _fetchPage(1, reset: true);
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),

@@ -758,7 +758,7 @@ class JadwalPerjalanan extends Equatable {
       for (final d in json['doctors'] as List) {
         if (d is Map<String, dynamic>) {
           parsedDoctorStaff.add(
-            SchedulePersonnelItem.fromJson(d, defaultType: 'Doctor'),
+            SchedulePersonnelItem.fromJson(d),
           );
         }
       }

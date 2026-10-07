@@ -7,6 +7,7 @@ import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
+import '../../../core/widgets/status_filter_button.dart';
 import '../../history/presentation/add_visit_screen.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
 import '../../notifications/presentation/notifications_view.dart';
@@ -41,6 +42,7 @@ typedef DokterHomeScreen = DoctorHomeScreen;
 class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
   String _tab = 'notifikasi';
   String? _selectedRiwayatId;
+  String _riwayatStatusFilter = 'SEMUA';
 
   @override
   Widget build(BuildContext context) {
@@ -98,6 +100,13 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
             }
             final medHist = p.toMedicalHistory();
             ref.read(medicalHistoryProvider.notifier).upsertHistory(medHist);
+            final uid =
+                ref.read(authControllerProvider).session?.user.id ?? '';
+            if (uid.isNotEmpty) {
+              ref
+                  .read(medicalHistoryByUserProvider(uid).notifier)
+                  .upsertHistory(medHist);
+            }
 
             setState(() {
               _tab = 'riwayat';
@@ -118,8 +127,15 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
         _tab = key;
         if (key == 'riwayat') {
           ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+          final uid =
+              ref.read(authControllerProvider).session?.user.id ?? '';
+          if (uid.isNotEmpty) {
+            ref
+                .read(medicalHistoryByUserProvider(uid).notifier)
+                .fetchHistory(refresh: true);
+          }
         } else if (key == 'pasien') {
-          ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+          ref.read(patientsProvider.notifier).fetchPatients();
         }
       }),
       child: content,
@@ -139,6 +155,13 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
                 ref
                     .read(medicalHistoryProvider.notifier)
                     .fetchHistory(refresh: true);
+                final uid =
+                    ref.read(authControllerProvider).session?.user.id ?? '';
+                if (uid.isNotEmpty) {
+                  ref
+                      .read(medicalHistoryByUserProvider(uid).notifier)
+                      .fetchHistory(refresh: true);
+                }
               },
             ),
           ),
@@ -156,8 +179,15 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     final histories = ref.watch(historyProvider);
     final notifier = ref.read(historyProvider.notifier);
 
+    final displayHistories = histories.where((m) {
+      if (_riwayatStatusFilter == 'SEMUA') return true;
+      final status = (m.statusPenanganan ?? '').toLowerCase();
+      return status.contains(_riwayatStatusFilter.toLowerCase());
+    }).toList();
+
     return ResponsiveMasterDetail(
       title: 'Riwayat Kunjungan',
+      subtitle: '${displayHistories.length} rekam medis',
       selectedId: _selectedRiwayatId,
       onEntrySelected: (id) {
         setState(() => _selectedRiwayatId = id);
@@ -174,8 +204,20 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
       onRefresh: () => notifier.fetchHistory(refresh: true),
       onSearchChanged: (q) => notifier.searchHistory(q),
       searchPlaceholder: 'Cari nama atau NIK pasien...',
+      searchTrailing: StatusFilterButton(
+        selectedValue: _riwayatStatusFilter,
+        options: riwayatStatusFilterOptions,
+        onSelected: (val) {
+          setState(() => _riwayatStatusFilter = val);
+          if (val == 'SEMUA') {
+            notifier.setStatusPenanganan(null);
+          } else {
+            notifier.setStatusPenanganan(val);
+          }
+        },
+      ),
       entries: [
-        for (final m in histories)
+        for (final m in displayHistories)
           MasterListEntry(
             id: m.id,
             avatarColor: AppColors.blue,
@@ -190,7 +232,8 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
           ),
       ],
       detailBuilder: (context, id) {
-        final item = histories.where((h) => h.id == id).firstOrNull;
+        final item = displayHistories.where((h) => h.id == id).firstOrNull ??
+            histories.where((h) => h.id == id).firstOrNull;
         if (item == null) {
           return const SkeletonPatientDetail();
         }

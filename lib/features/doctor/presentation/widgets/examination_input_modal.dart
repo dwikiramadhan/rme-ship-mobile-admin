@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -137,8 +139,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     // Warm up ICD-10 and ICD-9 caches eagerly so pickers open with 0ms delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(icd10ApiProvider).prefetchInitial(limit: 25);
-        ref.read(icd9ApiProvider).prefetchInitial(limit: 25);
+        ref.read(icd10ApiProvider).prefetchInitial();
+        ref.read(icd9ApiProvider).prefetchInitial();
       }
     });
   }
@@ -315,12 +317,54 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
 
       if (!mounted) return;
 
+      final currentUserId =
+          ref.read(authControllerProvider).session?.user.id ?? '';
+
+      // Immediately update local state in history providers so list status updates instantly
+      ref.read(medicalHistoryProvider.notifier).updateHistoryStatus(
+            recordId: recordId,
+            patientId: patientId,
+            statusPenanganan: statusPenanganan,
+            diagnosis: diagnosaFormatted,
+            treatment: tindakanFormatted,
+            notes: noteText,
+          );
+      if (currentUserId.isNotEmpty) {
+        ref
+            .read(medicalHistoryByUserProvider(currentUserId).notifier)
+            .updateHistoryStatus(
+              recordId: recordId,
+              patientId: patientId,
+              statusPenanganan: statusPenanganan,
+              diagnosis: diagnosaFormatted,
+              treatment: tindakanFormatted,
+              notes: noteText,
+            );
+      }
+
       ref.read(notificationsProvider.notifier).markDoctorSeen(patientId);
       ref.read(patientsProvider.notifier).markDilihatDokter(patientId);
 
-      ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
-      ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
-      ref.read(notificationsProvider.notifier).fetchRecentNotifications();
+      // Refresh data from API for both all-history and doctor-specific history
+      unawaited(
+        ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
+      );
+      if (currentUserId.isNotEmpty) {
+        unawaited(
+          ref
+              .read(medicalHistoryByUserProvider(currentUserId).notifier)
+              .fetchHistory(refresh: true),
+        );
+      }
+      unawaited(
+        ref
+            .read(pharmacyPrescriptionHistoryProvider.notifier)
+            .fetchHistory(refresh: true),
+      );
+      unawaited(ref.read(patientsProvider.notifier).fetchPatients());
+      unawaited(
+        ref.read(notificationsProvider.notifier).fetchRecentNotifications(),
+      );
 
       Navigator.of(context).pop(true);
 
@@ -441,7 +485,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                       CircleIconButton(
                         icon: LucideIcons.x,
                         size: 32,
-                        background: AppColors.card2,
                         foreground: AppColors.sub,
                         onPressed: () => Navigator.of(context).pop(false),
                       ),
@@ -467,7 +510,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           label: 'Diagnosa Klinis (ICD-10 / Nama Penyakit)',
                           required: true,
                           selectedItems: _diagnosaList,
-                          hint: 'Pilih atau cari diagnosa ICD-10...',
                           onChanged: (items) {
                             setState(() {
                               _diagnosaList
@@ -481,7 +523,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         // Section 2: Tindakan Medis (ICD-9-CM)
                         Icd9MultiSearchPicker(
                           label: 'Tindakan Medis (ICD-9-CM / Prosedur)',
-                          required: false,
                           selectedItems: _tindakanList,
                           hint:
                               'Pilih atau cari tindakan ICD-9-CM (opsional)...',
@@ -622,8 +663,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         const SizedBox(height: 16),
 
                         // Section 4: Perlu Pemeriksaan Laboratorium?
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(
                               LucideIcons.flaskConical,
                               size: 14,
@@ -679,8 +720,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 // Label: Jenis Pemeriksaan Laboratorium
-                                Row(
-                                  children: const [
+                                const Row(
+                                  children: [
                                     Text(
                                       'Jenis Pemeriksaan Laboratorium',
                                       style: TextStyle(
@@ -809,8 +850,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: const [
+                              const Row(
+                                children: [
                                   Icon(
                                     LucideIcons.pill,
                                     size: 14,
@@ -907,8 +948,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         ],
 
                         // Section 6: Status Kondisi Pasien *
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Icon(
                               LucideIcons.activity,
                               size: 14,
@@ -1011,7 +1052,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                   ),
                                   side: const BorderSide(
                                     color: AppColors.border,
-                                    width: 1.0,
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(100),

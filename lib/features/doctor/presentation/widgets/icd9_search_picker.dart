@@ -36,7 +36,7 @@ class _Icd9MultiSearchPickerState extends ConsumerState<Icd9MultiSearchPicker> {
     // Warm up ICD-9 initial data so opening the picker is instantaneous (0ms delay)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(icd9ApiProvider).prefetchInitial(limit: 25);
+        ref.read(icd9ApiProvider).prefetchInitial();
       }
     });
   }
@@ -45,7 +45,6 @@ class _Icd9MultiSearchPickerState extends ConsumerState<Icd9MultiSearchPicker> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      useSafeArea: false,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _Icd9MultiSearchBottomSheet(
@@ -381,7 +380,7 @@ class _Icd9MultiSearchBottomSheetState
         });
       }
       // Re-fetch in background silently without blocking the user
-      _fetchPage(1, reset: false, silent: true);
+      _fetchPage(1, silent: true);
     } else {
       _fetchPage(1, reset: true);
     }
@@ -516,7 +515,7 @@ class _Icd9MultiSearchBottomSheetState
         _syncSelectedCodes();
       }
       _searchController.clear();
-      _fetchPage(1, query: '', reset: true);
+      _fetchPage(1, reset: true);
     });
   }
 
@@ -648,7 +647,6 @@ class _Icd9MultiSearchBottomSheetState
                       ),
                       child: TextField(
                         controller: _searchController,
-                        autofocus: false,
                         onChanged: _onSearchChanged,
                         style: const TextStyle(
                           fontSize: 11.5,
@@ -679,7 +677,7 @@ class _Icd9MultiSearchBottomSheetState
                                   ),
                                   onPressed: () {
                                     _searchController.clear();
-                                    _fetchPage(1, query: '', reset: true);
+                                    _fetchPage(1, reset: true);
                                   },
                                 )
                               : null,

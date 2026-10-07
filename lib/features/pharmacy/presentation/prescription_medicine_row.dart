@@ -254,7 +254,6 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Left Content
               Expanded(
@@ -264,7 +263,6 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                   children: [
                     // Line 1: Badge + Name + SKU
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -416,9 +414,9 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                           //   width: 1.2,
                           // ),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(
                               LucideIcons.pencil,
                               size: 11,

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -84,7 +86,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     try {
       await _seenStorage.load();
       final paginated = await _api.getPatientsPaginated(
-        page: 1,
         limit: _limit,
         search: _currentSearch,
       );
@@ -538,7 +539,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   /// Searches patients by name/NIK via backend API
   Future<void> searchPatients(String query) async {
     _currentSearch = query.trim().isNotEmpty ? query.trim() : null;
-    await fetchPatients(refresh: true, search: _currentSearch);
+    await fetchPatients(search: _currentSearch);
   }
 
   /// Triggers loading next page on scroll
@@ -1326,25 +1327,52 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   Future<void> submitLabExaminations({
     required String medicalRecordId,
     required String patientId,
-    required String doctorId,
-    required String labPersonnelId,
+    String? doctorId,
+    String? labPersonnelId,
     required String notes,
+    String? conclusion,
+    String status = 'Completed',
     required List<Map<String, dynamic>> items,
     String? fileName,
+    String? filePath,
+    Uint8List? fileBytes,
   }) async {
-    final body = <String, dynamic>{
-      'medical_record_id': medicalRecordId,
-      'patient_id': patientId,
-      'doctor_id': doctorId,
-      'lab_personnel_id': labPersonnelId,
+    final map = <String, dynamic>{
       'notes': notes,
-      'items': items,
+      'conclusion': conclusion ?? '',
+      'status': status,
+      'items': jsonEncode(items),
     };
+    if (medicalRecordId.isNotEmpty) {
+      map['medical_record_id'] = medicalRecordId;
+    }
+    if (patientId.isNotEmpty) {
+      map['patient_id'] = patientId;
+    }
+    if (doctorId != null && doctorId.isNotEmpty) {
+      map['doctor_id'] = doctorId;
+    }
+    if (labPersonnelId != null && labPersonnelId.isNotEmpty) {
+      map['lab_personnel_id'] = labPersonnelId;
+    }
+
+    if (filePath != null && filePath.isNotEmpty) {
+      final name = fileName ?? filePath.split(Platform.pathSeparator).last;
+      map['file'] = await MultipartFile.fromFile(filePath, filename: name);
+    } else if (fileBytes != null && fileBytes.isNotEmpty) {
+      map['file'] = MultipartFile.fromBytes(
+        fileBytes,
+        filename: fileName ?? 'hasil_lab.pdf',
+      );
+    }
+
+    final formData = FormData.fromMap(map);
+
     debugPrint(
-      '🚀 [submitLabExaminations] POST /api/v1/medical-records/$medicalRecordId/lab-examinations body: $body',
+      '🚀 [submitLabExaminations] POST /api/v1/medical-records/$medicalRecordId/lab-examinations (multipart/form-data) notes: $notes, conclusion: $conclusion, status: $status, items: ${jsonEncode(items)}, file: ${fileName ?? filePath}',
     );
     try {
-      await _api.submitLabExaminations(medicalRecordId, body);
+      await _api.submitLabExaminations(medicalRecordId, formData);
     } catch (e) {
       debugPrint('⚠️ [submitLabExaminations] API error: $e');
       rethrow;
@@ -1523,7 +1551,7 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   /// Triggered manually when tablet screen wakes up or user taps manual sync
   Future<void> catchUpSync() async {
     if (!_wsService.isConnected) {
-      _wsService.connect();
+      unawaited(_wsService.connect());
     }
     await fetchRecentNotifications();
   }
@@ -1535,7 +1563,7 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     try {
       await _seenStorage.load();
       // Fetch recent triage/intake patients (page 1 with limit 50)
-      final paginated = await _api.getPatientsPaginated(page: 1, limit: 50);
+      final paginated = await _api.getPatientsPaginated(limit: 50);
       var patientList = paginated.data;
 
       // If a specific target patient was notified but not on page 1, fetch it individually
@@ -1894,13 +1922,10 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     if (mounted) state = [...state];
     try {
       final res = await _api.getMedicalHistoryPaginated(
-        page: 1,
         limit: _limit,
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
         userId: userId,
-        sortBy: 'created_at',
-        order: 'desc',
       );
       _currentPage = res.page;
       _totalPages = res.totalPages;
@@ -1935,8 +1960,6 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
         userId: userId,
-        sortBy: 'created_at',
-        order: 'desc',
       );
       _currentPage = res.page;
       _totalPages = res.totalPages;
@@ -1994,6 +2017,41 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       return timeB.compareTo(timeA);
     });
     state = updated;
+  }
+
+  void updateHistoryStatus({
+    required String recordId,
+    String? patientId,
+    required String statusPenanganan,
+    String? diagnosis,
+    String? treatment,
+    String? notes,
+  }) {
+    final idx = state.indexWhere(
+      (h) =>
+          h.id == recordId ||
+          (patientId != null &&
+              patientId.isNotEmpty &&
+              h.patientId == patientId),
+    );
+    if (idx >= 0) {
+      final current = state[idx];
+      final updated = current.copyWith(
+        statusPenanganan: statusPenanganan,
+        diagnosis: (diagnosis != null && diagnosis.isNotEmpty)
+            ? diagnosis
+            : current.diagnosis,
+        treatment: (treatment != null && treatment.isNotEmpty)
+            ? treatment
+            : current.treatment,
+        notes: notes ?? current.notes,
+      );
+      state = [
+        ...state.sublist(0, idx),
+        updated,
+        ...state.sublist(idx + 1),
+      ];
+    }
   }
 
   @override

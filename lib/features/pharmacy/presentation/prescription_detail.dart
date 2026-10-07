@@ -232,7 +232,6 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: AppColors.yellow.withValues(alpha: 0.3),
-              width: 1.0,
             ),
             boxShadow: [
               BoxShadow(
@@ -344,9 +343,9 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
+                        const Expanded(
                           child: Row(
-                            children: const [
+                            children: [
                               Icon(
                                 LucideIcons.pill,
                                 size: 15,
@@ -431,9 +430,9 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
                             color: AppColors.green.withValues(alpha: 0.3),
                           ),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
+                          children: [
                             Icon(
                               LucideIcons.checkCircle2,
                               size: 18,

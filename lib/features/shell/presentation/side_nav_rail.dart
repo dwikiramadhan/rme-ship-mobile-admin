@@ -51,7 +51,6 @@ class SideNavRail extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: AppColors.orange.withValues(alpha: 0.22),
-                  width: 1.0,
                 ),
                 boxShadow: [
                   BoxShadow(
@@ -141,7 +140,6 @@ class _RailButton extends StatelessWidget {
                         color: active
                             ? AppColors.orange.withValues(alpha: 0.3)
                             : Colors.transparent,
-                        width: 1.0,
                       ),
                       boxShadow: active
                           ? [

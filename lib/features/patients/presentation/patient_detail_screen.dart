@@ -284,8 +284,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   void _downloadPrescription(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: const [
+        content: const Row(
+          children: [
             Icon(LucideIcons.circleCheck, color: Colors.white, size: 18),
             SizedBox(width: 8),
             Text(
@@ -472,9 +472,9 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                         ),
                       ],
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(
                           LucideIcons.arrowLeft,
                           size: 15,
@@ -545,7 +545,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                             );
                             ref
                                 .read(patientsProvider.notifier)
-                                .fetchPatients(refresh: true);
+                                .fetchPatients();
                             ref
                                 .read(medicalHistoryProvider.notifier)
                                 .fetchHistory(refresh: true);
@@ -572,9 +572,9 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                         ),
                       ],
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(
                           LucideIcons.pencil,
                           size: 13,
@@ -619,7 +619,6 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
               children: [
                 // Profil Pasien
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Avatar Oranye Bulat / Foto Pasien
                     GestureDetector(
@@ -659,6 +658,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                                     : '${ApiConfig.baseUrl}$photoUrl',
                                 width: 50,
                                 height: 50,
+                                cacheWidth: 150,
+                                cacheHeight: 150,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Text(
                                   initials,
@@ -1002,8 +1003,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
-        child: Column(
-          children: const [
+        child: const Column(
+          children: [
             Icon(LucideIcons.fileX, size: 40, color: Color(0xFFCBD5E1)),
             SizedBox(height: 12),
             Text(
@@ -1234,9 +1235,9 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                                 color: const Color(0xFFFDBA74),
                               ),
                             ),
-                            child: Row(
+                            child: const Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(
                                   LucideIcons.eye,
                                   size: 12,
@@ -1268,9 +1269,9 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                               color: const Color(0xFF0D9488),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Row(
+                            child: const Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(
                                   LucideIcons.download,
                                   size: 12,
@@ -1295,7 +1296,6 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
 
                   if (isWide) {
                     return Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(child: visitInfoWidget),
                         const SizedBox(width: 12),
@@ -1505,6 +1505,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                           : '${ApiConfig.baseUrl}$photoUrl',
                       width: 56,
                       height: 56,
+                      cacheWidth: 168,
+                      cacheHeight: 168,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: 56,
@@ -1515,10 +1517,10 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Foto Identitas Pasien',
                           style: TextStyle(

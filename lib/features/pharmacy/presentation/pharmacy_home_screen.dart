@@ -100,7 +100,6 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
                   ),
                 ],
               ),
-              duration: const Duration(seconds: 4),
             ),
           );
         }
@@ -116,21 +115,22 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allNotifs = ref.watch(notificationsProvider);
-    final notifs = allNotifs
-        .where(
+    final notifsCount = ref.watch(
+      notificationsProvider.select(
+        (all) => all.where(
           (p) =>
               p.statusPenanganan == 'Menunggu Obat' ||
               p.resepStatus == ResepStatus.baru,
-        )
-        .toList();
+        ).length,
+      ),
+    );
 
     final tabs = [
       ShellNavItem(
         key: 'notifikasi',
         label: 'Notifikasi',
         icon: LucideIcons.bell,
-        badgeCount: notifs.length,
+        badgeCount: notifsCount,
       ),
       const ShellNavItem(
         key: 'resep',
@@ -360,8 +360,8 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 12,
+              fontWeight: FontWeight.normal,
               color: selected ? color : AppColors.text,
             ),
           ),

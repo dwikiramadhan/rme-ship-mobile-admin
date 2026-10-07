@@ -32,7 +32,6 @@ void main() {
         assignedDokterId: '',
         waktuMasuk: '05/09/2026 22:39',
         updatedAt: DateTime.now(),
-        status: PatientStatus.menungguDokter,
         registerNo: 'RJ30082026-00001',
         phone: '081234567890',
         poliName: 'Poli Umum',
@@ -70,9 +69,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            patientsProvider.overrideWith(
-              (ref) => _FakePatientsNotifier([]),
-            ),
+            patientsProvider.overrideWith((ref) => _FakePatientsNotifier([])),
           ],
           child: MaterialApp(
             home: Scaffold(

@@ -86,7 +86,6 @@ class AppTheme {
     // the seed so the scheme stays M3-consistent.
     final colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.blue,
-      brightness: Brightness.light,
       primary: AppColors.blue,
       onPrimary: Colors.white,
       primaryContainer: AppColors.blueLt,
@@ -202,11 +201,11 @@ class AppTheme {
         contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.border, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -214,7 +213,7 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: AppColors.red, width: 1.0),
+          borderSide: const BorderSide(color: AppColors.red),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),

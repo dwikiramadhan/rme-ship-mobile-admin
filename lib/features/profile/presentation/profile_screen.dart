@@ -76,8 +76,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: const [
+        title: const Row(
+          children: [
             Icon(LucideIcons.logOut, color: AppColors.red, size: 20),
             SizedBox(width: 10),
             Text(
@@ -247,10 +247,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(width: 13),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Ubah Kata Sandi',
                           style: TextStyle(
@@ -434,9 +434,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
             ),
-            child: Row(
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(LucideIcons.logOut, size: 18, color: AppColors.red),
                 SizedBox(width: 8),
                 Text(
@@ -883,9 +883,9 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Column(
+                    const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Ubah Kata Sandi',
                           style: TextStyle(

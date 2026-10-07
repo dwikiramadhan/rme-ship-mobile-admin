@@ -110,7 +110,6 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                   : null,
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(width: 11),
                 Icon(
@@ -125,7 +124,6 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                     controller: _searchController,
                     textAlignVertical: TextAlignVertical.center,
                     onChanged: (val) {
-                      setState(() {});
                       _searchDebounce?.cancel();
                       _searchDebounce = Timer(
                         const Duration(milliseconds: 350),
@@ -154,29 +152,32 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                     ),
                   ),
                 ),
-                if (_searchController.text.isNotEmpty) ...[
-                  GestureDetector(
-                    onTap: () {
-                      _searchController.clear();
-                      setState(() {});
-                      notifier.searchPatients('');
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: AppColors.sub.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _searchController,
+                  builder: (context, value, _) {
+                    if (value.text.isEmpty) return const SizedBox.shrink();
+                    return GestureDetector(
+                      onTap: () {
+                        _searchController.clear();
+                        notifier.searchPatients('');
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: AppColors.sub.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          LucideIcons.x,
+                          size: 12,
+                          color: AppColors.sub,
+                        ),
                       ),
-                      child: const Icon(
-                        LucideIcons.x,
-                        size: 12,
-                        color: AppColors.sub,
-                      ),
-                    ),
-                  ),
-                ],
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -189,7 +190,6 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
             backgroundColor: AppColors.card,
             onRefresh: () async {
               await notifier.fetchPatients(
-                refresh: true,
                 search: _searchController.text.trim().isNotEmpty
                     ? _searchController.text.trim()
                     : null,
@@ -205,12 +205,12 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                         constraints: BoxConstraints(
                           minHeight: constraints.maxHeight,
                         ),
-                        child: Center(
+                        child: const Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(32.0),
+                            padding: EdgeInsets.all(32.0),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(
                                   LucideIcons.users,
                                   size: 40,
@@ -328,9 +328,9 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                             return Container(
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               alignment: Alignment.center,
-                              child: Row(
+                              child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   SizedBox(
                                     width: 14,
                                     height: 14,
@@ -432,6 +432,8 @@ class _PatientCard extends StatelessWidget {
                                 : '${ApiConfig.baseUrl}${patient.photoUrl}',
                             width: 38,
                             height: 38,
+                            cacheWidth: 114,
+                            cacheHeight: 114,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Text(
                               initial,

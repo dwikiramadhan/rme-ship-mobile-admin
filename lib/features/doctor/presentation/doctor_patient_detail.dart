@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'dart:async';
 
+import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
@@ -221,7 +222,7 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
         _isEditing = false;
       });
       ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
-      ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+      ref.read(patientsProvider.notifier).fetchPatients();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Diagnosa & resep berhasil disimpan ke rekam medis!'),
@@ -381,10 +382,8 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [const Color(0xFFEFF6FF), AppColors.card2],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+            gradient: const LinearGradient(
+              colors: [Color(0xFFEFF6FF), AppColors.card2],
             ),
             borderRadius: BorderRadius.circular(10),
             border: const Border(
@@ -412,10 +411,8 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [const Color(0xFFF0FDFA), AppColors.card2],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF0FDFA), AppColors.card2],
             ),
             borderRadius: BorderRadius.circular(10),
             border: const Border(
@@ -643,37 +640,89 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (p.labOrder!.hasil?.fileName != null) ...[
+                  if (p.labOrder!.hasil?.fileName != null &&
+                      p.labOrder!.hasil!.fileName!.trim().isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            LucideIcons.paperclip,
-                            size: 12,
-                            color: AppColors.sub,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            p.labOrder!.hasil!.fileName!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.text,
-                              fontWeight: FontWeight.w600,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.card,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  LucideIcons.paperclip,
+                                  size: 13,
+                                  color: AppColors.sub,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    p.labOrder!.hasil!.fileName!,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.text,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            final rawUrl = p.labOrder!.hasil!.fileName!.trim();
+                            final fullUrl = rawUrl.startsWith('http')
+                                ? rawUrl
+                                : (rawUrl.startsWith('/')
+                                    ? '${ApiConfig.baseUrl}$rawUrl'
+                                    : '${ApiConfig.baseUrl}/$rawUrl');
+                            _showLabDocument(
+                              context,
+                              fullUrl,
+                              'Dokumen Hasil Lab',
+                            );
+                          },
+                          icon: const Icon(
+                            LucideIcons.eye,
+                            size: 13,
+                          ),
+                          label: const Text(
+                            'Lihat Dokumen',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0284C7),
+                            side: const BorderSide(
+                              color: Color(0xFFBAE6FD),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 6,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ],
@@ -802,9 +851,9 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Column(
+                    const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'INPUT DIAGNOSA & RESEP',
                           style: TextStyle(
@@ -838,9 +887,9 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                       color: AppColors.red.withValues(alpha: 0.3),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(
                         LucideIcons.alertCircle,
                         size: 12,
@@ -872,7 +921,6 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                   label: 'Diagnosa Klinis (ICD-10 / Nama Penyakit)',
                   required: true,
                   selectedItems: _diagnosaList,
-                  hint: 'Pilih atau cari diagnosa ICD-10...',
                   onChanged: (items) {
                     setState(() {
                       _diagnosaList
@@ -886,7 +934,6 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 // 2. Tindakan Medis (ICD-9-CM Dropdown / Multi Search)
                 Icd9MultiSearchPicker(
                   label: 'Tindakan Medis (ICD-9-CM / Prosedur)',
-                  required: false,
                   selectedItems: _tindakanList,
                   hint: 'Pilih atau cari tindakan ICD-9-CM (opsional)...',
                   onChanged: (items) {
@@ -908,8 +955,8 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 const SizedBox(height: 18),
 
                 // 3. Lab Referral Section
-                Row(
-                  children: const [
+                const Row(
+                  children: [
                     Icon(
                       LucideIcons.flaskConical,
                       size: 15,
@@ -989,15 +1036,15 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
+                    const Row(
                       children: [
-                        const Icon(
+                        Icon(
                           LucideIcons.pill,
                           size: 15,
                           color: AppColors.blue,
                         ),
                         SizedBox(width: 6),
-                        const Text(
+                        Text(
                           'Resep Obat Pasien',
                           style: TextStyle(
                             fontSize: 13,
@@ -1005,7 +1052,7 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                             color: AppColors.text,
                           ),
                         ),
-                        const Text(
+                        Text(
                           ' *',
                           style: TextStyle(
                             color: AppColors.red,
@@ -1051,12 +1098,11 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                       borderRadius: BorderRadius.circular(7),
                       border: Border.all(
                         color: AppColors.blue.withValues(alpha: 0.3),
-                        style: BorderStyle.solid,
                       ),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
+                      children: [
                         Icon(
                           LucideIcons.plusCircle,
                           size: 15,
@@ -1192,14 +1238,14 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                     final removed = _resep.removeAt(index);
                     removed.dispose();
                   }),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(
                       horizontal: 4,
                       vertical: 2,
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(
                           LucideIcons.trash2,
                           size: 12,
@@ -1268,7 +1314,6 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
 
           // Dosis & Aturan Pakai in one row (Centered)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Dosis Dropdown
               Expanded(
@@ -1412,6 +1457,212 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
       ),
     );
   }
+
+  void _showLabDocument(BuildContext context, String fileUrl, String title) {
+    final lower = fileUrl.toLowerCase();
+    final isPdf = lower.endsWith('.pdf');
+    final fileName = fileUrl.split('/').last.split('?').first;
+    final url = fileUrl;
+
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) {
+        return Dialog(
+          insetPadding: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 520,
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.82,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 10, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F2FE),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          isPdf ? LucideIcons.fileText : LucideIcons.image,
+                          size: 16,
+                          color: const Color(0xFF0284C7),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                              ),
+                            ),
+                            Text(
+                              fileName,
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                color: AppColors.sub,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(LucideIcons.x, size: 18),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                Flexible(
+                  child: isPdf
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                          color: const Color(0xFFF8FAFC),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 68,
+                                  height: 68,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFEE2E2),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: const Icon(
+                                    LucideIcons.fileText,
+                                    size: 36,
+                                    color: Color(0xFFDC2626),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  fileName,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.text,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Dokumen Hasil Pemeriksaan Laboratorium (PDF)',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.sub,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 14),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF1F5F9),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    url,
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      color: AppColors.sub,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Container(
+                          color: Colors.black,
+                          child: InteractiveViewer(
+                            clipBehavior: Clip.none,
+                            child: Center(
+                              child: Image.network(
+                                url,
+                                fit: BoxFit.contain,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Center(
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  );
+                                },
+                                errorBuilder: (context, error, stackTrace) => Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(LucideIcons.imageOff, size: 40, color: Colors.white70),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'Gagal memuat gambar',
+                                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        url,
+                                        style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+                const Divider(height: 1, color: AppColors.border),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      OutlinedButton.icon(
+                        icon: const Icon(LucideIcons.externalLink, size: 14),
+                        label: const Text('Buka URL Asli', style: TextStyle(fontSize: 12)),
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Tautan dokumen: $url'),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Tutup', style: TextStyle(fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// Material UI Searchable Modal for Medicine selection with Infinite Scroll (Load Scroll)
@@ -1510,7 +1761,6 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
       final res = await api.fetchMedicines(
         query: query,
         page: page,
-        limit: 10,
       );
 
       if (!mounted) return;
@@ -1685,7 +1935,7 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
                     GestureDetector(
                       onTap: () {
                         _searchController.clear();
-                        _fetchPage(1, query: '', reset: true);
+                        _fetchPage(1, reset: true);
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -2047,7 +2297,6 @@ class _DiagnosaSingleItem extends ConsumerWidget {
   Widget _buildRow(String code, String name) {
     final hasCode = code.isNotEmpty;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (tag != null) ...[
           Container(
@@ -2205,7 +2454,6 @@ class _TindakanSingleItem extends ConsumerWidget {
   Widget _buildRow(String code, String name) {
     final hasCode = code.isNotEmpty;
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         if (indexStr != null) ...[
           Container(
@@ -2260,4 +2508,6 @@ class _TindakanSingleItem extends ConsumerWidget {
       ],
     );
   }
+
+
 }

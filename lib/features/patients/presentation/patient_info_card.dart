@@ -53,7 +53,6 @@ class PatientInfoCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: AppColors.orange.withValues(alpha: 0.25),
-                          width: 1.0,
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -71,6 +70,8 @@ class PatientInfoCard extends StatelessWidget {
                                   : '${ApiConfig.baseUrl}${patient.photoUrl}',
                               width: 48,
                               height: 48,
+                              cacheWidth: 144,
+                              cacheHeight: 144,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Text(
                                 cleanNama.isNotEmpty ? cleanNama[0] : '?',
@@ -113,14 +114,14 @@ class PatientInfoCard extends StatelessWidget {
                                   child: InkWell(
                                     onTap: onEdit,
                                     borderRadius: BorderRadius.circular(6),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(
                                         horizontal: 4,
                                         vertical: 2,
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
-                                        children: const [
+                                        children: [
                                           Icon(
                                             LucideIcons.edit2,
                                             size: 13,
@@ -187,6 +188,9 @@ class PatientInfoCard extends StatelessWidget {
                 ),
                 decoration: const BoxDecoration(
                   color: AppColors.card2,
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(14),
+                  ),
                   border: Border(
                     top: BorderSide(color: AppColors.border, width: 0.8),
                   ),
@@ -265,8 +269,6 @@ class PatientInfoCard extends StatelessWidget {
                         AppColors.orangeLt.withValues(alpha: 0.6),
                         AppColors.card2,
                       ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
                     ),
                     borderRadius: BorderRadius.circular(10),
                     border: const Border(

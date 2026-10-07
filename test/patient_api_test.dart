@@ -23,8 +23,8 @@ void main() {
             'diagnosis': 'Febris',
             'treatment': 'Paracetamol 500mg',
             'notes': '3x1 sesudah makan',
-          }
-        ]
+          },
+        ],
       };
 
       final patient = Patient.fromApiJson(json);
@@ -49,7 +49,7 @@ void main() {
         'dob': '1980-01-01',
         'address': 'Semarang',
         'status': 'Stable',
-        'medical_records': []
+        'medical_records': [],
       };
 
       final patient = Patient.fromApiJson(json);
@@ -74,69 +74,83 @@ void main() {
       expect(patient.statusPenanganan, equals('Menunggu Obat'));
     });
 
-    test('parses master patient fields: register_no, phone, poliklinik, service_ship, last_visit', () {
-      final json = {
-        'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
-        'register_no': 'RJ30082026-00001',
-        'nik': '3173051208950007',
-        'name': 'Pierre Gasly',
-        'dob': '1995-08-17T00:00:00Z',
-        'gender': 'Laki-laki',
-        'blood_type': 'O+',
-        'phone': '081234567890',
-        'address': 'Jl. Pelabuhan No. 12, RT 01 / RW 02',
-        'status': 'Active',
-        'service_ship_code': 'RSK-BYNP-LD1',
-        'service_ship': {
-          'id': '3a7ff982-e187-49f8-a34e-95f775afda61',
-          'code': 'RSK-BYNP-LD1',
-          'name': 'RSK dr. Lie Dharmawan Bayan Peduli I',
-        },
-        'poli_code': 'UMUM',
-        'poliklinik': {
-          'id': '50ef5a36-85b1-4be4-8ed7-d6fe0bbc7251',
-          'code': 'UMUM',
-          'name': 'Poli Umum',
-        },
-        'last_visit': '2026-09-05T00:00:00Z',
-      };
+    test(
+      'parses master patient fields: register_no, phone, poliklinik, service_ship, last_visit',
+      () {
+        final json = {
+          'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
+          'register_no': 'RJ30082026-00001',
+          'nik': '3173051208950007',
+          'name': 'Pierre Gasly',
+          'dob': '1995-08-17T00:00:00Z',
+          'gender': 'Laki-laki',
+          'blood_type': 'O+',
+          'phone': '081234567890',
+          'address': 'Jl. Pelabuhan No. 12, RT 01 / RW 02',
+          'status': 'Active',
+          'service_ship_code': 'RSK-BYNP-LD1',
+          'service_ship': {
+            'id': '3a7ff982-e187-49f8-a34e-95f775afda61',
+            'code': 'RSK-BYNP-LD1',
+            'name': 'RSK dr. Lie Dharmawan Bayan Peduli I',
+          },
+          'poli_code': 'UMUM',
+          'poliklinik': {
+            'id': '50ef5a36-85b1-4be4-8ed7-d6fe0bbc7251',
+            'code': 'UMUM',
+            'name': 'Poli Umum',
+          },
+          'last_visit': '2026-09-05T00:00:00Z',
+        };
 
-      final patient = Patient.fromApiJson(json);
-      expect(patient.id, equals('03872b15-c38d-4aa5-a007-e6a59b9b2241'));
-      expect(patient.registerNo, equals('RJ30082026-00001'));
-      expect(patient.phone, equals('081234567890'));
-      expect(patient.poliName, equals('Poli Umum'));
-      expect(patient.serviceShipName, equals('RSK dr. Lie Dharmawan Bayan Peduli I'));
-      expect(patient.dbStatus, equals('Active'));
-      expect(patient.lastVisit, equals('2026-09-05T00:00:00Z'));
-    });
+        final patient = Patient.fromApiJson(json);
+        expect(patient.id, equals('03872b15-c38d-4aa5-a007-e6a59b9b2241'));
+        expect(patient.registerNo, equals('RJ30082026-00001'));
+        expect(patient.phone, equals('081234567890'));
+        expect(patient.poliName, equals('Poli Umum'));
+        expect(
+          patient.serviceShipName,
+          equals('RSK dr. Lie Dharmawan Bayan Peduli I'),
+        );
+        expect(patient.dbStatus, equals('Active'));
+        expect(patient.lastVisit, equals('2026-09-05T00:00:00Z'));
+      },
+    );
 
-    test('toCreatePatientJson includes service_ship_code if provided or present on Patient', () {
-      final patient = Patient.fromApiJson({
-        'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
-        'name': 'Pierre Gasly',
-        'service_ship_code': 'RSK-BYNP-LD1',
-      });
+    test(
+      'toCreatePatientJson includes service_ship_code if provided or present on Patient',
+      () {
+        final patient = Patient.fromApiJson(const {
+          'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
+          'name': 'Pierre Gasly',
+          'service_ship_code': 'RSK-BYNP-LD1',
+        });
 
-      final json1 = patient.toCreatePatientJson();
-      expect(json1['service_ship_code'], equals('RSK-BYNP-LD1'));
+        final json1 = patient.toCreatePatientJson();
+        expect(json1['service_ship_code'], equals('RSK-BYNP-LD1'));
 
-      final json2 = patient.toCreatePatientJson(serviceShipCode: 'KPL-002');
-      expect(json2['service_ship_code'], equals('KPL-002'));
-    });
+        final json2 = patient.toCreatePatientJson(serviceShipCode: 'KPL-002');
+        expect(json2['service_ship_code'], equals('KPL-002'));
+      },
+    );
 
-    test('toCreatePatientJson sets nik to null if patient nik is empty or not provided', () {
-      final patientWithoutNik = Patient.fromApiJson({
-        'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
-        'name': 'Pierre Gasly',
-      });
+    test(
+      'toCreatePatientJson sets nik to null if patient nik is empty or not provided',
+      () {
+        final patientWithoutNik = Patient.fromApiJson(const {
+          'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
+          'name': 'Pierre Gasly',
+        });
 
-      final json = patientWithoutNik.toCreatePatientJson();
-      expect(json['nik'], isNull);
+        final json = patientWithoutNik.toCreatePatientJson();
+        expect(json['nik'], isNull);
 
-      final jsonWithNik = patientWithoutNik.toCreatePatientJson(nik: '3171012304950001');
-      expect(jsonWithNik['nik'], equals('3171012304950001'));
-    });
+        final jsonWithNik = patientWithoutNik.toCreatePatientJson(
+          nik: '3171012304950001',
+        );
+        expect(jsonWithNik['nik'], equals('3171012304950001'));
+      },
+    );
   });
 
   group('userRoleFromApiValue', () {

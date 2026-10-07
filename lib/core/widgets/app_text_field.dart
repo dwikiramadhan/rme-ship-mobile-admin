@@ -63,8 +63,16 @@ class AppTextField extends StatelessWidget {
           maxLines: obscureText ? 1 : maxLines,
           validator: validator,
           autovalidateMode: autovalidateMode,
-          inputFormatters: numbersOnly ? [FilteringTextInputFormatter.digitsOnly] : null,
-          style: style ?? TextStyle(fontSize: fontSize ?? 14, color: AppColors.text, letterSpacing: 0),
+          inputFormatters: numbersOnly
+              ? [FilteringTextInputFormatter.digitsOnly]
+              : null,
+          style:
+              style ??
+              TextStyle(
+                fontSize: fontSize ?? 14,
+                color: AppColors.text,
+                letterSpacing: 0,
+              ),
           decoration: InputDecoration(
             hintText: placeholder,
             hintStyle: TextStyle(
@@ -98,7 +106,8 @@ class AppFieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text.rich(
       TextSpan(
-        style: style ??
+        style:
+            style ??
             TextStyle(
               fontSize: fontSize ?? 13,
               fontWeight: FontWeight.w600,
@@ -106,7 +115,11 @@ class AppFieldLabel extends StatelessWidget {
             ),
         children: [
           TextSpan(text: label),
-          if (required) const TextSpan(text: ' *', style: TextStyle(color: AppColors.red)),
+          if (required)
+            const TextSpan(
+              text: ' *',
+              style: TextStyle(color: AppColors.red),
+            ),
         ],
       ),
     );

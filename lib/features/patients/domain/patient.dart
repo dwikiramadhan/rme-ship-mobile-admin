@@ -465,7 +465,6 @@ class Patient extends Equatable {
           id: raw['id']?.toString() ?? id,
           jenis: jenis.isNotEmpty ? jenis : 'Pemeriksaan Lab',
           catatan: catatan,
-          status: LabOrderStatus.baru,
         );
       }
 
@@ -586,11 +585,70 @@ class Patient extends Equatable {
       resepStatus = ResepStatus.baru;
     }
 
+    final rawLabData = json['lab_examination'] ??
+        json['lab_examinations'] ??
+        activeRecord?['lab_examination'] ??
+        activeRecord?['lab_examinations'] ??
+        json['lab_order'] ??
+        activeRecord?['lab_order'];
+    if (rawLabData != null) {
+      Map<String, dynamic>? labMap;
+      if (rawLabData is Map) {
+        labMap = Map<String, dynamic>.from(rawLabData);
+      } else if (rawLabData is List && rawLabData.isNotEmpty) {
+        final first = rawLabData.first;
+        if (first is Map) {
+          labMap = Map<String, dynamic>.from(first);
+        }
+      }
+      if (labMap != null) {
+        final List<LabExaminationItem> items = [];
+        if (labMap['items'] is List) {
+          for (final it in labMap['items']) {
+            if (it is Map) {
+              items.add(
+                LabExaminationItem.fromJson(Map<String, dynamic>.from(it)),
+              );
+            }
+          }
+        }
+        final notes = (labMap['notes'] ?? labMap['catatan'] ?? '').toString();
+        final rawFile = (labMap['attachment_url'] ??
+                labMap['file_name'] ??
+                labMap['file_url'] ??
+                labMap['file_path'] ??
+                labMap['fileName'] ??
+                labMap['filePath'] ??
+                labMap['url'])
+            ?.toString();
+        final fileName = (rawFile != null && rawFile.trim().isNotEmpty)
+            ? rawFile.trim()
+            : null;
+        final code = labMap['code']?.toString();
+        final jenis = code != null && code.isNotEmpty
+            ? 'Pemeriksaan Lab ($code)'
+            : (labMap['jenis']?.toString() ??
+                labOrder?.jenis ??
+                'Pemeriksaan Laboratorium');
+
+        labOrder = LabOrder(
+          id: labMap['id']?.toString() ?? medicalRecordId ?? id,
+          jenis: jenis,
+          catatan: notes.isNotEmpty ? notes : (labOrder?.catatan ?? ''),
+          status: LabOrderStatus.selesai,
+          hasil: LabHasil(
+            catatanHasil: notes,
+            fileName: fileName,
+            items: items,
+          ),
+        );
+      }
+    }
+
     if (normStatusPenanganan == 'menunggu lab' && labOrder == null) {
       labOrder = LabOrder(
         id: medicalRecordId ?? id,
         jenis: 'Pemeriksaan Lab',
-        status: LabOrderStatus.baru,
       );
     } else if (normStatusPenanganan == 'dalam pemeriksaan lab' &&
         labOrder == null) {

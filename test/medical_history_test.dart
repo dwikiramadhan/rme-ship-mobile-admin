@@ -36,7 +36,7 @@ void main() {
         "status": "Active",
         "last_visit": "2026-09-05T00:00:00Z",
         "created_at": "2026-09-05T22:39:04.796895+07:00",
-        "updated_at": "2026-09-05T22:39:05.130894+07:00"
+        "updated_at": "2026-09-05T22:39:05.130894+07:00",
       },
       "doctor_id": "0f3a4534-3385-4305-8932-7154dd8cb35f",
       "doctor": {
@@ -54,7 +54,7 @@ void main() {
         "status": "Aktif",
         "availability": "On Duty",
         "created_at": "2026-08-28T10:59:31.939683+07:00",
-        "updated_at": "2026-09-01T13:15:25.52967+07:00"
+        "updated_at": "2026-09-01T13:15:25.52967+07:00",
       },
       "ship_id": "07330d58-6146-4e33-b68e-278d581e2089",
       "ship": {
@@ -68,7 +68,7 @@ void main() {
         "flag": "",
         "status": "Aktif",
         "created_at": "2026-07-17T14:44:23.564862+07:00",
-        "updated_at": "2026-07-17T14:44:23.564862+07:00"
+        "updated_at": "2026-07-17T14:44:23.564862+07:00",
       },
       "port_id": "f7d71b54-4c2c-4b10-a601-b82a604c7315",
       "port": {
@@ -86,7 +86,7 @@ void main() {
         "latitude": "-6.1045642",
         "longitude": "106.8805674",
         "created_at": "2026-04-22T13:19:14.204854+07:00",
-        "updated_at": "2026-08-16T00:46:31.457922+07:00"
+        "updated_at": "2026-08-16T00:46:31.457922+07:00",
       },
       "poli_code": "UMUM",
       "poliklinik": {
@@ -96,7 +96,7 @@ void main() {
         "description": "Pelayanan pemeriksaan umum untuk seluruh keluhan awal.",
         "status": "Aktif",
         "created_at": "2026-08-04T12:53:35.308262+07:00",
-        "updated_at": "2026-08-04T12:53:35.308262+07:00"
+        "updated_at": "2026-08-04T12:53:35.308262+07:00",
       },
       "date": "2026-09-05T00:00:00Z",
       "complaint": "Demam dan sakit kepala",
@@ -115,7 +115,7 @@ void main() {
       "respiratory_rate": 18,
       "oxygen_saturation": 98,
       "created_at": "2026-09-05T22:39:05.10637+07:00",
-      "updated_at": "2026-09-05T22:39:05.10637+07:00"
+      "updated_at": "2026-09-05T22:39:05.10637+07:00",
     };
 
     test('parses exact response from backend correctly with vital signs', () {
@@ -127,7 +127,10 @@ void main() {
       expect(history.patientName, equals("Pierre Gasly"));
       expect(history.patientNik, equals("3173051208950007"));
       expect(history.doctorName, equals("dr. Andika Pratama"));
-      expect(history.doctorSip, equals("7/B.15a/31.73.08.1002.19.BJ/4/TM.09.74/e/2025"));
+      expect(
+        history.doctorSip,
+        equals("7/B.15a/31.73.08.1002.19.BJ/4/TM.09.74/e/2025"),
+      );
       expect(history.shipName, equals("RSK dr. Lie Dharmawan III"));
       expect(history.portName, equals("Pelabuhan Tanjung Priok"));
       expect(history.poliCode, equals("UMUM"));
@@ -189,52 +192,61 @@ void main() {
       final history = MedicalHistory.fromApiJson(json);
       final patient = history.toPatient();
 
-      expect(patient.diagnosa, equals("Cholera due to Vibrio cholerae 01 (A00)"));
+      expect(
+        patient.diagnosa,
+        equals("Cholera due to Vibrio cholerae 01 (A00)"),
+      );
       expect(patient.tindakan, equals("Therapeutic ultrasound (00.0)"));
     });
   });
 
-  testWidgets('MedicalHistoryDetailView renders diagnosis and treatment names', (tester) async {
-    final history = MedicalHistory(
-      id: '1',
-      code: 'RJ001',
-      patientId: 'p1',
-      patientName: 'Pierre Gasly',
-      diagnosis: 'A00, A00.9',
-      diagnosisDetail: 'Cholera (A00), Cholera unspecified (A00.9)',
-      treatment: '00.0',
-      tindakanDetail: 'Therapeutic ultrasound (00.0)',
-      statusPenanganan: 'Selesai',
-    );
+  testWidgets(
+    'MedicalHistoryDetailView renders diagnosis and treatment names',
+    (tester) async {
+      const history = MedicalHistory(
+        id: '1',
+        code: 'RJ001',
+        patientId: 'p1',
+        patientName: 'Pierre Gasly',
+        diagnosis: 'A00, A00.9',
+        diagnosisDetail: 'Cholera (A00), Cholera unspecified (A00.9)',
+        treatment: '00.0',
+        tindakanDetail: 'Therapeutic ultrasound (00.0)',
+        statusPenanganan: 'Selesai',
+      );
 
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: MedicalHistoryDetailView(
-                history: history,
+      await tester.pumpWidget(
+        const ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: MedicalHistoryDetailView(history: history),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    // Verify Diagnosa box shows full name and not just code
-    expect(find.text('Cholera (A00), Cholera unspecified (A00.9)'), findsOneWidget);
-    // Verify Tindakan box shows full name and not just code
-    expect(find.text('Therapeutic ultrasound (00.0)'), findsOneWidget);
+      // Verify Diagnosa box shows full name and not just code
+      expect(
+        find.text('Cholera (A00), Cholera unspecified (A00.9)'),
+        findsOneWidget,
+      );
+      // Verify Tindakan box shows full name and not just code
+      expect(find.text('Therapeutic ultrasound (00.0)'), findsOneWidget);
 
-    // Verify 'Ubah Pemeriksaan' is removed
-    expect(find.text('Ubah Pemeriksaan / Diagnosa Dokter'), findsNothing);
-    // Verify Selesai banner is rendered
-    expect(find.textContaining('Status Pelayanan Selesai'), findsOneWidget);
-  });
+      // Verify 'Ubah Pemeriksaan' is removed
+      expect(find.text('Ubah Pemeriksaan / Diagnosa Dokter'), findsNothing);
+      // Verify Selesai banner is rendered
+      expect(find.textContaining('Status Pelayanan Selesai'), findsOneWidget);
+    },
+  );
 
-  testWidgets('MedicalHistoryDetailView renders Menunggu Lab banner', (tester) async {
-    final history = MedicalHistory(
+  testWidgets('MedicalHistoryDetailView renders Menunggu Lab banner', (
+    tester,
+  ) async {
+    const history = MedicalHistory(
       id: '2',
       code: 'RJ002',
       patientId: 'p2',
@@ -245,13 +257,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: SingleChildScrollView(
-              child: MedicalHistoryDetailView(
-                history: history,
-              ),
+              child: MedicalHistoryDetailView(history: history),
             ),
           ),
         ),
@@ -260,33 +270,159 @@ void main() {
     await tester.pump();
 
     expect(find.text('Ubah Pemeriksaan / Diagnosa Dokter'), findsNothing);
-    expect(find.textContaining('hasil laboratorium selesai diproses'), findsOneWidget);
+    expect(
+      find.textContaining('hasil laboratorium selesai diproses'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('HeaderActionButton renders with Tambah Kunjungan tooltip and triggers onPressed', (tester) async {
-    bool pressed = false;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: HeaderActionButton(
-            icon: LucideIcons.plus,
-            tooltip: 'Tambah Kunjungan',
-            onPressed: () => pressed = true,
+  testWidgets(
+    'HeaderActionButton renders with Tambah Kunjungan tooltip and triggers onPressed',
+    (tester) async {
+      bool pressed = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: HeaderActionButton(
+              icon: LucideIcons.plus,
+              tooltip: 'Tambah Kunjungan',
+              onPressed: () => pressed = true,
+            ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.byType(HeaderActionButton), findsOneWidget);
-    expect(find.byIcon(LucideIcons.plus), findsOneWidget);
+      expect(find.byType(HeaderActionButton), findsOneWidget);
+      expect(find.byIcon(LucideIcons.plus), findsOneWidget);
 
-    // Verify tooltip
-    final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
-    expect(tooltip.message, equals('Tambah Kunjungan'));
+      // Verify tooltip
+      final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+      expect(tooltip.message, equals('Tambah Kunjungan'));
 
-    await tester.tap(find.byType(HeaderActionButton));
-    await tester.pump();
-    expect(pressed, isTrue);
-  });
+      await tester.tap(find.byType(HeaderActionButton));
+      await tester.pump();
+      expect(pressed, isTrue);
+    },
+  );
+
+  testWidgets(
+    'MedicalHistoryDetailView renders Lihat Dokumen button when Pemeriksaan Lab has attachment_url',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final history = MedicalHistory.fromApiJson({
+        'id': 'hist-lab-doc-1',
+        'code': 'RM-LAB-01',
+        'patient_id': 'pat-1',
+        'patient_name': 'Budi Lab',
+        'status_penanganan': 'Selesai',
+        'lab_examination': {
+          'id': 'lab-exam-1',
+          'attachment_url': '/uploads/hasil_lab_budi.pdf',
+          'items': [
+            {
+              'test_name': 'Darah Lengkap',
+              'test_category': 'Hematologi',
+              'unit': 'g/dL',
+              'reference_range': '12 - 16',
+              'notes': '14',
+            }
+          ],
+        },
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: MedicalHistoryDetailView(
+                  history: history,
+                  canExamine: false,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lampiran Hasil Lab'), findsOneWidget);
+      final btn = find.text('Lihat Dokumen');
+      expect(btn, findsOneWidget);
+
+      // Ensure visible and tap Lihat Dokumen opens document preview dialog
+      await tester.ensureVisible(btn);
+      await tester.pumpAndSettle();
+      await tester.tap(btn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dokumen Hasil Lab'), findsOneWidget);
+      expect(find.text('hasil_lab_budi.pdf'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'MedicalHistoryDetailView displays Lihat Dokumen for doctor with plural lab_examinations',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final history = MedicalHistory.fromApiJson({
+        'id': 'hist-doc-1',
+        'code': 'RJ-DOC-001',
+        'patient_id': 'p-doc-1',
+        'patient_name': 'Pasien Dokter Lab',
+        'status_penanganan': 'Diperiksa',
+        'lab_examinations': [
+          {
+            'id': 'lab-exam-plural-1',
+            'code': 'LAB-PLURAL-001',
+            'attachment_url': '/documents/lab_result_doctor.pdf',
+            'items': [
+              {
+                'test_name': 'Kolesterol Total',
+                'test_category': 'Kimia Darah',
+                'unit': 'mg/dL',
+                'reference_range': '< 200',
+                'notes': '210',
+              }
+            ],
+          }
+        ],
+      });
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: MedicalHistoryDetailView(
+                  history: history,
+                  canExamine: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lampiran Hasil Lab'), findsOneWidget);
+      final btn = find.text('Lihat Dokumen');
+      expect(btn, findsOneWidget);
+
+      await tester.ensureVisible(btn);
+      await tester.pumpAndSettle();
+      await tester.tap(btn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Dokumen Hasil Lab'), findsOneWidget);
+      expect(find.text('lab_result_doctor.pdf'), findsWidgets);
+    },
+  );
 }
-

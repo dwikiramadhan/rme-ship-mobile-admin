@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
+import '../../../core/widgets/status_filter_button.dart';
 import '../../notifications/presentation/notifications_view.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/lab_order.dart';
@@ -29,6 +30,7 @@ class LabHomeScreen extends ConsumerStatefulWidget {
 class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   String _tab = 'notifikasi';
   String? _selectedLabId;
+  String _statusFilter = 'Menunggu Lab';
   StreamSubscription? _wsSub;
 
   @override
@@ -61,12 +63,18 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allNotifs = ref.watch(notificationsProvider);
-    final notifs = allNotifs
-        .where((p) =>
-            p.statusPenanganan == 'Menunggu Lab' ||
-            (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru))
-        .toList();
+    final notifsCount = ref.watch(
+      notificationsProvider.select(
+        (all) => all
+            .where(
+              (p) =>
+                  p.statusPenanganan == 'Menunggu Lab' ||
+                  (p.labOrder != null &&
+                      p.labOrder!.status == LabOrderStatus.baru),
+            )
+            .length,
+      ),
+    );
     final labHistories = ref.watch(labOrderHistoryProvider);
 
     final tabs = [
@@ -74,7 +82,7 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
         key: 'notifikasi',
         label: 'Notifikasi',
         icon: LucideIcons.bell,
-        badgeCount: notifs.length,
+        badgeCount: notifsCount,
       ),
       ShellNavItem(
         key: 'order',
@@ -91,19 +99,19 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
 
     final Widget content = switch (_tab) {
       'notifikasi' => NotificationsView(
-          role: NotificationRole.lab,
-          onTapItem: (context, p, _) {
-            ref.read(notificationsProvider.notifier).markLabSeen(p.id);
-            ref.read(patientsProvider.notifier).markDilihatLab(p.id);
-            final medHist = p.toMedicalHistory();
-            ref.read(labOrderHistoryProvider.notifier).upsertHistory(medHist);
-            ref.read(patientsProvider.notifier).upsertPatient(p);
-            setState(() {
-              _tab = 'order';
-              _selectedLabId = medHist.id;
-            });
-          },
-        ),
+        role: NotificationRole.lab,
+        onTapItem: (context, p, _) {
+          ref.read(notificationsProvider.notifier).markLabSeen(p.id);
+          ref.read(patientsProvider.notifier).markDilihatLab(p.id);
+          final medHist = p.toMedicalHistory();
+          ref.read(labOrderHistoryProvider.notifier).upsertHistory(medHist);
+          ref.read(patientsProvider.notifier).upsertPatient(p);
+          setState(() {
+            _tab = 'order';
+            _selectedLabId = medHist.id;
+          });
+        },
+      ),
       'order' => _buildOrder(labHistories),
       _ => ProfileScreen(name: widget.analystName, role: 'Laboratorium'),
     };
@@ -111,19 +119,35 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
     return RoleShell(
       items: tabs,
       activeKey: _tab,
-      onChange: (key) => setState(() => _tab = key),
+      onChange: (key) {
+        if (key == 'order') {
+          ref.read(labOrderHistoryProvider.notifier).fetchHistory();
+        }
+        setState(() => _tab = key);
+      },
       child: content,
     );
   }
 
   Widget _buildOrder(List<MedicalHistory> histories) {
     final notifier = ref.read(labOrderHistoryProvider.notifier);
+    final displayHistories = histories.where((m) {
+      if (_statusFilter == 'SEMUA') return true;
+      final status = (m.statusPenanganan ?? m.status ?? '').toLowerCase();
+      if (_statusFilter == 'Menunggu Lab') {
+        return status.contains('lab') ||
+            (m.notes != null && m.notes!.contains('Order Lab:'));
+      }
+      if (_statusFilter == 'Selesai') {
+        return status.contains('selesai');
+      }
+      return true;
+    }).toList();
+
     return ResponsiveMasterDetail(
       title: 'Antrian Lab',
       selectedId: _selectedLabId,
-      subtitle: notifier.total > 0
-          ? '${notifier.total} antrian lab'
-          : '${histories.length} antrian lab',
+      subtitle: '${displayHistories.length} antrian lab',
       isLoading: notifier.isLoading && histories.isEmpty,
       hasMore: notifier.hasMore,
       isLoadingMore: notifier.isLoadingMore,
@@ -131,48 +155,69 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
       onRefresh: () => notifier.fetchHistory(refresh: true),
       onSearchChanged: (q) => notifier.searchHistory(q),
       searchPlaceholder: 'Cari nama atau NIK pasien...',
+      searchTrailing: StatusFilterButton(
+        selectedValue: _statusFilter,
+        options: labStatusFilterOptions,
+        onSelected: (val) {
+          setState(() => _statusFilter = val);
+          if (val == 'SEMUA') {
+            notifier.setStatusPenanganan('Menunggu Lab,Selesai');
+          } else {
+            notifier.setStatusPenanganan(val);
+          }
+        },
+      ),
       onEntrySelected: (id) {
         setState(() => _selectedLabId = id);
-        final item = histories.where((h) => h.id == id).firstOrNull;
-        final effectivePatientId =
-            (item != null && item.patientId.isNotEmpty) ? item.patientId : id;
+        final item =
+            displayHistories.where((h) => h.id == id).firstOrNull ??
+            histories.where((h) => h.id == id).firstOrNull;
+        final effectivePatientId = (item != null && item.patientId.isNotEmpty)
+            ? item.patientId
+            : id;
         if (item != null) {
           ref.read(patientsProvider.notifier).upsertPatient(item.toPatient());
         }
         ref
+            .read(patientsProvider.notifier)
+            .fetchPatientDetail(effectivePatientId);
+        ref
             .read(notificationsProvider.notifier)
             .markLabSeen(effectivePatientId);
-        ref
-            .read(patientsProvider.notifier)
-            .markDilihatLab(effectivePatientId);
+        ref.read(patientsProvider.notifier).markDilihatLab(effectivePatientId);
       },
       entries: [
-        for (final m in histories) () {
-          final cleanTitle = CleanTextHelper.cleanName(
-            m.patientName,
-            fallback: 'Pasien',
-          );
-          final cleanCode = CleanTextHelper.cleanCode(m.code);
-          return MasterListEntry(
-            id: m.id,
-            avatarColor: AppColors.purple,
-            avatarBg: AppColors.purpleLt,
-            initial: cleanTitle.isNotEmpty
-                ? cleanTitle[0].toUpperCase()
-                : '?',
-            title: cleanTitle,
-            code: cleanCode.isNotEmpty ? cleanCode : null,
-            subtitle: _formatLabSubtitle(m),
-            badge: _labStatusBadge(m),
-          );
-        }(),
+        for (final m in displayHistories)
+          () {
+            final cleanTitle = CleanTextHelper.cleanName(
+              m.patientName,
+              fallback: 'Pasien',
+            );
+            final cleanCode = CleanTextHelper.cleanCode(m.code);
+            return MasterListEntry(
+              id: m.id,
+              avatarColor: AppColors.purple,
+              avatarBg: AppColors.purpleLt,
+              initial: cleanTitle.isNotEmpty
+                  ? cleanTitle[0].toUpperCase()
+                  : '?',
+              title: cleanTitle,
+              code: cleanCode.isNotEmpty ? cleanCode : null,
+              subtitle: _formatLabSubtitle(m),
+              badge: _labStatusBadge(m),
+            );
+          }(),
       ],
       detailBuilder: (context, id) {
-        final item = histories.where((h) => h.id == id).firstOrNull;
-        final effectivePatientId =
-            (item != null && item.patientId.isNotEmpty) ? item.patientId : id;
-        final effectiveMedRecId =
-            (item != null && item.id.isNotEmpty) ? item.id : null;
+        final item =
+            displayHistories.where((h) => h.id == id).firstOrNull ??
+            histories.where((h) => h.id == id).firstOrNull;
+        final effectivePatientId = (item != null && item.patientId.isNotEmpty)
+            ? item.patientId
+            : id;
+        final effectiveMedRecId = (item != null && item.id.isNotEmpty)
+            ? item.id
+            : null;
         return LabOrderDetail(
           patientId: effectivePatientId,
           medRecId: effectiveMedRecId,
@@ -229,14 +274,10 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
     final status = m.statusPenanganan ?? 'Menunggu Lab';
     final (label, color, bg) = switch (status.toLowerCase()) {
       'selesai' => ('Selesai', AppColors.green, AppColors.greenLt),
-      'diproses' || 'sedang diproses' => (
-          'Diproses',
-          AppColors.blue,
-          AppColors.blueLt
-        ),
+      'diproses' ||
+      'sedang diproses' => ('Diproses', AppColors.blue, AppColors.blueLt),
       _ => ('Menunggu Lab', AppColors.yellow, AppColors.yellowLt),
     };
     return AppBadge(label: label, color: color, background: bg);
   }
 }
-

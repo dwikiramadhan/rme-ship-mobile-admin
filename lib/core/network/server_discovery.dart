@@ -31,7 +31,6 @@ class ServerDiscovery {
     try {
       final interfaces = await NetworkInterface.list(
         type: InternetAddressType.IPv4,
-        includeLoopback: false,
       );
 
       final localIps = <String>[];
@@ -94,7 +93,7 @@ class ServerDiscovery {
             final batch = remainingIps.sublist(i, end);
 
             final socketResults = await Future.wait(
-              batch.map((ip) => _testSocket(ip, port, timeoutMs: 350)),
+              batch.map((ip) => _testSocket(ip, port)),
             );
 
             for (final liveIp in socketResults) {

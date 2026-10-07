@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -8,6 +10,10 @@ class ApiConfig {
 
   static const String serverUrlStorageKey = 'bayan_rme.server_url';
   static String? _customBaseUrl;
+
+  static final StreamController<String> _baseUrlChangeController =
+      StreamController<String>.broadcast();
+  static Stream<String> get onBaseUrlChanged => _baseUrlChangeController.stream;
 
   static String get defaultBaseUrl {
     const raw = String.fromEnvironment('API_BASE_URL');
@@ -34,6 +40,7 @@ class ApiConfig {
       final saved = await s.read(key: serverUrlStorageKey);
       if (saved != null && saved.trim().isNotEmpty) {
         _customBaseUrl = sanitizeUrl(saved);
+        _baseUrlChangeController.add(baseUrl);
       }
     } catch (_) {}
   }
@@ -44,6 +51,7 @@ class ApiConfig {
     } else {
       _customBaseUrl = sanitizeUrl(url);
     }
+    _baseUrlChangeController.add(baseUrl);
   }
 
   static Future<void> saveCustomBaseUrl(

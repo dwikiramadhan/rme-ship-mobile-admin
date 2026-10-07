@@ -101,9 +101,21 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     'Lainnya',
   ];
 
+  late final ValueNotifier<bool> _isFormValidNotifier;
+
+  void _updateValidState() {
+    final valid = _valid;
+    if (_isFormValidNotifier.value != valid) {
+      _isFormValidNotifier.value = valid;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _isFormValidNotifier = ValueNotifier<bool>(_valid);
+    _nama.addListener(_updateValidState);
+    _keluhanUtama.addListener(_updateValidState);
     _initData();
   }
 
@@ -143,7 +155,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       if (p.dob != null && p.dob!.isNotEmpty) {
         _dob = DateTime.tryParse(p.dob!);
       } else if (p.umur > 0) {
-        _dob = DateTime(DateTime.now().year - p.umur, 1, 1);
+        _dob = DateTime(DateTime.now().year - p.umur);
       }
     } else {
       // Default test values for quick testing
@@ -171,6 +183,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _dokterId = null;
     }
 
+    _updateValidState();
     _loadProvinsi();
   }
 
@@ -264,7 +277,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   }
 
   Future<void> _selectDob() async {
-    final initial = _dob ?? DateTime(1995, 1, 1);
+    final initial = _dob ?? DateTime(1995);
     final picked = await showDatePicker(
       context: context,
       initialDate: initial,
@@ -276,11 +289,15 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     );
     if (picked != null) {
       setState(() => _dob = picked);
+      _updateValidState();
     }
   }
 
   @override
   void dispose() {
+    _nama.removeListener(_updateValidState);
+    _keluhanUtama.removeListener(_updateValidState);
+    _isFormValidNotifier.dispose();
     for (final c in [
       _nama,
       _nik,
@@ -494,7 +511,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       setState(() => _saving = false);
 
       // Auto refresh providers so other screens/tabs are up-to-date
-      ref.read(patientsProvider.notifier).fetchPatients(refresh: true);
+      ref.read(patientsProvider.notifier).fetchPatients();
       ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -542,6 +559,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         selectedId: _dokterId,
         onSelect: (selectedDoctorId) {
           setState(() => _dokterId = selectedDoctorId);
+          _updateValidState();
           Navigator.of(modalContext).pop();
         },
       ),
@@ -559,6 +577,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         doctorList.isNotEmpty) {
       if (widget.initialPatient == null) {
         _dokterId = doctorList.first.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _updateValidState();
+        });
       }
     }
 
@@ -683,11 +704,16 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             ),
             child: SafeArea(
               top: false,
-              child: AppButton(
-                label: widget.isEdit ? 'Simpan Perubahan' : 'Simpan',
-                full: true,
-                loading: _saving,
-                onPressed: _valid && !_saving ? _save : null,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _isFormValidNotifier,
+                builder: (context, isValid, child) {
+                  return AppButton(
+                    label: widget.isEdit ? 'Simpan Perubahan' : 'Simpan',
+                    full: true,
+                    loading: _saving,
+                    onPressed: isValid && !_saving ? _save : null,
+                  );
+                },
               ),
             ),
           ),
@@ -825,7 +851,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             fontSize: 11.0,
             labelFontSize: 10.5,
             placeholder: 'Nama sesuai identitas KTP/Paspor',
-            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
 
@@ -914,7 +939,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                     AppSelectOption(value: Gender.l, label: 'Laki-laki'),
                     AppSelectOption(value: Gender.p, label: 'Perempuan'),
                   ],
-                  onChanged: (v) => setState(() => _jk = v),
+                  onChanged: (v) {
+                    setState(() => _jk = v);
+                    _updateValidState();
+                  },
                 ),
               ),
             ],
@@ -952,7 +980,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 child: AppSelect<String>(
                   label: 'Golongan Darah',
                   value: _bloodType,
-                  hint: 'Pilih...',
                   fontSize: 11.0,
                   labelFontSize: 10.5,
                   options: const [
@@ -1077,10 +1104,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Ambil Foto dari Kamera',
                           style: TextStyle(
@@ -1107,9 +1134,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                       color: AppColors.blue,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         Icon(LucideIcons.camera, size: 12, color: Colors.white),
                         SizedBox(width: 4),
                         Text(
@@ -1133,11 +1160,11 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             child: InkWell(
               onTap: _pickFromGallery,
               borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(LucideIcons.image, size: 11, color: AppColors.sub),
                     SizedBox(width: 4),
                     Text(
@@ -1181,6 +1208,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                               : '${ApiConfig.baseUrl}$_existingPhotoUrl',
                           width: 56,
                           height: 56,
+                          cacheWidth: 168,
+                          cacheHeight: 168,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Container(
                             width: 56,
@@ -1196,8 +1225,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Icon(
                             LucideIcons.checkCircle2,
                             size: 13,
@@ -1491,7 +1520,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             labelFontSize: 10.5,
             placeholder: 'Apa keluhan atau gejala yang dirasakan pasien?',
             maxLines: 2,
-            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
 
@@ -1523,8 +1551,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           const SizedBox(height: 16),
 
           // Divider with Section Subheading for Tanda Vital
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(LucideIcons.activity, size: 14, color: AppColors.blue),
               SizedBox(width: 6),
               Text(

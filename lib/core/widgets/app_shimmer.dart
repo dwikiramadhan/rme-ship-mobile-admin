@@ -185,25 +185,25 @@ class SkeletonPatientDetail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(14, 14, 14, 10),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SkeletonBox(width: 48, height: 48, borderRadius: 14),
-                        const SizedBox(width: 12),
+                        SkeletonBox(width: 48, height: 48, borderRadius: 14),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
+                            children: [
                               SkeletonBox(width: 160, height: 16, borderRadius: 4),
                               SizedBox(height: 6),
                               SkeletonBox(width: 220, height: 12, borderRadius: 4),
                             ],
                           ),
                         ),
-                        const SkeletonBox(width: 54, height: 26, borderRadius: 8),
+                        SkeletonBox(width: 54, height: 26, borderRadius: 8),
                       ],
                     ),
                   ),
@@ -215,10 +215,10 @@ class SkeletonPatientDetail extends StatelessWidget {
                       color: AppColors.card2,
                       borderRadius: BorderRadius.vertical(bottom: Radius.circular(14)),
                     ),
-                    child: Wrap(
+                    child: const Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: const [
+                      children: [
                         SkeletonBox(width: 120, height: 24, borderRadius: 8),
                         SkeletonBox(width: 130, height: 24, borderRadius: 8),
                         SkeletonBox(width: 140, height: 24, borderRadius: 8),
@@ -241,8 +241,8 @@ class SkeletonPatientDetail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       SkeletonBox(width: 27, height: 27, borderRadius: 8),
                       SizedBox(width: 8),
                       SkeletonBox(width: 110, height: 13, borderRadius: 4),
@@ -256,22 +256,22 @@ class SkeletonPatientDetail extends StatelessWidget {
                       color: AppColors.card2,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Column(
+                    child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         SkeletonBox(width: 120, height: 10, borderRadius: 3),
                         SizedBox(height: 6),
-                        SkeletonBox(height: 14, borderRadius: 4),
+                        SkeletonBox(borderRadius: 4),
                         SizedBox(height: 4),
-                        SkeletonBox(width: 180, height: 14, borderRadius: 4),
+                        SkeletonBox(width: 180, borderRadius: 4),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Wrap(
+                  const Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: const [
+                    children: [
                       SkeletonBox(width: 110, height: 24, borderRadius: 8),
                       SkeletonBox(width: 130, height: 24, borderRadius: 8),
                     ],
@@ -292,8 +292,8 @@ class SkeletonPatientDetail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: const [
+                  const Row(
+                    children: [
                       SkeletonBox(width: 27, height: 27, borderRadius: 8),
                       SizedBox(width: 8),
                       SkeletonBox(width: 95, height: 13, borderRadius: 4),
@@ -326,19 +326,19 @@ class SkeletonPatientDetail extends StatelessWidget {
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: AppColors.border),
                             ),
-                            child: Row(
+                            child: const Row(
                               children: [
-                                const SkeletonBox(width: 34, height: 34, borderRadius: 8),
-                                const SizedBox(width: 8),
+                                SkeletonBox(width: 34, height: 34, borderRadius: 8),
+                                SizedBox(width: 8),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     mainAxisSize: MainAxisSize.min,
-                                    children: const [
+                                    children: [
                                       SkeletonBox(width: 48, height: 9, borderRadius: 2),
                                       SizedBox(height: 4),
-                                      SkeletonBox(width: 70, height: 14, borderRadius: 3),
+                                      SkeletonBox(width: 70, borderRadius: 3),
                                     ],
                                   ),
                                 ),
@@ -365,9 +365,9 @@ class SkeletonPatientDetail extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
+                    children: [
                       Row(
                         children: [
                           SkeletonBox(width: 27, height: 27, borderRadius: 8),
@@ -386,12 +386,12 @@ class SkeletonPatientDetail extends StatelessWidget {
                       color: AppColors.card2,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Column(
+                    child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         SkeletonBox(width: 100, height: 10, borderRadius: 3),
                         SizedBox(height: 6),
-                        SkeletonBox(width: 200, height: 14, borderRadius: 4),
+                        SkeletonBox(width: 200, borderRadius: 4),
                       ],
                     ),
                   ),
@@ -405,21 +405,21 @@ class SkeletonPatientDetail extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: Row(
+                    child: const Row(
                       children: [
-                        const SkeletonBox(width: 23, height: 23, borderRadius: 7),
-                        const SizedBox(width: 10),
+                        SkeletonBox(width: 23, height: 23, borderRadius: 7),
+                        SizedBox(width: 10),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               SkeletonBox(width: 130, height: 13, borderRadius: 3),
                               SizedBox(height: 4),
                               SkeletonBox(width: 90, height: 10, borderRadius: 3),
                             ],
                           ),
                         ),
-                        const SkeletonBox(width: 42, height: 18, borderRadius: 6),
+                        SkeletonBox(width: 42, height: 18),
                       ],
                     ),
                   ),

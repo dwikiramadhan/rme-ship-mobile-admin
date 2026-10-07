@@ -149,7 +149,7 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ScreenHeader(
+        const ScreenHeader(
           title: 'Dashboard',
           subtitle: 'Ringkasan operasional medis & poli layanan',
         ),
@@ -159,7 +159,7 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
             onRefresh: () async {
               ref.invalidate(scheduleCounterProvider);
               await Future.wait([
-                ref.read(patientsProvider.notifier).fetchPatients(refresh: true),
+                ref.read(patientsProvider.notifier).fetchPatients(),
                 ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
                 ref.read(schedulesNotifierProvider.notifier).refresh(),
               ]);
@@ -421,9 +421,9 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
                       color: AppColors.orange.withValues(alpha: 0.3),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(
                         LucideIcons.pencilLine,
                         size: 13,
@@ -454,8 +454,8 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: AppColors.border),
             ),
-            child: Column(
-              children: const [
+            child: const Column(
+              children: [
                 Icon(
                   LucideIcons.calendarX,
                   size: 36,

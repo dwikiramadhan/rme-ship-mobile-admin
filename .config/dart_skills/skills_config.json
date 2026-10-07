@@ -1,0 +1,8 @@
+{
+  "version": 2,
+  "installations": {},
+  "suggestedRepos": [
+    "https://github.com/dart-lang/skills.git",
+    "https://github.com/flutter/agent-plugins.git"
+  ]
+}

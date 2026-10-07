@@ -309,7 +309,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           );
 
       // Refresh riwayat kunjungan
-      ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
+      unawaited(ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -368,62 +368,51 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
         doctorList.where((d) => d.id == _selectedDoctorId).firstOrNull ??
         (doctorList.isNotEmpty ? doctorList.first : null);
 
-    final theme = Theme.of(context);
-    final compactTheme = theme.copyWith(
-      inputDecorationTheme: theme.inputDecorationTheme.copyWith(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 10.5, letterSpacing: 0),
-        isDense: true,
-      ),
-    );
-
-    return Theme(
-      data: compactTheme,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // App Header with back button
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
-              color: AppColors.card,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
-            ),
-            child: Row(
-              children: [
-                CircleIconButton(
-                  icon: LucideIcons.arrowLeft,
-                  onPressed: widget.onBack,
-                  size: 34,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Text(
-                        'Input Kunjungan Baru',
-                        style: TextStyle(
-                          fontSize: 13.0,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.text,
-                        ),
-                      ),
-                      SizedBox(height: 1.5),
-                      Text(
-                        'Pencatatan rekam medis & pemeriksaan triage kunjungan pasien',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          color: AppColors.sub,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // App Header with back button
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: const BoxDecoration(
+            color: AppColors.card,
+            border: Border(bottom: BorderSide(color: AppColors.border)),
           ),
+          child: Row(
+            children: [
+              CircleIconButton(
+                icon: LucideIcons.arrowLeft,
+                onPressed: widget.onBack,
+                size: 34,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Input Kunjungan Baru',
+                      style: TextStyle(
+                        fontSize: 16.0,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Pencatatan rekam medis & pemeriksaan triage kunjungan pasien',
+                      style: TextStyle(
+                        fontSize: 12.0,
+                        color: AppColors.sub,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
 
         // Error message banner if any
         if (_errorMessage != null)
@@ -442,7 +431,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   child: Text(
                     _errorMessage!,
                     style: const TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 12.5,
                       color: AppColors.red,
                       fontWeight: FontWeight.w600,
                     ),
@@ -541,9 +530,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           ),
         ),
       ],
-    ),
-  );
-}
+    );
+  }
 
   // ==========================================
   // Section: Pilih Pasien
@@ -573,7 +561,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Pilih Pasien',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -593,7 +581,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           const AppFieldLabel(
             label: 'Nama Pasien / No. RM',
             required: true,
-            fontSize: 10.5,
           ),
           const SizedBox(height: 5),
           GestureDetector(
@@ -638,7 +625,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               Text(
                                 _selectedPatient!.nama,
                                 style: const TextStyle(
-                                  fontSize: 10.5,
+                                  fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.text,
                                 ),
@@ -647,7 +634,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               Text(
                                 '${_selectedPatient!.registerNo.isNotEmpty ? _selectedPatient!.registerNo : "-"} • NIK: ${_selectedPatient!.nik}',
                                 style: const TextStyle(
-                                  fontSize: 9.0,
+                                  fontSize: 12.0,
                                   color: AppColors.sub,
                                 ),
                               ),
@@ -656,7 +643,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                         : const Text(
                             'Pilih pasien...',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 13.5,
                               color: AppColors.sub,
                             ),
                           ),
@@ -707,7 +694,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
-                    fontSize: 11,
+                    fontSize: 16,
                   ),
                 ),
               ),
@@ -719,7 +706,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                     Text(
                       p.nama,
                       style: const TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 16.0,
                         fontWeight: FontWeight.w800,
                         color: AppColors.text,
                       ),
@@ -740,7 +727,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                           child: Text(
                             p.registerNo.isNotEmpty ? p.registerNo : 'RM: -',
                             style: const TextStyle(
-                              fontSize: 8.5,
+                              fontSize: 11.0,
                               fontWeight: FontWeight.w700,
                               color: AppColors.blue,
                             ),
@@ -750,7 +737,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                         Text(
                           'NIK: ${p.nik}',
                           style: const TextStyle(
-                            fontSize: 9.0,
+                            fontSize: 12.0,
                             color: AppColors.sub,
                           ),
                         ),
@@ -786,7 +773,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             const SizedBox(height: 8),
             Text(
               'Alamat: ${p.alamat}',
-              style: const TextStyle(fontSize: 9.0, color: AppColors.sub),
+              style: const TextStyle(fontSize: 12.0, color: AppColors.sub),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -814,12 +801,12 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
       children: [
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 9.0, color: AppColors.sub),
+          style: const TextStyle(fontSize: 12.0, color: AppColors.sub),
         ),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 9.0,
+            fontSize: 12.0,
             fontWeight: FontWeight.w700,
             color: AppColors.text,
           ),
@@ -860,7 +847,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Poliklinik & Dokter Pemeriksa',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -876,8 +863,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             required: true,
             value: _poliCode,
             options: _poliOptions,
-            fontSize: 11.0,
-            labelFontSize: 10.5,
             onChanged: (val) {
               if (val != null) setState(() => _poliCode = val);
             },
@@ -888,7 +873,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           const AppFieldLabel(
             label: 'Dokter Pemeriksa',
             required: true,
-            fontSize: 10.5,
           ),
           const SizedBox(height: 5),
           InkWell(
@@ -927,7 +911,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               child: Text(
                                 selectedDoctor?.nama ?? 'Pilih Dokter...',
                                 style: const TextStyle(
-                                  fontSize: 11.0,
+                                  fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.text,
                                 ),
@@ -950,7 +934,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                                 child: const Text(
                                   'Akun Anda',
                                   style: TextStyle(
-                                    fontSize: 8.5,
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.green,
                                   ),
@@ -964,7 +948,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               ? '${selectedDoctor.spesialisasi} • ${selectedDoctor.availability ?? (selectedDoctor.online ? "Online" : "Offline")}'
                               : 'Klik untuk memilih dokter dari armada kapal',
                           style: const TextStyle(
-                            fontSize: 9.0,
+                            fontSize: 12.0,
                             color: AppColors.sub,
                           ),
                         ),
@@ -1014,7 +998,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Keluhan Pasien',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -1030,8 +1014,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             required: true,
             controller: _keluhanUtama,
             maxLines: 2,
-            fontSize: 11.0,
-            labelFontSize: 10.5,
             placeholder: 'Contoh: Demam sejak 2 hari, pusing dan lemas',
           ),
           const SizedBox(height: 12),
@@ -1042,8 +1024,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: AppTextField(
                   label: 'Durasi Keluhan',
                   controller: _durasiKeluhan,
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: 2 hari',
                 ),
               ),
@@ -1052,8 +1032,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: AppTextField(
                   label: 'Lokasi Keluhan',
                   controller: _lokasiKeluhan,
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: Kepala, perut',
                 ),
               ),
@@ -1092,7 +1070,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Tanda-Tanda Vital (Triage)',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -1105,7 +1083,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           // Tekanan Darah (Sistolik & Diastolik)
           const AppFieldLabel(
             label: 'Tekanan Darah (TD) - mmHg',
-            fontSize: 10.5,
           ),
           const SizedBox(height: 5),
           Row(
@@ -1115,10 +1092,10 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _sistolik,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.text, letterSpacing: 0),
+                  style: const TextStyle(fontSize: 14.0, color: AppColors.text, letterSpacing: 0),
                   decoration: const InputDecoration(
                     hintText: 'Sistolik (120)',
-                    hintStyle: TextStyle(fontSize: 9.5, color: AppColors.sub, letterSpacing: 0),
+                    hintStyle: TextStyle(fontSize: 13.0, color: AppColors.sub, letterSpacing: 0),
                   ),
                 ),
               ),
@@ -1127,7 +1104,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   '/',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 16,
                     color: AppColors.sub,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1138,10 +1115,10 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _diastolik,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(fontSize: 10.5, color: AppColors.text, letterSpacing: 0),
+                  style: const TextStyle(fontSize: 14.0, color: AppColors.text, letterSpacing: 0),
                   decoration: const InputDecoration(
                     hintText: 'Diastolik (80)',
-                    hintStyle: TextStyle(fontSize: 9.5, color: AppColors.sub, letterSpacing: 0),
+                    hintStyle: TextStyle(fontSize: 13.0, color: AppColors.sub, letterSpacing: 0),
                   ),
                 ),
               ),
@@ -1158,8 +1135,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _nadi,
                   numbersOnly: true,
                   keyboardType: TextInputType.number,
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: 78',
                 ),
               ),
@@ -1171,8 +1146,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: 37.8',
                 ),
               ),
@@ -1189,8 +1162,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _rr,
                   numbersOnly: true,
                   keyboardType: TextInputType.number,
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: 18',
                 ),
               ),
@@ -1202,8 +1173,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: 98.5',
                 ),
               ),
@@ -1221,8 +1190,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: 65.0',
                 ),
               ),
@@ -1234,8 +1201,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
                   placeholder: 'Contoh: 170.0',
                 ),
               ),
@@ -1274,7 +1239,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Catatan / Anjuran (Opsional)',
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -1287,8 +1252,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             label: 'Catatan Kunjungan',
             controller: _catatan,
             maxLines: 2,
-            fontSize: 11.0,
-            labelFontSize: 10.5,
             placeholder:
                 'Contoh: Pasien dianjurkan banyak minum air putih & istirahat',
           ),
@@ -1337,7 +1300,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
         try {
           final res = await ref
               .read(patientApiProvider)
-              .getPatients(search: query.trim(), limit: 15);
+              .getPatients(search: query.trim());
           if (mounted) {
             setState(() {
               _apiSearchResults = res;
@@ -1416,7 +1379,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                 const Text(
                   'Pilih Pasien',
                   style: TextStyle(
-                    fontSize: 12.0,
+                    fontSize: 16.0,
                     fontWeight: FontWeight.w800,
                     color: AppColors.text,
                   ),
@@ -1455,14 +1418,14 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                       onChanged: _onSearchChanged,
                       textAlignVertical: TextAlignVertical.center,
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 13.5,
                         color: AppColors.text,
                         letterSpacing: 0,
                       ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama pasien, NIK, atau No. RM...',
                         hintStyle: TextStyle(
-                          fontSize: 10.0,
+                          fontSize: 13.0,
                           color: AppColors.sub,
                           letterSpacing: 0,
                         ),
@@ -1522,7 +1485,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                           ? 'Mencari data pasien...'
                           : 'Pasien tidak ditemukan.',
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 13.0,
                         color: AppColors.sub,
                       ),
                     ),
@@ -1572,7 +1535,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                                       ? p.nama[0].toUpperCase()
                                       : 'P',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w800,
                                     color: isSelected
                                         ? Colors.white
@@ -1588,7 +1551,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                                     Text(
                                       p.nama,
                                       style: TextStyle(
-                                        fontSize: 10.5,
+                                        fontSize: 13.5,
                                         fontWeight: FontWeight.w700,
                                         color: isSelected
                                             ? AppColors.blue
@@ -1621,7 +1584,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                                                 ? p.registerNo
                                                 : 'RM: -',
                                             style: const TextStyle(
-                                              fontSize: 8.5,
+                                              fontSize: 10.5,
                                               fontWeight: FontWeight.w700,
                                               color: AppColors.blue,
                                             ),
@@ -1630,14 +1593,14 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                                         Text(
                                           'NIK: ${p.nik}',
                                           style: const TextStyle(
-                                            fontSize: 8.5,
+                                            fontSize: 11.5,
                                             color: AppColors.sub,
                                           ),
                                         ),
                                         Text(
                                           '• ${p.jk.label} • ${p.umur} thn',
                                           style: const TextStyle(
-                                            fontSize: 8.5,
+                                            fontSize: 11.5,
                                             color: AppColors.sub,
                                           ),
                                         ),

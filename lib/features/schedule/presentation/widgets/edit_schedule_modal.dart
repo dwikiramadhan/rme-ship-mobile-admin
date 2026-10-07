@@ -77,16 +77,13 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
     } else {
       _stops = [
         _StopFormItem(
-          portId: '',
           portCode: s.kodeAsal,
           portName: s.pelabuhanAsal.isNotEmpty
               ? s.pelabuhanAsal
               : 'Pilih Pelabuhan Asal',
           departure: s.berangkat,
-          departureTz: 'WIB',
         ),
         _StopFormItem(
-          portId: '',
           portCode: s.kodeTujuan,
           portName: s.pelabuhanTujuan.isNotEmpty
               ? s.pelabuhanTujuan
@@ -163,7 +160,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
 
   Future<void> _fetchInitialPorts() async {
     try {
-      final res = await _scheduleApi.getPorts(page: 1, limit: 100);
+      final res = await _scheduleApi.getPorts(limit: 100);
       if (!mounted) return;
       if (res.items.isNotEmpty) {
         setState(() {
@@ -219,7 +216,6 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
               primary: AppColors.orange,
-              onPrimary: Colors.white,
               onSurface: AppColors.text,
             ),
           ),
@@ -237,7 +233,6 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
               primary: AppColors.orange,
-              onPrimary: Colors.white,
               onSurface: AppColors.text,
             ),
           ),
@@ -629,9 +624,9 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                         ),
                         onPressed: _isSubmitting ? null : _handleSave,
                         child: _isSubmitting
-                            ? Row(
+                            ? const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   SizedBox(
                                     width: 16,
                                     height: 16,
@@ -679,8 +674,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: const [
+        const Row(
+          children: [
             Text(
               'STATUS',
               style: TextStyle(
@@ -776,9 +771,9 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                   color: AppColors.orangeLt,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(LucideIcons.plus, size: 14, color: AppColors.orange),
                     SizedBox(width: 4),
                     Text(
@@ -955,8 +950,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: const [
+                                const Row(
+                                  children: [
                                     Text(
                                       'TIBA',
                                       style: TextStyle(
@@ -1010,8 +1005,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: const [
+                                const Row(
+                                  children: [
                                     Text(
                                       'BERANGKAT',
                                       style: TextStyle(
@@ -1065,8 +1060,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                       ),
                     ] else if (isFirst) ...[
                       // First stop: BERANGKAT only
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Text(
                             'BERANGKAT',
                             style: TextStyle(
@@ -1112,8 +1107,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                       ),
                     ] else if (isLast) ...[
                       // Last stop: TIBA only
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Text(
                             'TIBA',
                             style: TextStyle(
@@ -1751,7 +1746,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
 
   void _loadMore() {
     if (_loading || _loadingMore || !_hasMore) return;
-    _fetchPage(_page + 1, query: _searchQuery, reset: false);
+    _fetchPage(_page + 1, query: _searchQuery);
   }
 
   void _onSearchChanged(String val) {
@@ -1781,7 +1776,6 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
     try {
       final res = await widget.scheduleApi.getPorts(
         page: page,
-        limit: 10,
         search: query.isNotEmpty ? query : null,
       );
 
@@ -1883,10 +1877,10 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Pilih Pelabuhan',
                           style: TextStyle(
@@ -1952,7 +1946,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                         ? GestureDetector(
                             onTap: () {
                               _searchController.clear();
-                              _fetchPage(1, query: '', reset: true);
+                              _fetchPage(1, reset: true);
                             },
                             child: const Icon(
                               LucideIcons.x,
@@ -2287,7 +2281,7 @@ class _PersonnelPickerBottomSheetState
 
   void _loadMore() {
     if (_loading || _loadingMore || !_hasMore) return;
-    _fetchPage(_page + 1, query: _searchQuery, reset: false);
+    _fetchPage(_page + 1, query: _searchQuery);
   }
 
   void _onSearchChanged(String val) {
@@ -2318,7 +2312,6 @@ class _PersonnelPickerBottomSheetState
       final res = await widget.scheduleApi.getMedicalPersonnel(
         type: widget.personnelType,
         page: page,
-        limit: 10,
         search: query.isNotEmpty ? query : null,
       );
 
@@ -2488,7 +2481,7 @@ class _PersonnelPickerBottomSheetState
                           icon: const Icon(LucideIcons.x, size: 14),
                           onPressed: () {
                             _searchController.clear();
-                            _fetchPage(1, query: '', reset: true);
+                            _fetchPage(1, reset: true);
                           },
                         )
                       : null,
@@ -2515,12 +2508,12 @@ class _PersonnelPickerBottomSheetState
                     ),
                   )
                 : displayedItems.isEmpty
-                ? Center(
+                ? const Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32),
+                      padding: EdgeInsets.all(32),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
+                        children: [
                           Icon(
                             LucideIcons.searchX,
                             size: 36,
@@ -2689,7 +2682,6 @@ class _PersonnelPickerBottomSheetState
             child: Row(
               children: [
                 Expanded(
-                  flex: 1,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(42),
@@ -2801,7 +2793,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
 
   void _loadMore() {
     if (_loading || _loadingMore || !_hasMore) return;
-    _fetchPage(_page + 1, query: _searchQuery, reset: false);
+    _fetchPage(_page + 1, query: _searchQuery);
   }
 
   void _onSearchChanged(String val) {
@@ -2831,7 +2823,6 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
     try {
       final res = await widget.scheduleApi.getCrews(
         page: page,
-        limit: 10,
         search: query.isNotEmpty ? query : null,
       );
 
@@ -3005,7 +2996,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                           icon: const Icon(LucideIcons.x, size: 14),
                           onPressed: () {
                             _searchController.clear();
-                            _fetchPage(1, query: '', reset: true);
+                            _fetchPage(1, reset: true);
                           },
                         )
                       : null,
@@ -3032,12 +3023,12 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                     ),
                   )
                 : displayedItems.isEmpty
-                ? Center(
+                ? const Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(32),
+                      padding: EdgeInsets.all(32),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
+                        children: [
                           Icon(
                             LucideIcons.searchX,
                             size: 36,
@@ -3070,8 +3061,8 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                     itemBuilder: (ctx, idx) {
                       if (idx >= displayedItems.length) {
                         if (_loadingMore) {
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
                             child: Center(
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -3084,8 +3075,8 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                                       color: _accentColor,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  const Text(
+                                  SizedBox(width: 8),
+                                  Text(
                                     'Memuat lebih banyak...',
                                     style: TextStyle(
                                       fontSize: 12,
@@ -3204,7 +3195,6 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
             child: Row(
               children: [
                 Expanded(
-                  flex: 1,
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size.fromHeight(42),

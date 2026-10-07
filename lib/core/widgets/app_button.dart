@@ -97,7 +97,7 @@ class AppButton extends StatelessWidget {
               offset: const Offset(0, 2),
             ),
           ],
-          Border.all(color: const Color(0xFFCBD5E1), width: 1.0),
+          Border.all(color: const Color(0xFFCBD5E1)),
         ),
     };
 

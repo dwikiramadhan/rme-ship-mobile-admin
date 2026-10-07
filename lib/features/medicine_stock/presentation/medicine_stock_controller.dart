@@ -155,7 +155,6 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
       final res = await api.fetchStocks(
         shipCode: shipCode,
         search: state.searchQuery,
-        page: 1,
         limit: state.limit,
       );
 
@@ -303,7 +302,6 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
       final res = await api.fetchHistories(
         shipCode: shipCode.trim().isNotEmpty ? shipCode.trim() : null,
         search: state.searchQuery,
-        page: 1,
         limit: state.limit,
       );
 

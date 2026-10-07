@@ -81,6 +81,82 @@ class MedicalHistory {
   final double? oxygenSaturation;
   final Map<String, dynamic> rawJson;
 
+  MedicalHistory copyWith({
+    String? id,
+    String? code,
+    String? patientId,
+    Patient? patient,
+    String? patientName,
+    String? patientNik,
+    String? doctorId,
+    String? doctorName,
+    String? doctorSip,
+    String? shipCode,
+    String? shipName,
+    String? portName,
+    String? poliCode,
+    String? poliName,
+    String? date,
+    String? complaint,
+    String? diagnosis,
+    String? diagnosisDetail,
+    String? treatment,
+    String? tindakanDetail,
+    String? operation,
+    String? notes,
+    String? status,
+    String? statusPenanganan,
+    String? createdAt,
+    String? updatedAt,
+    Vitals? vitals,
+    int? systolic,
+    int? diastolic,
+    String? bloodPressure,
+    int? heartRate,
+    double? temperature,
+    int? respiratoryRate,
+    double? oxygenSaturation,
+    Map<String, dynamic>? rawJson,
+  }) {
+    return MedicalHistory(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      patientId: patientId ?? this.patientId,
+      patient: patient ?? this.patient,
+      patientName: patientName ?? this.patientName,
+      patientNik: patientNik ?? this.patientNik,
+      doctorId: doctorId ?? this.doctorId,
+      doctorName: doctorName ?? this.doctorName,
+      doctorSip: doctorSip ?? this.doctorSip,
+      shipCode: shipCode ?? this.shipCode,
+      shipName: shipName ?? this.shipName,
+      portName: portName ?? this.portName,
+      poliCode: poliCode ?? this.poliCode,
+      poliName: poliName ?? this.poliName,
+      date: date ?? this.date,
+      complaint: complaint ?? this.complaint,
+      diagnosis: diagnosis ?? this.diagnosis,
+      diagnosisDetail: diagnosisDetail ?? this.diagnosisDetail,
+      treatment: treatment ?? this.treatment,
+      tindakanDetail: tindakanDetail ?? this.tindakanDetail,
+      operation: operation ?? this.operation,
+      notes: notes ?? this.notes,
+      status: status ?? this.status,
+      statusPenanganan: statusPenanganan ?? this.statusPenanganan,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      vitals: vitals ?? this.vitals,
+      systolic: systolic ?? this.systolic,
+      diastolic: diastolic ?? this.diastolic,
+      bloodPressure: bloodPressure ?? this.bloodPressure,
+      heartRate: heartRate ?? this.heartRate,
+      temperature: temperature ?? this.temperature,
+      respiratoryRate: respiratoryRate ?? this.respiratoryRate,
+      oxygenSaturation: oxygenSaturation ?? this.oxygenSaturation,
+      rawJson: rawJson ?? this.rawJson,
+    );
+  }
+
   factory MedicalHistory.fromApiJson(Map<String, dynamic> json) {
     Patient? parsedPatient;
     String patientName = '';
@@ -366,6 +442,101 @@ class MedicalHistory {
       }
     }
 
+    if (effectiveLabOrder != null && isSelesai) {
+      effectiveLabOrder = effectiveLabOrder.copyWith(
+        status: LabOrderStatus.selesai,
+      );
+    }
+
+    final rawExamination = rawJson['lab_examination'] ??
+        rawJson['lab_examinations'] ??
+        rawJson['labExamination'] ??
+        rawJson['labExaminations'];
+    if (rawExamination != null) {
+      final List<LabExaminationItem> items = [];
+      String hasilNotes = '';
+      String? fileName;
+      if (rawExamination is Map) {
+        final eMap = Map<String, dynamic>.from(rawExamination);
+        hasilNotes = (eMap['notes'] ?? eMap['catatan'] ?? '').toString();
+        fileName = (eMap['attachment_url'] ??
+                eMap['file_name'] ??
+                eMap['file_url'] ??
+                eMap['file_path'] ??
+                eMap['fileName'] ??
+                eMap['filePath'] ??
+                eMap['url'])
+            ?.toString();
+        if (fileName != null && fileName.trim().isEmpty) {
+          fileName = null;
+        }
+        if (eMap['items'] is List) {
+          for (final it in eMap['items']) {
+            if (it is Map) {
+              items.add(
+                LabExaminationItem.fromJson(Map<String, dynamic>.from(it)),
+              );
+            }
+          }
+        }
+      } else if (rawExamination is List) {
+        for (final exam in rawExamination) {
+          if (exam is Map) {
+            final eMap = Map<String, dynamic>.from(exam);
+            if ((eMap['notes'] != null || eMap['catatan'] != null) &&
+                hasilNotes.isEmpty) {
+              hasilNotes = (eMap['notes'] ?? eMap['catatan']).toString();
+            }
+            if (eMap['attachment_url'] != null ||
+                eMap['file_name'] != null ||
+                eMap['file_url'] != null ||
+                eMap['file_path'] != null) {
+              fileName ??= (eMap['attachment_url'] ??
+                      eMap['file_name'] ??
+                      eMap['file_url'] ??
+                      eMap['file_path'])
+                  ?.toString();
+            }
+            if (eMap['items'] is List) {
+              for (final it in eMap['items']) {
+                if (it is Map) {
+                  items.add(
+                    LabExaminationItem.fromJson(Map<String, dynamic>.from(it)),
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+
+      final examCode =
+          (rawExamination is Map) ? (rawExamination['code']?.toString() ?? '') : '';
+      final currentJenis = effectiveLabOrder?.jenis;
+      final jenisName = (currentJenis != null &&
+              currentJenis.isNotEmpty &&
+              currentJenis != 'Pemeriksaan Laboratorium')
+          ? currentJenis
+          : (examCode.isNotEmpty
+              ? 'Pemeriksaan Lab ($examCode)'
+              : 'Pemeriksaan Laboratorium');
+
+      effectiveLabOrder = (effectiveLabOrder ??
+              LabOrder(
+                id: id,
+                jenis: jenisName,
+                status: LabOrderStatus.selesai,
+              ))
+          .copyWith(
+        status: LabOrderStatus.selesai,
+        hasil: LabHasil(
+          catatanHasil: hasilNotes,
+          fileName: fileName,
+          items: items,
+        ),
+      );
+    }
+
     final rawPhoto = rawJson['patient'] is Map
         ? (rawJson['patient']['photo_url'] ?? rawJson['patient']['photo'])
         : (rawJson['photo_url'] ?? rawJson['photo']);
@@ -396,6 +567,10 @@ class MedicalHistory {
         resep: effectiveResep.isNotEmpty ? effectiveResep : patient!.resep,
         medicalRecordId: id,
         labOrder: effectiveLabOrder ?? patient!.labOrder,
+        doctorName: doctorName ?? patient!.doctorName,
+        assignedDokterId: (doctorId != null && doctorId!.isNotEmpty)
+            ? doctorId!
+            : patient!.assignedDokterId,
       );
     }
     return Patient(
@@ -411,9 +586,11 @@ class MedicalHistory {
       lokasiKeluhan: '',
       vitals: vitals,
       assignedDokterId: doctorId ?? '',
+      doctorName: doctorName,
       waktuMasuk: createdAt ?? '',
       createdAt: DateTime.tryParse(createdAt ?? ''),
-      updatedAt: DateTime.tryParse(updatedAt ?? '') ??
+      updatedAt:
+          DateTime.tryParse(updatedAt ?? '') ??
           DateTime.tryParse(createdAt ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
       registerNo: cleanCode,
@@ -426,6 +603,89 @@ class MedicalHistory {
       medicalRecordId: id,
       labOrder: effectiveLabOrder,
     );
+  }
+
+  /// Returns the lab_examination object from rawJson
+  Map<String, dynamic>? get labExamination {
+    final raw = rawJson['lab_examination'] ??
+        rawJson['lab_examinations'] ??
+        rawJson['labExamination'] ??
+        rawJson['labExaminations'];
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    if (raw is List && raw.isNotEmpty) {
+      final first = raw.first;
+      if (first is Map) {
+        return Map<String, dynamic>.from(first);
+      }
+    }
+    return null;
+  }
+
+  /// Extracts lab examination items from lab_examination['items']
+  List<LabExaminationItem> get labExaminationItems {
+    final exam = labExamination;
+    if (exam != null && exam['items'] is List) {
+      final List<LabExaminationItem> result = [];
+      for (final it in exam['items'] as List) {
+        if (it is Map) {
+          result.add(
+            LabExaminationItem.fromJson(Map<String, dynamic>.from(it)),
+          );
+        }
+      }
+      return result;
+    }
+    if (patient?.labOrder?.hasil?.items != null &&
+        patient!.labOrder!.hasil!.items.isNotEmpty) {
+      return patient!.labOrder!.hasil!.items;
+    }
+    return const [];
+  }
+
+  /// Lab examination code (e.g. LAB06102026-00003)
+  String? get labExaminationCode {
+    return labExamination?['code']?.toString();
+  }
+
+  /// Lab attachment url or filename
+  String? get labAttachmentUrl {
+    final exam = labExamination;
+    final candidateValues = [
+      exam?['attachment_url'],
+      exam?['file_name'],
+      exam?['file_url'],
+      exam?['file_path'],
+      exam?['fileName'],
+      exam?['filePath'],
+      exam?['url'],
+      exam?['document_url'],
+      exam?['hasil_file'],
+      rawJson['attachment_url'],
+      rawJson['file_name'],
+      rawJson['file_url'],
+      rawJson['file_path'],
+      if (rawJson['lab_order'] is Map) ...[
+        (rawJson['lab_order'] as Map)['attachment_url'],
+        (rawJson['lab_order'] as Map)['file_name'],
+        (rawJson['lab_order'] as Map)['file_url'],
+      ],
+      if (rawJson['order_lab'] is Map) ...[
+        (rawJson['order_lab'] as Map)['attachment_url'],
+        (rawJson['order_lab'] as Map)['file_name'],
+      ],
+      patient?.labOrder?.hasil?.fileName,
+    ];
+    for (final val in candidateValues) {
+      if (val != null) {
+        final s = val.toString().trim();
+        if (s.isNotEmpty && s != '-' && s != '—') {
+          return s;
+        }
+      }
+    }
+    return null;
   }
 
   /// Creates a [MedicalHistory] from a [Patient] instance so it can be navigated to in Riwayat Kunjungan.
@@ -448,6 +708,27 @@ class MedicalHistory {
       statusPenanganan: p.statusPenanganan,
       createdAt: p.updatedAt.toIso8601String(),
       vitals: p.vitals,
+      rawJson: {
+        if (p.labOrder != null) ...{
+          'lab_order': {
+            'jenis': p.labOrder!.jenis,
+            'catatan': p.labOrder!.catatan,
+            'status': p.labOrder!.status.name,
+            if (p.labOrder!.hasil?.fileName != null)
+              'attachment_url': p.labOrder!.hasil!.fileName,
+          },
+          if (p.labOrder!.hasil != null)
+            'lab_examination': {
+              'notes': p.labOrder!.hasil!.catatanHasil,
+              if (p.labOrder!.hasil!.fileName != null)
+                'attachment_url': p.labOrder!.hasil!.fileName,
+              'items': [
+                for (final it in p.labOrder!.hasil!.items)
+                  it.toJson(),
+              ],
+            },
+        },
+      },
     );
   }
 }
@@ -455,4 +736,3 @@ class MedicalHistory {
 extension PatientToMedicalHistoryExtension on Patient {
   MedicalHistory toMedicalHistory() => MedicalHistory.fromPatient(this);
 }
-

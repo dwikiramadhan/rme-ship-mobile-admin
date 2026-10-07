@@ -72,7 +72,6 @@ class _FakeShipMedicineApi implements ShipMedicineApi {
           medicineName: 'Amoxicillin 500mg',
           category: 'Antibiotik',
           unitOfMeasurement: 'kapsul',
-          stock: 0,
           minStock: 10,
           lastUpdate: DateTime(2026, 9, 6, 10, 15),
         ),
@@ -104,7 +103,7 @@ class _FakeShipMedicineApi implements ShipMedicineApi {
           quantity: 100,
           notes: 'Restock mingguan dari depo pusat',
           userName: 'Budi Apoteker',
-          createdAt: DateTime(2026, 9, 6, 11, 0),
+          createdAt: DateTime(2026, 9, 6, 11),
         ),
       ],
       total: 1,
@@ -117,38 +116,41 @@ class _FakeShipMedicineApi implements ShipMedicineApi {
 
 void main() {
   group('ShipMedicineStock & History domain parsing', () {
-    test('ShipMedicineStock.fromJson correctly maps fields and stock status', () {
-      final json = {
-        'ship_id': 's1',
-        'ship_code': 'KM-01',
-        'ship_name': 'Kapal Nusantara',
-        'medicine_id': 'm1',
-        'medicine_sku': 'SKU-101',
-        'medicine_name': 'Ibuprofen 400mg',
-        'category': 'Antiinflamasi',
-        'unit_of_measurement': 'tablet',
-        'stock': 50,
-        'min_stock': 10,
-        'last_update': '2026-09-06T12:00:00Z',
-      };
+    test(
+      'ShipMedicineStock.fromJson correctly maps fields and stock status',
+      () {
+        final json = {
+          'ship_id': 's1',
+          'ship_code': 'KM-01',
+          'ship_name': 'Kapal Nusantara',
+          'medicine_id': 'm1',
+          'medicine_sku': 'SKU-101',
+          'medicine_name': 'Ibuprofen 400mg',
+          'category': 'Antiinflamasi',
+          'unit_of_measurement': 'tablet',
+          'stock': 50,
+          'min_stock': 10,
+          'last_update': '2026-09-06T12:00:00Z',
+        };
 
-      final stock = ShipMedicineStock.fromJson(json);
-      expect(stock.medicineName, 'Ibuprofen 400mg');
-      expect(stock.medicineSku, 'SKU-101');
-      expect(stock.category, 'Antiinflamasi');
-      expect(stock.stock, 50);
-      expect(stock.isOutOfStock, false);
-      expect(stock.isLowStock, false);
-      expect(stock.isAvailable, true);
+        final stock = ShipMedicineStock.fromJson(json);
+        expect(stock.medicineName, 'Ibuprofen 400mg');
+        expect(stock.medicineSku, 'SKU-101');
+        expect(stock.category, 'Antiinflamasi');
+        expect(stock.stock, 50);
+        expect(stock.isOutOfStock, false);
+        expect(stock.isLowStock, false);
+        expect(stock.isAvailable, true);
 
-      final outOfStock = stock.copyWith(stock: 0);
-      expect(outOfStock.isOutOfStock, true);
-      expect(outOfStock.isAvailable, false);
+        final outOfStock = stock.copyWith(stock: 0);
+        expect(outOfStock.isOutOfStock, true);
+        expect(outOfStock.isAvailable, false);
 
-      final lowStock = stock.copyWith(stock: 5, minStock: 10);
-      expect(lowStock.isLowStock, true);
-      expect(lowStock.isOutOfStock, false);
-    });
+        final lowStock = stock.copyWith(stock: 5, minStock: 10);
+        expect(lowStock.isLowStock, true);
+        expect(lowStock.isOutOfStock, false);
+      },
+    );
 
     test('ShipMedicineHistory.fromJson correctly maps fields', () {
       final json = {
@@ -164,9 +166,7 @@ void main() {
           'category': 'Antiinflamasi',
           'unit_of_measurement': 'strip',
         },
-        'user': {
-          'full_name': 'Dr. Ahmad',
-        },
+        'user': {'full_name': 'Dr. Ahmad'},
       };
 
       final history = ShipMedicineHistory.fromJson(json);
@@ -181,10 +181,12 @@ void main() {
   });
 
   group('MedicineStockScreen widget tests', () {
-    testWidgets('renders 2 tabs and displays inventaris & riwayat data', (tester) async {
-      final session = AuthSession(
+    testWidgets('renders 2 tabs and displays inventaris & riwayat data', (
+      tester,
+    ) async {
+      const session = AuthSession(
         token: 'fake-token',
-        user: const AppUser(
+        user: AppUser(
           id: 'u1',
           name: 'Apoteker Joko',
           email: 'joko@bayan.id',
@@ -198,7 +200,9 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            authRepositoryProvider.overrideWithValue(_FakeAuthRepository(session)),
+            authRepositoryProvider.overrideWithValue(
+              _FakeAuthRepository(session),
+            ),
             shipMedicineApiProvider.overrideWithValue(fakeApi),
           ],
           child: const MaterialApp(

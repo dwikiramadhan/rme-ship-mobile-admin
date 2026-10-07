@@ -132,7 +132,7 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
             ),
             child: Row(
               children: [
-                Icon(
+                const Icon(
                   LucideIcons.alertCircle,
                   color: Colors.white,
                   size: 20,
@@ -149,7 +149,7 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(LucideIcons.x, color: Colors.white, size: 16),
+                  icon: const Icon(LucideIcons.x, color: Colors.white, size: 16),
                   onPressed: () {
                     entry.remove();
                     if (_activeErrorToast == entry) _activeErrorToast = null;
@@ -402,7 +402,7 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                       color: AppColors.orangeLt,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       LucideIcons.building2,
                       color: AppColors.orange,
                       size: 20,
@@ -434,7 +434,7 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                     ),
                   ),
                   IconButton(
-                    icon: Icon(
+                    icon: const Icon(
                       LucideIcons.x,
                       size: 20,
                       color: AppColors.sub,
@@ -462,9 +462,9 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       LucideIcons.alertCircle,
-                      color: const Color(0xFFDC2626),
+                      color: Color(0xFFDC2626),
                       size: 18,
                     ),
                     const SizedBox(width: 10),
@@ -481,10 +481,10 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                     const SizedBox(width: 8),
                     InkWell(
                       onTap: () => setState(() => _errorMessage = null),
-                      child: Icon(
+                      child: const Icon(
                         LucideIcons.x,
                         size: 16,
-                        color: const Color(0xFF991B1B),
+                        color: Color(0xFF991B1B),
                       ),
                     ),
                   ],
@@ -500,10 +500,10 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                   children: [
                     Row(
                       children: [
-                        Icon(
+                        const Icon(
                           LucideIcons.building2,
                           size: 16,
-                          color: const Color(0xFF64748B),
+                          color: Color(0xFF64748B),
                         ),
                         const SizedBox(width: 8),
                         const Text(
@@ -554,10 +554,10 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
+                            const Icon(
                               LucideIcons.building2,
                               size: 18,
-                              color: const Color(0xFF64748B),
+                              color: Color(0xFF64748B),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -587,19 +587,19 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                                     _clinics.clear();
                                   });
                                 },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 4),
                                   child: Icon(
                                     LucideIcons.x,
                                     size: 16,
-                                    color: const Color(0xFF94A3B8),
+                                    color: Color(0xFF94A3B8),
                                   ),
                                 ),
                               ),
-                            Icon(
+                            const Icon(
                               LucideIcons.chevronDown,
                               size: 18,
-                              color: const Color(0xFF64748B),
+                              color: Color(0xFF64748B),
                             ),
                           ],
                         ),
@@ -619,16 +619,16 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-                        child: Column(
+                        child: const Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               LucideIcons.building2,
                               size: 32,
-                              color: const Color(0xFF94A3B8),
+                              color: Color(0xFF94A3B8),
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
+                            SizedBox(height: 8),
+                            Text(
                               'Belum ada poliklinik yang dipilih',
                               style: TextStyle(
                                 fontSize: 13.5,
@@ -636,8 +636,8 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                                 color: Color(0xFF475569),
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            const Text(
+                            SizedBox(height: 3),
+                            Text(
                               'Pilih poliklinik di atas untuk mengatur jam operasional pelayanan',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -708,7 +708,7 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                                 color: Colors.white,
                               ),
                             )
-                          : Row(
+                          : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(
@@ -716,8 +716,8 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                                   size: 16,
                                   color: Colors.white,
                                 ),
-                                const SizedBox(width: 8),
-                                const Text(
+                                SizedBox(width: 8),
+                                Text(
                                   'Simpan Perubahan',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
@@ -758,7 +758,7 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                     color: AppColors.orange,
                     shape: BoxShape.circle,
                   ),
-                  child: Center(
+                  child: const Center(
                     child: Icon(
                       LucideIcons.check,
                       color: Colors.white,
@@ -791,10 +791,10 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(
+                  icon: const Icon(
                     LucideIcons.trash2,
                     size: 17,
-                    color: const Color(0xFF94A3B8),
+                    color: Color(0xFF94A3B8),
                   ),
                   onPressed: () {
                     setState(() {
@@ -840,10 +840,10 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                           ),
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 LucideIcons.clock,
                                 size: 14,
-                                color: const Color(0xFF64748B),
+                                color: Color(0xFF64748B),
                               ),
                               const SizedBox(width: 6),
                               Expanded(
@@ -892,10 +892,10 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                           ),
                           child: Row(
                             children: [
-                              Icon(
+                              const Icon(
                                 LucideIcons.clock,
                                 size: 14,
-                                color: const Color(0xFF64748B),
+                                color: Color(0xFF64748B),
                               ),
                               const SizedBox(width: 6),
                               Expanded(
@@ -981,7 +981,7 @@ class _PoliklinikPickerBottomSheetState
 
   void _loadMore() {
     if (_loading || _loadingMore || !_hasMore) return;
-    _fetchPage(_page + 1, query: _searchQuery, reset: false);
+    _fetchPage(_page + 1, query: _searchQuery);
   }
 
   void _onSearchChanged(String val) {
@@ -1011,7 +1011,6 @@ class _PoliklinikPickerBottomSheetState
     try {
       final res = await widget.scheduleApi.getPoliklinik(
         page: page,
-        limit: 10,
         search: query.isNotEmpty ? query : null,
       );
 
@@ -1097,7 +1096,7 @@ class _PoliklinikPickerBottomSheetState
                       color: const Color(0xFFFFF7ED),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       LucideIcons.building2,
                       size: 16,
                       color: AppColors.orange,
@@ -1115,7 +1114,7 @@ class _PoliklinikPickerBottomSheetState
                     ),
                   ),
                   IconButton(
-                    icon: Icon(LucideIcons.x, size: 18),
+                    icon: const Icon(LucideIcons.x, size: 18),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -1133,7 +1132,7 @@ class _PoliklinikPickerBottomSheetState
                 decoration: InputDecoration(
                   hintText: 'Cari poliklinik...',
                   hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8), letterSpacing: 0),
-                  prefixIcon: Icon(LucideIcons.search, size: 16),
+                  prefixIcon: const Icon(LucideIcons.search, size: 16),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
                   contentPadding: const EdgeInsets.symmetric(

@@ -231,7 +231,7 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
         decoration: BoxDecoration(
           color: outerBg,
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: outerBorder, width: 1),
+          border: Border.all(color: outerBorder),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -288,7 +288,6 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
             color: isSelected ? activeBorder : Colors.transparent,
-            width: 1,
           ),
           boxShadow: isSelected
               ? [
@@ -452,22 +451,11 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
 
     final rowCount = (state.items.length / 3).ceil();
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (notification.metrics.pixels >=
-            notification.metrics.maxScrollExtent - 250) {
-          final code = _resolveShipCode(isWatching: false);
-          if (code.isNotEmpty) {
-            ref.read(shipMedicineStockProvider(code).notifier).loadMore();
-          }
-        }
-        return false;
-      },
-      child: CustomScrollView(
-        controller: _stockScrollController,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: BouncingScrollPhysics(),
-        ),
+    return CustomScrollView(
+      controller: _stockScrollController,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 16),
@@ -578,8 +566,7 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
-      ),
-    );
+      );
   }
 
   // ==========================================
@@ -809,7 +796,7 @@ class _StockItemCard extends StatelessWidget {
     final unitLabel = item.unitOfMeasurement.isNotEmpty
         ? item.unitOfMeasurement
         : 'unit';
-    final formattedUpdated = formatDateTime(item.lastUpdate, fallback: '-');
+    final formattedUpdated = formatDateTime(item.lastUpdate);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
@@ -971,7 +958,7 @@ class _HistoryItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final formattedTime = formatDateTime(item.createdAt, fallback: '-');
+    final formattedTime = formatDateTime(item.createdAt);
     final unit = item.unitOfMeasurement.isNotEmpty
         ? ' ${item.unitOfMeasurement}'
         : '';

@@ -27,8 +27,6 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
             Color(0xFF1E293B), // Slate 800
             Color(0xFF0F2537), // Dark Maritime Navy
           ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
         ),
         border: Border(
           bottom: BorderSide(
@@ -45,7 +43,6 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
         ],
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // 1. Ship / Anchor Icon with glowing background
           Container(
@@ -55,7 +52,6 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
               borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: const Color(0xFF38BDF8).withValues(alpha: 0.3),
-                width: 1,
               ),
             ),
             child: const Icon(

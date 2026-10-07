@@ -316,7 +316,6 @@ class _NotificationCard extends StatelessWidget {
               children: [
                 // Top Row: Avatar + Name & Demographics + Status Badge + Time + Chevron
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Avatar
                     Container(

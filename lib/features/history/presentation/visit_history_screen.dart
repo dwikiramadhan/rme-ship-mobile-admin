@@ -3,32 +3,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
+import '../../../core/widgets/status_filter_button.dart';
 import '../domain/visit_history.dart';
 
 import '../../auth/domain/user_role.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../patients/data/patient_repository.dart';
+import '../../patients/presentation/status_meta.dart';
 
 /// Riwayat Kunjungan (Rekam Medis) — RBAC: Doctor C/R/U ([canEdit] true),
 /// Perawat R only ([canEdit] false).
-class VisitHistoryScreen extends ConsumerWidget {
+class VisitHistoryScreen extends ConsumerStatefulWidget {
   const VisitHistoryScreen({super.key, required this.canEdit, this.dokterNama = ''});
 
   final bool canEdit;
   final String dokterNama;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VisitHistoryScreen> createState() => _VisitHistoryScreenState();
+}
+
+class _VisitHistoryScreenState extends ConsumerState<VisitHistoryScreen> {
+  String _statusFilter = 'SEMUA';
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final user = authState.session?.user;
-    final isDoctor = canEdit || user?.role == UserRole.dokter;
+    final isDoctor = widget.canEdit || user?.role == UserRole.dokter;
 
-    final effectiveDoctorName = dokterNama.trim().isNotEmpty
-        ? dokterNama.trim()
+    final effectiveDoctorName = widget.dokterNama.trim().isNotEmpty
+        ? widget.dokterNama.trim()
         : (user?.name ?? '').trim().isNotEmpty
             ? (user?.name ?? '').trim()
             : 'Dokter Pemeriksa';
@@ -43,7 +53,13 @@ class VisitHistoryScreen extends ConsumerWidget {
     final apiHistories = ref.watch(historyProvider);
     final historyNotifier = ref.read(historyProvider.notifier);
 
-    final List<RiwayatKunjungan> riwayat = apiHistories.map((m) => RiwayatKunjungan(
+    final filteredHistories = apiHistories.where((m) {
+      if (_statusFilter == 'SEMUA') return true;
+      final status = (m.statusPenanganan ?? '').toLowerCase();
+      return status.contains(_statusFilter.toLowerCase());
+    }).toList();
+
+    final List<RiwayatKunjungan> riwayat = filteredHistories.map((m) => RiwayatKunjungan(
       id: m.id,
       pasienNama: m.patientName,
       pasienNik: m.patientNik,
@@ -59,32 +75,46 @@ class VisitHistoryScreen extends ConsumerWidget {
       title: 'Riwayat Kunjungan',
       subtitle: '${riwayat.length} rekam medis',
       searchPlaceholder: 'Cari nama atau NIK pasien...',
+      searchTrailing: StatusFilterButton(
+        selectedValue: _statusFilter,
+        options: riwayatStatusFilterOptions,
+        onSelected: (val) {
+          setState(() => _statusFilter = val);
+          if (val == 'SEMUA') {
+            historyNotifier.setStatusPenanganan(null);
+          } else {
+            historyNotifier.setStatusPenanganan(val);
+          }
+        },
+      ),
       isLoading: historyNotifier.isLoading,
       hasMore: historyNotifier.hasMore,
       isLoadingMore: historyNotifier.isLoadingMore,
       onLoadMore: () => historyNotifier.loadMore(),
       onRefresh: () => historyNotifier.fetchHistory(refresh: true),
       onSearchChanged: (q) => historyNotifier.searchHistory(q),
-      trailing: canEdit
+      trailing: widget.canEdit
           ? HeaderActionButton(
               icon: LucideIcons.plus,
               onPressed: () => _showForm(
                 context,
-                ref,
                 effectiveDoctorName: effectiveDoctorName,
                 effectiveDoctorId: effectiveDoctorId,
               ),
             )
           : null,
       entries: [
-        for (final r in riwayat)
+        for (int i = 0; i < riwayat.length; i++)
           MasterListEntry(
-            id: r.id,
+            id: riwayat[i].id,
             avatarColor: AppColors.purple,
             avatarBg: AppColors.purpleLt,
-            initial: r.pasienNama.isNotEmpty ? r.pasienNama[0] : '?',
-            title: r.pasienNama,
-            subtitle: '${_fmtDate(r.tanggal)} · ${r.diagnosa}',
+            initial: riwayat[i].pasienNama.isNotEmpty
+                ? riwayat[i].pasienNama[0]
+                : '?',
+            title: riwayat[i].pasienNama,
+            subtitle: '${_fmtDate(riwayat[i].tanggal)} · ${riwayat[i].diagnosa}',
+            badge: _historyStatusBadge(filteredHistories[i].statusPenanganan),
           ),
       ],
       detailBuilder: (context, id) {
@@ -99,10 +129,9 @@ class VisitHistoryScreen extends ConsumerWidget {
         }
         return _RiwayatDetail(
           item: r,
-          canEdit: canEdit,
+          canEdit: widget.canEdit,
           onEdit: () => _showForm(
             context,
-            ref,
             existing: r,
             effectiveDoctorName: effectiveDoctorName,
             effectiveDoctorId: effectiveDoctorId,
@@ -118,8 +147,7 @@ class VisitHistoryScreen extends ConsumerWidget {
   }
 
   void _showForm(
-    BuildContext context,
-    WidgetRef ref, {
+    BuildContext context, {
     RiwayatKunjungan? existing,
     required String effectiveDoctorName,
     String? effectiveDoctorId,
@@ -150,6 +178,15 @@ class VisitHistoryScreen extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+
+  Widget _historyStatusBadge(String? statusPenanganan) {
+    final meta = statusMetaFromPenanganan(statusPenanganan);
+    return AppBadge(
+      label: meta.label,
+      color: meta.color,
+      background: meta.background,
     );
   }
 }

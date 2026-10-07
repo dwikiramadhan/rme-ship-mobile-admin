@@ -37,7 +37,7 @@ class _Icd10MultiSearchPickerState
     // Warm up ICD-10 initial data so opening the picker is instantaneous (0ms delay)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(icd10ApiProvider).prefetchInitial(limit: 25);
+        ref.read(icd10ApiProvider).prefetchInitial();
       }
     });
   }
@@ -46,7 +46,6 @@ class _Icd10MultiSearchPickerState
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      useSafeArea: false,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _Icd10MultiSearchBottomSheet(
@@ -403,7 +402,7 @@ class _Icd10MultiSearchBottomSheetState
         });
       }
       // Re-fetch in background silently without blocking the user
-      _fetchPage(1, reset: false, silent: true);
+      _fetchPage(1, silent: true);
     } else {
       _fetchPage(1, reset: true);
     }
@@ -544,7 +543,7 @@ class _Icd10MultiSearchBottomSheetState
         _syncSelectedCodes();
       }
       _searchController.clear();
-      _fetchPage(1, query: '', reset: true);
+      _fetchPage(1, reset: true);
     });
   }
 
@@ -678,7 +677,6 @@ class _Icd10MultiSearchBottomSheetState
                       ),
                       child: TextField(
                         controller: _searchController,
-                        autofocus: false,
                         onChanged: _onSearchChanged,
                         style: const TextStyle(
                           fontSize: 11.5,
@@ -709,7 +707,7 @@ class _Icd10MultiSearchBottomSheetState
                                   ),
                                   onPressed: () {
                                     _searchController.clear();
-                                    _fetchPage(1, query: '', reset: true);
+                                    _fetchPage(1, reset: true);
                                   },
                                 )
                               : null,

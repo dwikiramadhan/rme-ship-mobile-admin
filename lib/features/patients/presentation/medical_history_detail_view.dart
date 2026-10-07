@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/utils/diagnosis_helper.dart';
@@ -13,6 +16,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../doctor/data/icd10_api.dart';
 import '../../doctor/data/icd9_api.dart';
 import '../../doctor/presentation/widgets/examination_input_modal.dart';
+import '../data/patient_repository.dart';
 import '../domain/lab_order.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
@@ -35,10 +39,26 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final userId = authState.session?.user.id ?? '';
+    final historyProvider = userId.isNotEmpty
+        ? medicalHistoryByUserProvider(userId)
+        : medicalHistoryProvider;
+    final allHistories = ref.watch(historyProvider);
+    final history =
+        allHistories
+            .where(
+              (h) =>
+                  h.id == this.history.id ||
+                  (this.history.patientId.isNotEmpty &&
+                      h.patientId == this.history.patientId),
+            )
+            .firstOrNull ??
+        this.history;
+
     final patientObj = history.toPatient();
     final meta = statusMetaFromPenanganan(history.statusPenanganan);
 
-    final authState = ref.watch(authControllerProvider);
     final userRole = authState.session?.user.role;
     final isDoctor = canExamine ?? (userRole == UserRole.dokter);
     final statusPenanganan =
@@ -80,49 +100,79 @@ class MedicalHistoryDetailView extends ConsumerWidget {
         lowerStatus.contains('resep');
 
     // Operation info
-    final opVal = (history.operation ??
-            history.rawJson['operation']?.toString() ??
-            history.rawJson['Operation']?.toString() ??
-            '')
-        .trim();
-    final hasOperation =
-        opVal.isNotEmpty && opVal != '-' && opVal != '—';
+    final opVal =
+        (history.operation ??
+                history.rawJson['operation']?.toString() ??
+                history.rawJson['Operation']?.toString() ??
+                '')
+            .trim();
+    final hasOperation = opVal.isNotEmpty && opVal != '-' && opVal != '—';
     final isMajorOp = opVal.toLowerCase() == 'major';
     final isMinorOp = opVal.toLowerCase() == 'minor';
 
-    // Lab info
-    final labOrder = patientObj.labOrder;
+    // Lab info (from lab_examination)
+    final effectiveAttachmentUrl = history.labAttachmentUrl ??
+        this.history.labAttachmentUrl ??
+        patientObj.labOrder?.hasil?.fileName ??
+        this.history.patient?.labOrder?.hasil?.fileName;
+    final labExam = history.labExamination ?? this.history.labExamination;
+    final labItems = history.labExaminationItems.isNotEmpty
+        ? history.labExaminationItems
+        : this.history.labExaminationItems;
+    final labOrder = patientObj.labOrder ?? this.history.patient?.labOrder;
     String labJenisText = labOrder?.jenis ?? '';
+    if (labJenisText.isEmpty && history.labExaminationCode != null) {
+      labJenisText = 'Pemeriksaan Lab (${history.labExaminationCode})';
+    }
+    if (labJenisText.isEmpty && this.history.labExaminationCode != null) {
+      labJenisText = 'Pemeriksaan Lab (${this.history.labExaminationCode})';
+    }
     if (labJenisText.isEmpty && history.rawJson['lab_order'] is Map) {
       final lo = history.rawJson['lab_order'] as Map;
-      labJenisText =
-          (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '').toString();
+      labJenisText = (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '')
+          .toString();
     }
     if (labJenisText.isEmpty && history.rawJson['order_lab'] is Map) {
       final lo = history.rawJson['order_lab'] as Map;
-      labJenisText =
-          (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '').toString();
+      labJenisText = (lo['jenis'] ?? lo['name'] ?? lo['test_name'] ?? '')
+          .toString();
+    }
+    if (labJenisText.isEmpty && (labExam != null || labItems.isNotEmpty)) {
+      labJenisText = 'Pemeriksaan Laboratorium';
     }
     if (labJenisText.isEmpty && isMenungguLab) {
       labJenisText = 'Rujukan Lab';
     }
 
     String labCatatanText = labOrder?.catatan ?? '';
+    if (labCatatanText.isEmpty && labExam?['notes'] != null) {
+      labCatatanText = labExam!['notes'].toString();
+    }
     if (labCatatanText.isEmpty && history.rawJson['lab_order'] is Map) {
       final lo = history.rawJson['lab_order'] as Map;
       labCatatanText = (lo['catatan'] ?? lo['notes'] ?? '').toString();
     }
 
-    final hasLab = labJenisText.trim().isNotEmpty || isMenungguLab;
+    final hasLab =
+        labExam != null ||
+        labItems.isNotEmpty ||
+        labJenisText.trim().isNotEmpty ||
+        (effectiveAttachmentUrl != null && effectiveAttachmentUrl.trim().isNotEmpty) ||
+        isMenungguLab;
 
     Widget? labStatusBadge;
     if (hasLab) {
       final labStatus = labOrder?.status;
-      final statusLabel = labStatus == LabOrderStatus.selesai
+      final isLabSelesai =
+          labExam != null ||
+          labItems.isNotEmpty ||
+          labStatus == LabOrderStatus.selesai ||
+          isSelesai;
+      final statusLabel = isLabSelesai
           ? 'Selesai'
           : (labStatus == LabOrderStatus.diproses
-              ? 'Diproses'
-              : (isMenungguLab ? 'Menunggu Lab' : null));
+                ? 'Diproses'
+                : (isMenungguLab ? 'Menunggu Lab' : null));
       if (statusLabel != null) {
         final isDone = statusLabel == 'Selesai';
         labStatusBadge = Container(
@@ -149,18 +199,11 @@ class MedicalHistoryDetailView extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Patient Info Summary Card
-          PatientInfoCard(patient: patientObj),
-          const SizedBox(height: 12),
-
-          // 2. Status Penanganan Info Banner (Card Terpisah)
+          // 1. Status Penanganan Info Banner (Card Terpisah)
           if (!isDiagnosed) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF3C7),
                 borderRadius: BorderRadius.circular(12),
@@ -194,10 +237,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
           ] else if (isMenungguLab) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: const Color(0xFFF0F9FF),
                 borderRadius: BorderRadius.circular(12),
@@ -229,10 +269,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
           ] else if (isMenungguObat) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: const Color(0xFFFEF9C3),
                 borderRadius: BorderRadius.circular(12),
@@ -240,11 +277,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
               ),
               child: const Row(
                 children: [
-                  Icon(
-                    LucideIcons.pill,
-                    size: 18,
-                    color: Color(0xFFCA8A04),
-                  ),
+                  Icon(LucideIcons.pill, size: 18, color: Color(0xFFCA8A04)),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -264,10 +297,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
           ] else if (isSelesai) ...[
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 11,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: const Color(0xFFDCFCE7),
                 borderRadius: BorderRadius.circular(12),
@@ -298,15 +328,19 @@ class MedicalHistoryDetailView extends ConsumerWidget {
             const SizedBox(height: 12),
           ],
 
+          // 2. Patient Info Summary Card
+          PatientInfoCard(patient: patientObj),
+          const SizedBox(height: 12),
+
           // 3. Detail Kunjungan & Pemeriksaan Medis
           AppCard(
+            border: Border.all(color: AppColors.orange),
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Header Card
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
@@ -479,13 +513,17 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                         icon: LucideIcons.scissors,
                         label: 'Operasi (Operation)',
                         value: hasOperation
-                            ? '$opVal${isMajorOp ? " (Operasi Besar)" : isMinorOp ? " (Operasi Kecil)" : ""}'
+                            ? '$opVal${isMajorOp
+                                  ? " (Operasi Besar)"
+                                  : isMinorOp
+                                  ? " (Operasi Kecil)"
+                                  : ""}'
                             : 'Tidak ada tindakan operasi',
                         isMuted: !hasOperation,
                         labelColor: hasOperation
                             ? (isMajorOp
-                                ? const Color(0xFFDC2626)
-                                : const Color(0xFF0284C7))
+                                  ? const Color(0xFFDC2626)
+                                  : const Color(0xFF0284C7))
                             : null,
                       ),
                       const Padding(
@@ -499,68 +537,227 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                             ? Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 6,
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
+                                  if (labJenisText.isNotEmpty ||
+                                      labStatusBadge != null) ...[
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        if (labJenisText.isNotEmpty)
+                                          Flexible(
+                                            child: Text(
+                                              labJenisText,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF0369A1),
+                                                letterSpacing: 0,
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          const Spacer(),
+                                        ?labStatusBadge,
+                                      ],
+                                    ),
+                                  ],
+
+                                  // Parameter pemeriksaan lab (lab_examination.items)
+                                  if (labItems.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    for (final item in labItems)
                                       Container(
+                                        margin: const EdgeInsets.only(
+                                          bottom: 6,
+                                        ),
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 3,
+                                          horizontal: 10,
+                                          vertical: 8,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFF0F9FF),
-                                          borderRadius:
-                                              BorderRadius.circular(6),
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                           border: Border.all(
-                                            color: const Color(0xFFBAE6FD),
+                                            color: const Color(0xFFE2E8F0),
                                             width: 0.8,
                                           ),
                                         ),
                                         child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
                                           children: [
-                                            const Padding(
-                                              padding: EdgeInsets.only(top: 2),
-                                              child: Icon(
-                                                LucideIcons.flaskConical,
-                                                size: 12,
-                                                color: Color(0xFF0284C7),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    item.testName,
+                                                    style: const TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: AppColors.text,
+                                                      letterSpacing: 0,
+                                                    ),
+                                                  ),
+                                                  if (item
+                                                      .testCategory
+                                                      .isNotEmpty) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      item.testCategory,
+                                                      style: const TextStyle(
+                                                        fontSize: 10.5,
+                                                        color: AppColors.sub,
+                                                        letterSpacing: 0,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
                                               ),
                                             ),
-                                            const SizedBox(width: 5),
-                                            Flexible(
-                                              child: Text(
-                                                labJenisText,
-                                                style: const TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Color(0xFF0369A1),
-                                                  letterSpacing: 0,
+                                            const SizedBox(width: 8),
+                                            Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Text(
+                                                  item.notes.isNotEmpty
+                                                      ? item.notes
+                                                      : (item.unit.isNotEmpty
+                                                            ? '- ${item.unit}'
+                                                            : '—'),
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: Color(0xFF0284C7),
+                                                    letterSpacing: 0,
+                                                  ),
                                                 ),
-                                              ),
+                                                if (item
+                                                    .referenceRange
+                                                    .isNotEmpty) ...[
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                    'Rujukan: ${item.referenceRange}',
+                                                    style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: AppColors.sub,
+                                                      letterSpacing: 0,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ],
                                             ),
                                           ],
                                         ),
                                       ),
-                                      if (labStatusBadge != null) ...[
-                                        labStatusBadge,
-                                      ],
-                                    ],
-                                  ),
-                                  if (labCatatanText.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Catatan: $labCatatanText',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.sub,
-                                        fontStyle: FontStyle.italic,
-                                        letterSpacing: 0,
+                                  ],
+
+                                  if (effectiveAttachmentUrl != null &&
+                                      effectiveAttachmentUrl.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 10,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: const Color(0xFFE2E8F0),
+                                          width: 0.8,
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(6),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFE0F2FE),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: const Icon(
+                                              LucideIcons.fileText,
+                                              size: 14,
+                                              color: Color(0xFF0284C7),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Lampiran Hasil Lab',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: AppColors.text,
+                                                    letterSpacing: 0,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 1),
+                                                Text(
+                                                  effectiveAttachmentUrl,
+                                                  style: const TextStyle(
+                                                    fontSize: 10.5,
+                                                    color: AppColors.sub,
+                                                    letterSpacing: 0,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          OutlinedButton.icon(
+                                            onPressed: () {
+                                              final rawUrl =
+                                                  effectiveAttachmentUrl.trim();
+                                              final fullUrl = rawUrl.startsWith('http')
+                                                  ? rawUrl
+                                                  : (rawUrl.startsWith('/')
+                                                      ? '${ApiConfig.baseUrl}$rawUrl'
+                                                      : '${ApiConfig.baseUrl}/$rawUrl');
+                                              _showLabDocument(
+                                                context,
+                                                fullUrl,
+                                                'Dokumen Hasil Lab',
+                                              );
+                                            },
+                                            icon: const Icon(
+                                              LucideIcons.eye,
+                                              size: 13,
+                                            ),
+                                            label: const Text(
+                                              'Lihat Dokumen',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                letterSpacing: 0,
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: const Color(0xFF0284C7),
+                                              side: const BorderSide(
+                                                color: Color(0xFFBAE6FD),
+                                              ),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 9,
+                                                vertical: 6,
+                                              ),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -581,59 +778,6 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                     ],
                   ),
                 ),
-
-                // if (history.notes != null &&
-                //     history.notes!.trim().isNotEmpty) ...[
-                //   const SizedBox(height: 10),
-                //   Container(
-                //     width: double.infinity,
-                //     padding: const EdgeInsets.symmetric(
-                //       horizontal: 14,
-                //       vertical: 10,
-                //     ),
-                //     decoration: BoxDecoration(
-                //       color: const Color(0xFFFFFBEB),
-                //       borderRadius: BorderRadius.circular(10),
-                //       border: Border.all(color: const Color(0xFFFDE68A)),
-                //     ),
-                //     child: Row(
-                //       crossAxisAlignment: CrossAxisAlignment.start,
-                //       children: [
-                //         const Icon(
-                //           LucideIcons.alertTriangle,
-                //           size: 16,
-                //           color: Color(0xFFD97706),
-                //         ),
-                //         const SizedBox(width: 9),
-                //         Expanded(
-                //           child: Column(
-                //             crossAxisAlignment: CrossAxisAlignment.start,
-                //             children: [
-                //               const Text(
-                //                 'Catatan Khusus / Riwayat Alergi',
-                //                 style: TextStyle(
-                //                   fontSize: 11.5,
-                //                   fontWeight: FontWeight.w700,
-                //                   color: Color(0xFFB45309),
-                //                 ),
-                //               ),
-                //               const SizedBox(height: 3),
-                //               Text(
-                //                 history.notes!,
-                //                 style: const TextStyle(
-                //                   fontSize: 13,
-                //                   fontWeight: FontWeight.w500,
-                //                   color: Color(0xFF92400E),
-                //                   height: 1.35,
-                //                 ),
-                //               ),
-                //             ],
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // ],
 
                 const SizedBox(height: 16),
 
@@ -659,13 +803,13 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       ),
                       icon: const Icon(
                         LucideIcons.stethoscope,
-                        size: 17,
+                        size: 15,
                         color: Colors.white,
                       ),
                       label: const Text(
                         'Periksa Pasien / Input Rekam Medis',
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0,
                         ),
@@ -700,11 +844,11 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    icon: const Icon(LucideIcons.fileText, size: 16),
+                    icon: const Icon(LucideIcons.fileText, size: 15),
                     label: const Text(
                       'Buka Rekam Medis Lengkap Pasien',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0,
                       ),
@@ -719,13 +863,233 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     );
   }
 
-  void _openDoctorExamination(
+  Future<void> _openDoctorExamination(
     BuildContext context,
     WidgetRef ref,
     MedicalHistory history,
     Patient patientObj,
-  ) {
-    showExaminationInputModal(context, patient: patientObj, history: history);
+  ) async {
+    final res = await showExaminationInputModal(
+      context,
+      patient: patientObj,
+      history: history,
+    );
+    if (res == true && context.mounted) {
+      final userId = ref.read(authControllerProvider).session?.user.id ?? '';
+      unawaited(
+        ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
+      );
+      if (userId.isNotEmpty) {
+        unawaited(
+          ref
+              .read(medicalHistoryByUserProvider(userId).notifier)
+              .fetchHistory(refresh: true),
+        );
+      }
+      unawaited(ref.read(patientsProvider.notifier).fetchPatients());
+    }
+  }
+
+  void _showLabDocument(BuildContext context, String url, String title) {
+    final fileName = url.split('/').last.split('?').first;
+    final lower = fileName.toLowerCase();
+    final isPdf = lower.endsWith('.pdf');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 540, maxHeight: 680),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF8FAFC),
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isPdf ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isPdf ? LucideIcons.fileText : LucideIcons.image,
+                        size: 16,
+                        color: isPdf ? const Color(0xFFDC2626) : const Color(0xFF0284C7),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.text,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            fileName,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.sub,
+                              letterSpacing: 0,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(LucideIcons.x, size: 18, color: AppColors.sub),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                    ),
+                  ],
+                ),
+              ),
+              // Body
+              Flexible(
+                child: isPdf
+                    ? Container(
+                        padding: const EdgeInsets.all(32),
+                        color: const Color(0xFFF8FAFC),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 68,
+                                height: 68,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFEE2E2),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: const Icon(
+                                  LucideIcons.fileText,
+                                  size: 36,
+                                  color: Color(0xFFDC2626),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                fileName,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.text,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Dokumen Hasil Pemeriksaan Laboratorium (PDF)',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.sub,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 14),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  url,
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: AppColors.sub,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.black,
+                        child: InteractiveViewer(
+                          clipBehavior: Clip.none,
+                          child: Center(
+                            child: Image.network(
+                              url,
+                              fit: BoxFit.contain,
+                              loadingBuilder: (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return const Padding(
+                                  padding: EdgeInsets.all(40),
+                                  child: CircularProgressIndicator(color: Colors.white),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) => Padding(
+                                padding: const EdgeInsets.all(32),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      LucideIcons.alertCircle,
+                                      size: 36,
+                                      color: Colors.white70,
+                                    ),
+                                    const SizedBox(height: 10),
+                                    const Text(
+                                      'Gagal memuat dokumen gambar',
+                                      style: TextStyle(color: Colors.white, fontSize: 13),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      fileName,
+                                      style: const TextStyle(color: Colors.white60, fontSize: 11),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSectionTitle(String title) {

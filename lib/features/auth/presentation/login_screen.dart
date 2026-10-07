@@ -247,7 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                Expanded(
+                                const Expanded(
                                   flex: 5,
                                   child: _LoginHero(isWide: true),
                                 ),
@@ -258,7 +258,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _LoginHero(isWide: false),
+                              const _LoginHero(isWide: false),
                               _buildForm(isLoading),
                             ],
                           ),
@@ -464,7 +464,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              textCapitalization: TextCapitalization.none,
               inputFormatters: [
                 TextInputFormatter.withFunction(
                   (oldValue, newValue) =>
@@ -808,9 +807,9 @@ class _LoginHero extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.15),
                       ),
                     ),
-                    child: Column(
+                    child: const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Row(
                           children: [
                             Icon(

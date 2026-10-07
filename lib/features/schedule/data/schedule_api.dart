@@ -133,7 +133,6 @@ class ScheduleApi {
           total: 1,
           page: page,
           limit: limit,
-          hasMore: false,
         );
       } else {
         rawList = [];
@@ -467,10 +466,8 @@ class ScheduleApi {
         }
         return PaginatedPortResult(
           items: const [],
-          total: 0,
           page: page,
           limit: limit,
-          hasMore: false,
         );
       }
 

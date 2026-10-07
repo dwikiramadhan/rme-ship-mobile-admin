@@ -71,7 +71,7 @@ class _MockPatientApi implements PatientApi {
 
     return PaginatedMedicalHistory(
       data: [
-        MedicalHistory(
+        const MedicalHistory(
           id: 'hist-1',
           code: 'REG-20260906-001',
           patientId: 'patient-1',
@@ -81,7 +81,7 @@ class _MockPatientApi implements PatientApi {
           date: '2026-09-06',
           createdAt: '2026-09-06T14:30:00Z',
         ),
-        MedicalHistory(
+        const MedicalHistory(
           id: 'hist-2',
           code: 'REG-20260906-002',
           patientId: 'patient-2',
@@ -144,9 +144,9 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      final session = AuthSession(
+      const session = AuthSession(
         token: 'fake-token',
-        user: const AppUser(
+        user: AppUser(
           id: 'u1',
           name: 'Apoteker Joko',
           email: 'joko@bayan.id',

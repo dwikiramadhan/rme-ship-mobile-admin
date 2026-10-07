@@ -363,8 +363,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFEBF7EE),
         gradient: const LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
           colors: [
             Color(0xFFE6F4EA), // Hijau lembut
             Color(0xFFF2FAF5), // Hijau ke putih-putihan
@@ -372,7 +370,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           ],
         ),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFFD3EBD7), width: 1),
+        border: Border.all(color: const Color(0xFFD3EBD7)),
       ),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -657,9 +655,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       color: AppColors.orange.withValues(alpha: 0.3),
                     ),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: const [
+                    children: [
                       Icon(
                         LucideIcons.pencilLine,
                         size: 13,
@@ -995,8 +993,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(LucideIcons.boxes, size: 16, color: Color(0xFF64748B)),
               SizedBox(width: 8),
               Text(
@@ -1024,8 +1022,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Icon(
                             LucideIcons.fuel,
                             size: 16,
@@ -1084,8 +1082,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: const [
+                      const Row(
+                        children: [
                           Icon(
                             LucideIcons.droplets,
                             size: 16,
@@ -1298,8 +1296,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(LucideIcons.anchor, size: 16, color: AppColors.sky),
                   SizedBox(width: 8),
                   Text(
@@ -1525,8 +1523,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(LucideIcons.history, size: 16, color: Color(0xFFEA580C)),
                   SizedBox(width: 8),
                   Text(
@@ -1914,8 +1912,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(LucideIcons.history, size: 16, color: Color(0xFF64748B)),
               SizedBox(width: 8),
               Text(
@@ -2093,8 +2091,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Dropdown Pilihan Tambah / Sisa Logistik
-                          Row(
-                            children: const [
+                          const Row(
+                            children: [
                               Icon(
                                 LucideIcons.layers,
                                 size: 14,
@@ -2113,7 +2111,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            value: selectedAction,
+                            initialValue: selectedAction,
                             isExpanded: true,
                             decoration: InputDecoration(
                               filled: true,
@@ -3512,7 +3510,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   ],
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const Icon(
                       LucideIcons.triangleAlert,
@@ -3588,8 +3585,6 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           painter: _DashedRoundedBorderPainter(
             color: const Color(0xFFFDBA74),
             strokeWidth: 1.5,
-            dashWidth: 6,
-            dashSpace: 4,
             radius: 18,
           ),
           child: Material(
@@ -3601,9 +3596,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 alignment: Alignment.center,
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Icon(LucideIcons.plus, size: 16, color: Color(0xFFEA580C)),
                     SizedBox(width: 6),
                     Text(
@@ -3650,8 +3645,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              title: Row(
-                children: const [
+              title: const Row(
+                children: [
                   Icon(
                     LucideIcons.triangleAlert,
                     color: Color(0xFFEA580C),
@@ -4002,8 +3997,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
               contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               actionsPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              title: Row(
-                children: const [
+              title: const Row(
+                children: [
                   Icon(
                     LucideIcons.pencil,
                     color: Color(0xFFEA580C),
@@ -4372,10 +4367,8 @@ class _DashedRoundedBorderPainter extends CustomPainter {
   _DashedRoundedBorderPainter({
     required this.color,
     this.strokeWidth = 1.2,
-    this.dashWidth = 6.0,
-    this.dashSpace = 4.0,
     this.radius = 16.0,
-  });
+  }) : dashWidth = 6.0, dashSpace = 4.0;
 
   final Color color;
   final double strokeWidth;

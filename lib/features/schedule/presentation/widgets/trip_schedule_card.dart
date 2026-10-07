@@ -111,7 +111,6 @@ class TripScheduleCard extends StatelessWidget {
                           color: isOngoing
                               ? AppColors.orange.withValues(alpha: 0.3)
                               : const Color(0xFFE2E8F0),
-                          width: 1.0,
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -326,7 +325,7 @@ class TripScheduleCard extends StatelessWidget {
                                                 (constraints.constrainWidth() /
                                                         6)
                                                     .floor(),
-                                                (_) => SizedBox(
+                                                (_) => const SizedBox(
                                                   width: 3,
                                                   height: 1.5,
                                                   child: DecoratedBox(

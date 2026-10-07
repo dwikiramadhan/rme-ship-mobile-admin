@@ -16,7 +16,6 @@ class ServerSettingsDialog extends StatefulWidget {
   static Future<void> show(BuildContext context) {
     return showDialog(
       context: context,
-      barrierDismissible: true,
       builder: (_) => const ServerSettingsDialog(),
     );
   }

@@ -406,12 +406,15 @@ class PatientApi {
   /// POST /api/v1/medical-records/{medRecId}/lab-examinations
   Future<Map<String, dynamic>> submitLabExaminations(
     String medRecId,
-    Map<String, dynamic> body,
+    dynamic data,
   ) async {
     try {
       final response = await _dio.post(
         ApiConfig.medicalRecordLabExaminationsPath(medRecId),
-        data: body,
+        data: data,
+        options: data is FormData
+            ? Options(headers: {'Content-Type': 'multipart/form-data'})
+            : null,
       );
       if (response.data is Map<String, dynamic>) {
         return response.data as Map<String, dynamic>;

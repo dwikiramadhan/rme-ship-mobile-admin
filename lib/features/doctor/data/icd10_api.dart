@@ -42,8 +42,6 @@ class Icd10Api {
     if (_cache.containsKey('')) return;
     try {
       final res = await fetchIcd10Paginated(
-        query: '',
-        page: 1,
         limit: limit,
         useCache: false,
       );

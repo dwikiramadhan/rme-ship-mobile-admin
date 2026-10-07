@@ -18,24 +18,39 @@ class LabExaminationItem extends Equatable {
   final String notes;
 
   Map<String, dynamic> toJson() => {
-        'test_name': testName,
-        'test_category': testCategory,
-        'unit': unit,
-        'reference_range': referenceRange,
-        'notes': notes,
-      };
+    'test_name': testName,
+    'test_category': testCategory,
+    'unit': unit,
+    'reference_range': referenceRange,
+    'notes': notes,
+  };
 
-  factory LabExaminationItem.fromJson(Map<String, dynamic> json) =>
-      LabExaminationItem(
-        testName: json['test_name']?.toString() ?? '',
-        testCategory: json['test_category']?.toString() ?? '',
-        unit: json['unit']?.toString() ?? '',
-        referenceRange: json['reference_range']?.toString() ?? '',
-        notes: json['notes']?.toString() ?? '',
-      );
+  factory LabExaminationItem.fromJson(Map<String, dynamic> json) {
+    final rawNotes = (json['result_value']?.toString().trim().isNotEmpty == true)
+        ? json['result_value']?.toString() ?? ''
+        : (json['notes']?.toString() ??
+            json['result']?.toString() ??
+            json['hasil']?.toString() ??
+            '');
+    return LabExaminationItem(
+      testName: (json['test_name'] ?? json['name'] ?? '').toString(),
+      testCategory:
+          (json['test_category'] ?? json['category'] ?? '').toString(),
+      unit: (json['unit'] ?? json['satuan'] ?? '').toString(),
+      referenceRange:
+          (json['reference_range'] ?? json['normal_range'] ?? '').toString(),
+      notes: rawNotes,
+    );
+  }
 
   @override
-  List<Object?> get props => [testName, testCategory, unit, referenceRange, notes];
+  List<Object?> get props => [
+    testName,
+    testCategory,
+    unit,
+    referenceRange,
+    notes,
+  ];
 }
 
 class LabHasil extends Equatable {
@@ -68,7 +83,13 @@ class LabOrder extends Equatable {
   final LabOrderStatus status;
   final LabHasil? hasil;
 
-  LabOrder copyWith({String? id, String? jenis, String? catatan, LabOrderStatus? status, LabHasil? hasil}) {
+  LabOrder copyWith({
+    String? id,
+    String? jenis,
+    String? catatan,
+    LabOrderStatus? status,
+    LabHasil? hasil,
+  }) {
     return LabOrder(
       id: id ?? this.id,
       jenis: jenis ?? this.jenis,

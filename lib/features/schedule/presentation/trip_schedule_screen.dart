@@ -599,7 +599,6 @@ class _M3FilterChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: isSelected ? activeColor : AppColors.border,
-              width: 1,
             ),
           ),
           child: Text(

@@ -284,7 +284,6 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                           : null,
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         const SizedBox(width: 11),
                         AnimatedSwitcher(
