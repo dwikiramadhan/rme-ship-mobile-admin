@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -74,6 +75,19 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
     // Lab info (from lab_examination)
     final labAttachmentUrl = history.labAttachmentUrl;
+
+    debugPrint('══════════════════════════════════════════════════════════════');
+    debugPrint('📋 [MedicalHistoryDetailView] Data History (ID: ${history.id}, Code: ${history.code}):');
+    debugPrint('   Patient: ${history.patientName} (${history.patientId})');
+    debugPrint('   Status: ${history.statusPenanganan}');
+    debugPrint('   Lab Attachment URL: $labAttachmentUrl');
+    debugPrint('   Raw JSON:');
+    try {
+      debugPrint(const JsonEncoder.withIndent('  ').convert(history.rawJson));
+    } catch (_) {
+      debugPrint('${history.rawJson}');
+    }
+    debugPrint('══════════════════════════════════════════════════════════════');
     final labExam = history.labExamination;
     final labItems = history.labExaminationItems;
     final labCode = history.labExaminationCode;
@@ -646,12 +660,12 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                             onPressed: () {
                                               final rawUrl =
                                                   labAttachmentUrl.trim();
-                                              final fullUrl =
-                                                  rawUrl.startsWith('http')
+                                              final fileName =
+                                                  rawUrl.split('/').last.split('?').first;
+                                              final fullUrl = (rawUrl.startsWith('http') &&
+                                                      rawUrl.contains('/api/v1/lab-examinations/view-document/'))
                                                   ? rawUrl
-                                                  : (rawUrl.startsWith('/')
-                                                        ? '${ApiConfig.baseUrl}$rawUrl'
-                                                        : '${ApiConfig.baseUrl}/$rawUrl');
+                                                  : ApiConfig.labExaminationViewDocumentUrl(fileName);
                                               _showLabDocument(
                                                 context,
                                                 fullUrl,

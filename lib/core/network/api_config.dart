@@ -120,6 +120,10 @@ class ApiConfig {
       '/api/v1/medical-records/$medRecId/dispense';
   static String medicalRecordLabExaminationsPath(String medRecId) =>
       '/api/v1/medical-records/$medRecId/lab-examinations';
+  static String labExaminationViewDocumentPath(String fileName) =>
+      '/api/v1/lab-examinations/view-document/${Uri.encodeComponent(fileName)}';
+  static String labExaminationViewDocumentUrl(String fileName) =>
+      '$baseUrl${labExaminationViewDocumentPath(fileName)}';
   static const String shipProvisionsHistoryPath = '/api/v1/ship-provisions-history';
   static const String tripIssuesPath = '/api/v1/trip-issues';
   static const String portsPath = '/api/v1/ports';

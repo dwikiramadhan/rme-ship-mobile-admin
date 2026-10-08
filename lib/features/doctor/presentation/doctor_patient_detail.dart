@@ -687,11 +687,12 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                         OutlinedButton.icon(
                           onPressed: () {
                             final rawUrl = p.labOrder!.hasil!.fileName!.trim();
-                            final fullUrl = rawUrl.startsWith('http')
+                            final fileName =
+                                rawUrl.split('/').last.split('?').first;
+                            final fullUrl = (rawUrl.startsWith('http') &&
+                                    rawUrl.contains('/api/v1/lab-examinations/view-document/'))
                                 ? rawUrl
-                                : (rawUrl.startsWith('/')
-                                    ? '${ApiConfig.baseUrl}$rawUrl'
-                                    : '${ApiConfig.baseUrl}/$rawUrl');
+                                : ApiConfig.labExaminationViewDocumentUrl(fileName);
                             _showLabDocument(
                               context,
                               fullUrl,
