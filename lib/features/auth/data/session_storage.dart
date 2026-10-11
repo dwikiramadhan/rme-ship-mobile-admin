@@ -17,11 +17,30 @@ class SessionStorage {
 
   final FlutterSecureStorage _storage;
 
-  Future<void> save(AuthSession session) {
-    return _storage.write(key: _sessionKey, value: jsonEncode(session.toJson()));
+  // In-memory mirror of the persisted session, shared by every instance so
+  // the Dio interceptor doesn't hit the keystore/keychain on each request.
+  // All writes to [_sessionKey] go through this class, so it stays in sync.
+  static AuthSession? _cachedSession;
+  static bool _cacheLoaded = false;
+
+  Future<void> save(AuthSession session) async {
+    await _storage.write(key: _sessionKey, value: jsonEncode(session.toJson()));
+    _cachedSession = session;
+    _cacheLoaded = true;
   }
 
   Future<AuthSession?> read() async {
+    if (_cacheLoaded) return _cachedSession;
+    final session = await _readFromStorage();
+    // A save()/clear() that finished while we were reading is newer — keep it.
+    if (!_cacheLoaded) {
+      _cachedSession = session;
+      _cacheLoaded = true;
+    }
+    return _cachedSession;
+  }
+
+  Future<AuthSession?> _readFromStorage() async {
     final raw = await _storage.read(key: _sessionKey);
     if (raw == null) return null;
     try {
@@ -33,8 +52,10 @@ class SessionStorage {
     }
   }
 
-  Future<void> clear() {
-    return _storage.delete(key: _sessionKey);
+  Future<void> clear() async {
+    await _storage.delete(key: _sessionKey);
+    _cachedSession = null;
+    _cacheLoaded = true;
   }
 
   Future<void> saveRememberEmail(String email) {

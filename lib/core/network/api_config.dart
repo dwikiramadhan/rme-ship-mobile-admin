@@ -82,18 +82,21 @@ class ApiConfig {
   }
 
   static Future<bool> testConnection(String targetUrl) async {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 4),
+        receiveTimeout: const Duration(seconds: 4),
+      ),
+    );
     try {
       final sanitized = sanitizeUrl(targetUrl);
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(seconds: 4),
-          receiveTimeout: const Duration(seconds: 4),
-        ),
-      );
       final res = await dio.get('$sanitized$healthPath');
       return res.statusCode == 200;
     } catch (_) {
       return false;
+    } finally {
+      // Release the underlying HttpClient/sockets right away.
+      dio.close(force: true);
     }
   }
 

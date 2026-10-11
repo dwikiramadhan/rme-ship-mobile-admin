@@ -30,6 +30,7 @@ class Icd9Api {
   final Dio _dio;
 
   static final Map<String, PaginatedIcd9> _cache = {};
+  static final Map<String, Future<PaginatedIcd9>> _inFlight = {};
 
   /// Retrieves cached initial page (unfiltered) if available.
   static PaginatedIcd9? getCachedInitial() => _cache[''];
@@ -55,12 +56,37 @@ class Icd9Api {
     int page = 1,
     int limit = 20,
     bool useCache = true,
-  }) async {
+  }) {
     final cacheKey = '${query.trim().toLowerCase()}_${page}_$limit';
     if (useCache && _cache.containsKey(cacheKey)) {
-      return _cache[cacheKey]!;
+      return Future.value(_cache[cacheKey]!);
     }
 
+    // An identical request is already on the wire (e.g. the exam modal's
+    // prefetch and the picker opening at the same time) — share it.
+    final pending = _inFlight[cacheKey];
+    if (pending != null) return pending;
+
+    final future = _request(
+      query: query,
+      page: page,
+      limit: limit,
+      cacheKey: cacheKey,
+    ).whenComplete(() {
+      // Block body on purpose: returning the removed Future would make
+      // whenComplete wait on itself and never complete.
+      _inFlight.remove(cacheKey);
+    });
+    _inFlight[cacheKey] = future;
+    return future;
+  }
+
+  Future<PaginatedIcd9> _request({
+    required String query,
+    required int page,
+    required int limit,
+    required String cacheKey,
+  }) async {
     try {
       final response = await _dio.get(
         ApiConfig.icd9Path,

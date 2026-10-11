@@ -36,9 +36,12 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(labOrderHistoryProvider.notifier).fetchHistory();
-    });
+    // A freshly created provider auto-fetches; only refresh an existing one.
+    if (ref.exists(labOrderHistoryProvider)) {
+      Future.microtask(() {
+        ref.read(labOrderHistoryProvider.notifier).fetchHistory();
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ws = ref.read(webSocketServiceProvider);
       _wsSub = ws.onEvent.listen((event) {

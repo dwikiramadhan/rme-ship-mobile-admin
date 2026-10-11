@@ -734,6 +734,10 @@ class _LoginHero extends StatelessWidget {
                         'assets/images/bayan_logo.png',
                         width: 54,
                         height: 54,
+                        // Decode at display size (the source PNG is much
+                        // larger): same sharpness, far less memory.
+                        cacheWidth:
+                            (54 * MediaQuery.devicePixelRatioOf(context)).round(),
                         fit: BoxFit.contain,
                       ),
                       const SizedBox(width: 14),
@@ -747,6 +751,9 @@ class _LoginHero extends StatelessWidget {
                         'assets/images/bayan-peduli-logo.png',
                         width: 65,
                         height: 54,
+                        // Decode at display size (the source is 1024px wide).
+                        cacheWidth:
+                            (65 * MediaQuery.devicePixelRatioOf(context)).round(),
                         fit: BoxFit.contain,
                       ),
 
@@ -943,8 +950,10 @@ class _AnimatedGradientBackgroundState
             Positioned.fill(
               child: CustomPaint(painter: _MovingOrbsPainter(progress: t)),
             ),
-            // Lapisan 3: Konten form login utama
-            Positioned.fill(child: child!),
+            // Lapisan 3: Konten form login utama. Own layer so the
+            // continuously animating background doesn't repaint the form
+            // on every frame.
+            Positioned.fill(child: RepaintBoundary(child: child!)),
           ],
         );
       },

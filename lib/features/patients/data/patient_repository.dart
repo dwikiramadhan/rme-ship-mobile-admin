@@ -32,6 +32,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   }) : _api = api ?? PatientApi(),
        _seenStorage = seenStorage ?? SeenNotificationStorage(),
        _wsService = wsService ?? WebSocketService(),
+       _ownsWsService = wsService == null,
        super(const []) {
     if (autoFetch) {
       Future.microtask(() => fetchPatients());
@@ -42,7 +43,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   final PatientApi _api;
   final SeenNotificationStorage _seenStorage;
   final WebSocketService _wsService;
+  // The injected service is the app-wide shared socket (owned by
+  // webSocketServiceProvider) and must outlive this notifier.
+  final bool _ownsWsService;
   StreamSubscription? _wsSubscription;
+  Timer? _silentPollTimer;
+  // Bumped by every refresh (page 1). Older responses, including an
+  // in-flight loadMore, are dropped so they can't overwrite newer results.
+  int _requestSeq = 0;
 
   bool _isLoading = false;
   bool _isLoadingMore = false;
@@ -78,8 +86,14 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           ),
         );
       }
-      _silentPoll();
+      _scheduleSilentPoll();
     });
+  }
+
+  /// Coalesces bursts of WS events into a single list refresh.
+  void _scheduleSilentPoll() {
+    _silentPollTimer?.cancel();
+    _silentPollTimer = Timer(const Duration(milliseconds: 500), _silentPoll);
   }
 
   Future<void> _silentPoll() async {
@@ -137,8 +151,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
   @override
   void dispose() {
+    _silentPollTimer?.cancel();
     _wsSubscription?.cancel();
-    _wsService.dispose();
+    if (_ownsWsService) _wsService.dispose();
     super.dispose();
   }
 
@@ -154,12 +169,15 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
     final effectiveSearch = search ?? _currentSearch;
 
+    final int seq;
     if (refresh) {
+      seq = ++_requestSeq;
       _isLoading = true;
       _currentPage = 1;
       if (mounted) state = [...state];
     } else {
       if (_isLoadingMore || !_hasMore) return;
+      seq = _requestSeq;
       _isLoadingMore = true;
       if (mounted) state = [...state];
     }
@@ -178,6 +196,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         search: effectiveSearch,
         status: status,
       );
+      if (seq != _requestSeq || !mounted) return;
 
       _currentPage = paginated.page;
       _totalPages = paginated.totalPages;
@@ -250,17 +269,42 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     } catch (e) {
       debugPrint('fetchPatients error: $e');
     } finally {
-      _isLoading = false;
-      _isLoadingMore = false;
+      if (refresh) {
+        // A newer refresh owns the loading flag now.
+        if (seq == _requestSeq) _isLoading = false;
+      } else {
+        _isLoadingMore = false;
+      }
       if (mounted) state = [...state];
     }
   }
 
-  /// Fetches medical records on-demand when a patient detail is viewed/clicked
-  Future<void> fetchPatientDetail(String id) async {
+  final Map<String, Future<void>> _detailInFlight = {};
+
+  /// Fetches medical records on-demand when a patient detail is viewed/clicked.
+  /// Concurrent calls for the same patient share one request (e.g. the list
+  /// selection and the detail pane both asking at once).
+  Future<void> fetchPatientDetail(String id) {
+    return _detailInFlight[id] ??= _fetchPatientDetail(
+      id,
+    ).whenComplete(() {
+      // Block body on purpose: returning the removed Future would make
+      // whenComplete wait on itself and never complete.
+      _detailInFlight.remove(id);
+    });
+  }
+
+  Future<void> _fetchPatientDetail(String id) async {
     try {
+      // Start the records request alongside the patient request instead of
+      // after it. Its result/error is still consumed below; the no-op handler
+      // only keeps an early failure from being reported as unhandled.
+      final recordsFuture = _api.getMedicalRecords(id);
+      unawaited(recordsFuture.then((_) {}, onError: (_) {}));
+
       try {
         final detailedPatient = await _api.getPatient(id);
+        if (!mounted) return;
         if (!state.any((p) => p.id == id)) {
           state = [...state, detailedPatient];
         }
@@ -298,7 +342,8 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         );
       } catch (_) {}
 
-      final medRecords = await _api.getMedicalRecords(id);
+      final medRecords = await recordsFuture;
+      if (!mounted) return;
       if (medRecords.isNotEmpty) {
         String? diag;
         String? tindakan;
@@ -1465,7 +1510,10 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
        _seenStorage = seenStorage ?? SeenNotificationStorage(),
        _wsService = wsService ?? WebSocketService(),
        super(const []) {
-    Future.microtask(() => fetchRecentNotifications());
+    // Without a session the request would only bounce with 401.
+    if (currentRole != null) {
+      Future.microtask(() => fetchRecentNotifications());
+    }
     _initWebSocket();
     _initConnectionMonitor();
   }
@@ -1479,6 +1527,13 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   StreamSubscription? _wsSubscription;
   StreamSubscription? _connSubscription;
   bool _isFirstLoad = true;
+
+  // WS events arriving close together are merged into one fetch.
+  Timer? _eventFetchTimer;
+  final Set<String> _pendingTargetIds = {};
+  String? _pendingBannerPatientId;
+  // Only the newest fetch may write state (older responses are dropped).
+  int _fetchSeq = 0;
 
   bool _isWaitingDoctor(Patient p) {
     return p.status == PatientStatus.menungguDokter &&
@@ -1521,9 +1576,22 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
         await _seenStorage.markPharmacySeen(patientId);
       }
 
-      await fetchRecentNotifications(
-        targetPatientId: patientId,
-        triggerBannerForPatientId: bannerPatientId,
+      if (patientId != null) _pendingTargetIds.add(patientId);
+      if (bannerPatientId != null) _pendingBannerPatientId = bannerPatientId;
+      _scheduleEventFetch();
+    });
+  }
+
+  void _scheduleEventFetch() {
+    _eventFetchTimer?.cancel();
+    _eventFetchTimer = Timer(const Duration(milliseconds: 400), () {
+      final targets = {..._pendingTargetIds};
+      final banner = _pendingBannerPatientId;
+      _pendingTargetIds.clear();
+      _pendingBannerPatientId = null;
+      fetchRecentNotifications(
+        targetPatientIds: targets,
+        triggerBannerForPatientId: banner,
       );
     });
   }
@@ -1557,23 +1625,34 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   }
 
   Future<void> fetchRecentNotifications({
-    String? targetPatientId,
+    Set<String> targetPatientIds = const {},
     String? triggerBannerForPatientId,
   }) async {
+    final seq = ++_fetchSeq;
     try {
       await _seenStorage.load();
       // Fetch recent triage/intake patients (page 1 with limit 50)
       final paginated = await _api.getPatientsPaginated(limit: 50);
       var patientList = paginated.data;
 
-      // If a specific target patient was notified but not on page 1, fetch it individually
-      if (targetPatientId != null &&
-          !patientList.any((p) => p.id == targetPatientId)) {
-        try {
-          final target = await _api.getPatient(targetPatientId);
-          patientList = [target, ...patientList];
-        } catch (_) {}
+      // Notified patients that aren't on page 1 are fetched individually (in parallel)
+      final missingIds = targetPatientIds
+          .where((id) => !patientList.any((p) => p.id == id))
+          .toList();
+      if (missingIds.isNotEmpty) {
+        final targets = await Future.wait(
+          missingIds.map((id) async {
+            try {
+              return await _api.getPatient(id);
+            } catch (_) {
+              return null;
+            }
+          }),
+        );
+        patientList = [...targets.whereType<Patient>(), ...patientList];
       }
+
+      if (!mounted || seq != _fetchSeq) return;
 
       // Sync viewed flags from storage
       patientList = patientList.map((p) {
@@ -1794,6 +1873,7 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
 
   @override
   void dispose() {
+    _eventFetchTimer?.cancel();
     _wsSubscription?.cancel();
     _connSubscription?.cancel();
     super.dispose();
@@ -1806,8 +1886,11 @@ final notificationsProvider =
       final ws = ref.watch(webSocketServiceProvider);
       final seenStorage = ref.watch(seenNotificationStorageProvider);
       final inAppNotifier = ref.watch(inAppNotificationProvider.notifier);
-      final authState = ref.watch(authControllerProvider);
-      final userRole = authState.session?.user.role;
+      // Only rebuild (and refetch) when the signed-in role actually changes,
+      // not on every auth status transition.
+      final userRole = ref.watch(
+        authControllerProvider.select((s) => s.session?.user.role),
+      );
       return NotificationsNotifier(
         api: api,
         wsService: ws,
@@ -1822,8 +1905,9 @@ final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>(
     final api = ref.watch(patientApiProvider);
     final ws = ref.watch(webSocketServiceProvider);
     final seenStorage = ref.watch(seenNotificationStorageProvider);
-    final authState = ref.watch(authControllerProvider);
-    final hasSession = authState.session != null;
+    final hasSession = ref.watch(
+      authControllerProvider.select((s) => s.session != null),
+    );
     return PatientsNotifier(
       api: api,
       wsService: ws,
@@ -1850,10 +1934,13 @@ final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {
 final patientDetailProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
       final api = ref.watch(patientApiProvider);
+      // Fetch detail and medical records in parallel.
+      final recordsFuture = api.getMedicalRecords(id);
+      unawaited(recordsFuture.then((_) {}, onError: (_) {}));
       final detail = await api.getPatientDetailRaw(id);
       // Also fetch medical records in case they are separated
       try {
-        final records = await api.getMedicalRecords(id);
+        final records = await recordsFuture;
         if (records.isNotEmpty) {
           final existing = detail['medical_records'];
           if (existing == null || (existing is List && existing.isEmpty)) {
@@ -1891,6 +1978,9 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   bool _hasMore = true;
   String _currentSearch = '';
   Timer? _debounceTimer;
+  // Bumped by every page-1 fetch. Responses from older requests (including
+  // an in-flight loadMore) are dropped so they can't overwrite newer results.
+  int _requestSeq = 0;
 
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
@@ -1914,6 +2004,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   void setDoctorId(String? newDoctorId) => setUserId(newDoctorId);
 
   Future<void> fetchHistory({bool refresh = false}) async {
+    final seq = ++_requestSeq;
     if (refresh) {
       _currentPage = 1;
       _hasMore = true;
@@ -1927,6 +2018,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         statusPenanganan: statusPenanganan,
         userId: userId,
       );
+      if (seq != _requestSeq) return;
       _currentPage = res.page;
       _totalPages = res.totalPages;
       _total = res.total;
@@ -1943,13 +2035,17 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     } catch (e) {
       debugPrint('MedicalHistoryNotifier.fetchHistory error: $e');
     } finally {
-      _isLoading = false;
-      if (mounted) state = [...state];
+      // A newer fetch owns the loading flag now.
+      if (seq == _requestSeq) {
+        _isLoading = false;
+        if (mounted) state = [...state];
+      }
     }
   }
 
   Future<void> loadMore() async {
     if (_isLoadingMore || !_hasMore || _isLoading) return;
+    final seq = _requestSeq;
     _isLoadingMore = true;
     if (mounted) state = [...state];
     try {
@@ -1961,6 +2057,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         statusPenanganan: statusPenanganan,
         userId: userId,
       );
+      // The list was reset (search/filter/refresh) while this page loaded.
+      if (seq != _requestSeq) return;
       _currentPage = res.page;
       _totalPages = res.totalPages;
       _total = res.total;
@@ -2064,12 +2162,19 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
 final medicalHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
       final api = ref.watch(patientApiProvider);
-      final authState = ref.watch(authControllerProvider);
-      final user = authState.session?.user;
-      final hasSession = authState.session != null;
-      final userId = (user != null && user.role == UserRole.dokter)
-          ? user.id
-          : null;
+      // Rebuild (and refetch) only when the session/doctor filter changes,
+      // not on every auth status transition.
+      final (:hasSession, :userId) = ref.watch(
+        authControllerProvider.select((s) {
+          final user = s.session?.user;
+          return (
+            hasSession: s.session != null,
+            userId: (user != null && user.role == UserRole.dokter)
+                ? user.id
+                : null,
+          );
+        }),
+      );
       return MedicalHistoryNotifier(
         api: api,
         autoFetch: hasSession,
@@ -2083,8 +2188,9 @@ final medicalHistoryByUserProvider = StateNotifierProvider.family<
     List<MedicalHistory>,
     String?>((ref, userId) {
   final api = ref.watch(patientApiProvider);
-  final authState = ref.watch(authControllerProvider);
-  final hasSession = authState.session != null;
+  final hasSession = ref.watch(
+    authControllerProvider.select((s) => s.session != null),
+  );
   return MedicalHistoryNotifier(
     api: api,
     autoFetch: hasSession,
@@ -2099,8 +2205,9 @@ final medicalHistoryByDoctorProvider = medicalHistoryByUserProvider;
 final pharmacyPrescriptionHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
       final api = ref.watch(patientApiProvider);
-      final authState = ref.watch(authControllerProvider);
-      final hasSession = authState.session != null;
+      final hasSession = ref.watch(
+        authControllerProvider.select((s) => s.session != null),
+      );
       return MedicalHistoryNotifier(
         api: api,
         autoFetch: hasSession,
@@ -2112,8 +2219,9 @@ final pharmacyPrescriptionHistoryProvider =
 final labOrderHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
       final api = ref.watch(patientApiProvider);
-      final authState = ref.watch(authControllerProvider);
-      final hasSession = authState.session != null;
+      final hasSession = ref.watch(
+        authControllerProvider.select((s) => s.session != null),
+      );
       return MedicalHistoryNotifier(
         api: api,
         autoFetch: hasSession,

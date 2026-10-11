@@ -32,6 +32,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _debounce;
+  int _fetchSeq = 0;
   Timer? _initialFetchTimer;
   bool _hasFetchedInitial = false;
 
@@ -92,6 +93,9 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
 
   Future<void> _fetchPage(int page,
       {String query = '', bool reset = false}) async {
+    // Only the newest list reset may write results; a stale search or
+    // a loadMore that started before the reset is dropped.
+    final seq = reset ? ++_fetchSeq : _fetchSeq;
     if (reset) {
       setState(() {
         _isLoading = true;
@@ -112,7 +116,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
         page: page,
       );
 
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         if (reset) {
           _medicines = res.data;
@@ -134,7 +138,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
         _isLoadingMore = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         _isLoading = false;
         _isLoadingMore = false;
@@ -288,6 +292,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
                   if (query.isNotEmpty)
                     GestureDetector(
                       onTap: () {
+                        _debounce?.cancel();
                         _searchController.clear();
                         _fetchPage(1, reset: true);
                       },

@@ -426,17 +426,22 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
 
     // Medical records
     final rawRecords = data['medical_records'];
-    final List<Map<String, dynamic>> records = [];
+    // Parse each record's date once instead of twice per comparison; this
+    // runs on every rebuild, including during the tab transition.
+    final datedRecords = <({DateTime time, Map<String, dynamic> record})>[];
     if (rawRecords is List) {
       for (final r in rawRecords) {
-        if (r is Map<String, dynamic>) records.add(r);
+        if (r is Map<String, dynamic>) {
+          datedRecords.add((
+            time: DateTime.tryParse(r['created_at']?.toString() ?? r['date']?.toString() ?? '') ??
+                DateTime.fromMillisecondsSinceEpoch(0),
+            record: r,
+          ));
+        }
       }
     }
-    records.sort((a, b) {
-      final timeA = DateTime.tryParse(a['created_at']?.toString() ?? a['date']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-      final timeB = DateTime.tryParse(b['created_at']?.toString() ?? b['date']?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
-      return timeB.compareTo(timeA);
-    });
+    datedRecords.sort((a, b) => b.time.compareTo(a.time));
+    final records = [for (final d in datedRecords) d.record];
     final totalVisits = records.isNotEmpty
         ? records.length
         : (widget.initialPatient != null ? 1 : 0);
@@ -540,15 +545,10 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                           onBack: () => Navigator.of(context).pop(),
                           onSaved: () {
                             Navigator.of(context).pop();
+                            // PatientForm already refreshes patients & history.
                             ref.invalidate(
                               patientDetailProvider(widget.patientId),
                             );
-                            ref
-                                .read(patientsProvider.notifier)
-                                .fetchPatients();
-                            ref
-                                .read(medicalHistoryProvider.notifier)
-                                .fetchHistory(refresh: true);
                           },
                         ),
                       ),
@@ -658,8 +658,10 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                                     : '${ApiConfig.baseUrl}$photoUrl',
                                 width: 50,
                                 height: 50,
+                                // Width only: forcing both dimensions decoded non-square photos
+                                // into a square (squashed). This keeps the aspect ratio so
+                                // BoxFit.cover crops instead.
                                 cacheWidth: 150,
-                                cacheHeight: 150,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) => Text(
                                   initials,
@@ -873,7 +875,9 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                       parent: animation,
                       curve: Curves.easeOut,
                     ),
-                    child: child,
+                    // Own layer: the slide then just moves a cached picture instead
+                    // of repainting the whole tab on every animation frame.
+                    child: RepaintBoundary(child: child),
                   ),
                 );
               },
@@ -1505,8 +1509,10 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                           : '${ApiConfig.baseUrl}$photoUrl',
                       width: 56,
                       height: 56,
+                      // Width only: forcing both dimensions decoded non-square photos
+                      // into a square (squashed). This keeps the aspect ratio so
+                      // BoxFit.cover crops instead.
                       cacheWidth: 168,
-                      cacheHeight: 168,
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
                         width: 56,

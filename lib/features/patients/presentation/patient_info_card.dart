@@ -70,8 +70,10 @@ class PatientInfoCard extends StatelessWidget {
                                   : '${ApiConfig.baseUrl}${patient.photoUrl}',
                               width: 48,
                               height: 48,
+                              // Width only: forcing both dimensions decoded non-square photos
+                              // into a square (squashed). This keeps the aspect ratio so
+                              // BoxFit.cover crops instead.
                               cacheWidth: 144,
-                              cacheHeight: 144,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) => Text(
                                 cleanNama.isNotEmpty ? cleanNama[0] : '?',

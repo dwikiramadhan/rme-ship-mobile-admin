@@ -945,6 +945,7 @@ class _PoliklinikPickerBottomSheetState
   late final ScrollController _scrollController;
   late final TextEditingController _searchController;
   Timer? _debounceTimer;
+  int _fetchSeq = 0;
 
   late List<PoliklinikItem> _selectedItems;
   List<PoliklinikItem> _items = [];
@@ -996,6 +997,9 @@ class _PoliklinikPickerBottomSheetState
     String query = '',
     bool reset = false,
   }) async {
+    // Only the newest list reset may write results; a stale search or
+    // a loadMore that started before the reset is dropped.
+    final seq = reset ? ++_fetchSeq : _fetchSeq;
     if (reset) {
       setState(() {
         _loading = true;
@@ -1014,7 +1018,7 @@ class _PoliklinikPickerBottomSheetState
         search: query.isNotEmpty ? query : null,
       );
 
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         if (reset) {
           _items = res.items;
@@ -1032,7 +1036,7 @@ class _PoliklinikPickerBottomSheetState
       });
     } catch (e) {
       debugPrint('_PoliklinikPickerBottomSheet _fetchPage error: $e');
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         _loading = false;
         _loadingMore = false;

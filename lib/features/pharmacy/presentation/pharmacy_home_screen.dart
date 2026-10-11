@@ -37,9 +37,12 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      ref.read(pharmacyPrescriptionHistoryProvider.notifier).fetchHistory();
-    });
+    // A freshly created provider auto-fetches; only refresh an existing one.
+    if (ref.exists(pharmacyPrescriptionHistoryProvider)) {
+      Future.microtask(() {
+        ref.read(pharmacyPrescriptionHistoryProvider.notifier).fetchHistory();
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ws = ref.read(webSocketServiceProvider);
       _wsSub = ws.onEvent.listen((event) {

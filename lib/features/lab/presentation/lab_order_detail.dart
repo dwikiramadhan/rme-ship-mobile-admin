@@ -15,6 +15,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/lab_order.dart';
+import '../../patients/domain/medical_history.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/presentation/patient_info_card.dart';
 
@@ -301,21 +302,23 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
 
   @override
   Widget build(BuildContext context) {
-    final labHistories = ref.watch(labOrderHistoryProvider);
-    final medHistories = ref.watch(medicalHistoryProvider);
-    final medHistory = (widget.medRecId != null && widget.medRecId!.isNotEmpty)
-        ? (labHistories.where((h) => h.id == widget.medRecId).firstOrNull ??
-              medHistories.where((h) => h.id == widget.medRecId).firstOrNull)
-        : (labHistories
-                  .where((h) => h.patientId == widget.patientId)
-                  .firstOrNull ??
-              medHistories
-                  .where((h) => h.patientId == widget.patientId)
-                  .firstOrNull);
+    // Select only the entries this pane shows so list-wide updates
+    // (WS polls, paging) don't rebuild it.
+    MedicalHistory? findHistory(List<MedicalHistory> list) =>
+        (widget.medRecId != null && widget.medRecId!.isNotEmpty)
+        ? list.where((h) => h.id == widget.medRecId).firstOrNull
+        : list.where((h) => h.patientId == widget.patientId).firstOrNull;
+    final labMatch = ref.watch(labOrderHistoryProvider.select(findHistory));
+    final medMatch = ref.watch(medicalHistoryProvider.select(findHistory));
+    final medHistory = labMatch ?? medMatch;
 
-    final patients = ref.watch(patientsProvider);
     final patient =
-        patients.where((p) => p.id == widget.patientId).firstOrNull ??
+        ref.watch(
+          patientsProvider.select(
+            (patients) =>
+                patients.where((p) => p.id == widget.patientId).firstOrNull,
+          ),
+        ) ??
         medHistory?.toPatient();
 
     if (_loading && patient == null) {

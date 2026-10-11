@@ -1706,6 +1706,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
   late final ScrollController _scrollController;
   late final TextEditingController _searchController;
   Timer? _debounceTimer;
+  int _fetchSeq = 0;
 
   late List<PortItem> _items;
   int _page = 1;
@@ -1761,6 +1762,9 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
     String query = '',
     bool reset = false,
   }) async {
+    // Only the newest list reset may write results; a stale search or
+    // a loadMore that started before the reset is dropped.
+    final seq = reset ? ++_fetchSeq : _fetchSeq;
     if (reset) {
       setState(() {
         _loading = true;
@@ -1779,7 +1783,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
         search: query.isNotEmpty ? query : null,
       );
 
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         if (reset) {
           _items = res.items;
@@ -1806,7 +1810,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
       });
     } catch (e) {
       debugPrint('_PortPickerBottomSheet _fetchPage error: $e');
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         _loading = false;
         _loadingMore = false;
@@ -1945,6 +1949,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                     suffixIcon: _searchController.text.isNotEmpty
                         ? GestureDetector(
                             onTap: () {
+                              _debounceTimer?.cancel();
                               _searchController.clear();
                               _fetchPage(1, reset: true);
                             },
@@ -2245,6 +2250,7 @@ class _PersonnelPickerBottomSheetState
   late final ScrollController _scrollController;
   late final TextEditingController _searchController;
   Timer? _debounceTimer;
+  int _fetchSeq = 0;
 
   late List<SchedulePersonnelItem> _selectedItems;
   List<SchedulePersonnelItem> _items = [];
@@ -2296,6 +2302,9 @@ class _PersonnelPickerBottomSheetState
     String query = '',
     bool reset = false,
   }) async {
+    // Only the newest list reset may write results; a stale search or
+    // a loadMore that started before the reset is dropped.
+    final seq = reset ? ++_fetchSeq : _fetchSeq;
     if (reset) {
       setState(() {
         _loading = true;
@@ -2315,7 +2324,7 @@ class _PersonnelPickerBottomSheetState
         search: query.isNotEmpty ? query : null,
       );
 
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         if (reset) {
           _items = res.items;
@@ -2341,7 +2350,7 @@ class _PersonnelPickerBottomSheetState
       });
     } catch (e) {
       debugPrint('_PersonnelPickerBottomSheet _fetchPage error: $e');
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         _loading = false;
         _loadingMore = false;
@@ -2480,6 +2489,7 @@ class _PersonnelPickerBottomSheetState
                       ? IconButton(
                           icon: const Icon(LucideIcons.x, size: 14),
                           onPressed: () {
+                            _debounceTimer?.cancel();
                             _searchController.clear();
                             _fetchPage(1, reset: true);
                           },
@@ -2754,6 +2764,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
   late final ScrollController _scrollController;
   late final TextEditingController _searchController;
   Timer? _debounceTimer;
+  int _fetchSeq = 0;
 
   late List<ScheduleCrewItem> _selectedItems;
   List<ScheduleCrewItem> _items = [];
@@ -2808,6 +2819,9 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
     String query = '',
     bool reset = false,
   }) async {
+    // Only the newest list reset may write results; a stale search or
+    // a loadMore that started before the reset is dropped.
+    final seq = reset ? ++_fetchSeq : _fetchSeq;
     if (reset) {
       setState(() {
         _loading = true;
@@ -2826,7 +2840,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
         search: query.isNotEmpty ? query : null,
       );
 
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         if (reset) {
           _items = res.items;
@@ -2852,7 +2866,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
       });
     } catch (e) {
       debugPrint('_CrewPickerBottomSheet _fetchPage error: $e');
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         _loading = false;
         _loadingMore = false;
@@ -2995,6 +3009,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                       ? IconButton(
                           icon: const Icon(LucideIcons.x, size: 14),
                           onPressed: () {
+                            _debounceTimer?.cancel();
                             _searchController.clear();
                             _fetchPage(1, reset: true);
                           },

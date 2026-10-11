@@ -138,6 +138,9 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
   final String shipCode;
   Timer? _debounceTimer;
   bool _isRefreshing = false;
+  // Bumped by every page-1 load; older responses (incl. loadMore) are dropped
+  // so the list always matches the latest search.
+  int _requestSeq = 0;
 
   @override
   void dispose() {
@@ -147,7 +150,10 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
 
   Future<void> loadInitial({bool refresh = false}) async {
     if (shipCode.trim().isEmpty) return;
-    if (_isRefreshing || state.isLoading) return;
+    // Pull-to-refresh while a load is running is redundant. A new search
+    // (non-refresh) always proceeds — the latest query wins.
+    if (refresh && (_isRefreshing || state.isLoading)) return;
+    final seq = ++_requestSeq;
 
     if (refresh) {
       _isRefreshing = true;
@@ -161,6 +167,7 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
         search: state.searchQuery,
         limit: state.limit,
       );
+      if (seq != _requestSeq || !mounted) return;
 
       state = state.copyWith(
         items: res.items,
@@ -173,12 +180,13 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
       );
     } catch (e) {
       debugPrint('Error loadInitial stocks: $e');
+      if (seq != _requestSeq || !mounted) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString(),
       );
     } finally {
-      _isRefreshing = false;
+      if (seq == _requestSeq) _isRefreshing = false;
     }
   }
 
@@ -195,6 +203,7 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
     if (_isRefreshing || state.isLoading || state.isLoadingMore || !state.hasMore) return;
     if (shipCode.trim().isEmpty) return;
 
+    final seq = _requestSeq;
     state = state.copyWith(isLoadingMore: true);
     final nextPage = state.page + 1;
 
@@ -205,6 +214,12 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
         page: nextPage,
         limit: state.limit,
       );
+      if (!mounted) return;
+      // The list was reset by a newer search while this page loaded.
+      if (seq != _requestSeq) {
+        state = state.copyWith(isLoadingMore: false);
+        return;
+      }
 
       final newItems = [...state.items, ...res.items];
       state = state.copyWith(
@@ -216,6 +231,7 @@ class ShipMedicineStockNotifier extends StateNotifier<ShipMedicineStockState> {
       );
     } catch (e) {
       debugPrint('Error loadMore stocks: $e');
+      if (!mounted) return;
       state = state.copyWith(
         isLoadingMore: false,
       );
@@ -294,6 +310,9 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
   final String shipCode;
   Timer? _debounceTimer;
   bool _isRefreshing = false;
+  // Bumped by every page-1 load; older responses (incl. loadMore) are dropped
+  // so the list always matches the latest search.
+  int _requestSeq = 0;
 
   @override
   void dispose() {
@@ -302,7 +321,10 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
   }
 
   Future<void> loadInitial({bool refresh = false}) async {
-    if (_isRefreshing || state.isLoading) return;
+    // Pull-to-refresh while a load is running is redundant. A new search
+    // (non-refresh) always proceeds — the latest query wins.
+    if (refresh && (_isRefreshing || state.isLoading)) return;
+    final seq = ++_requestSeq;
 
     if (refresh) {
       _isRefreshing = true;
@@ -316,6 +338,7 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
         search: state.searchQuery,
         limit: state.limit,
       );
+      if (seq != _requestSeq || !mounted) return;
 
       state = state.copyWith(
         items: res.items,
@@ -328,12 +351,13 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
       );
     } catch (e) {
       debugPrint('Error loadInitial histories: $e');
+      if (seq != _requestSeq || !mounted) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: e.toString(),
       );
     } finally {
-      _isRefreshing = false;
+      if (seq == _requestSeq) _isRefreshing = false;
     }
   }
 
@@ -349,6 +373,7 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
   Future<void> loadMore() async {
     if (_isRefreshing || state.isLoading || state.isLoadingMore || !state.hasMore) return;
 
+    final seq = _requestSeq;
     state = state.copyWith(isLoadingMore: true);
     final nextPage = state.page + 1;
 
@@ -359,6 +384,12 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
         page: nextPage,
         limit: state.limit,
       );
+      if (!mounted) return;
+      // The list was reset by a newer search while this page loaded.
+      if (seq != _requestSeq) {
+        state = state.copyWith(isLoadingMore: false);
+        return;
+      }
 
       final newItems = [...state.items, ...res.items];
       state = state.copyWith(
@@ -370,6 +401,7 @@ class ShipMedicineHistoryNotifier extends StateNotifier<ShipMedicineHistoryState
       );
     } catch (e) {
       debugPrint('Error loadMore histories: $e');
+      if (!mounted) return;
       state = state.copyWith(
         isLoadingMore: false,
       );

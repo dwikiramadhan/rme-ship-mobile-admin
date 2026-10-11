@@ -98,16 +98,11 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
                     _showForm = false;
                     _editingPatient = null;
                   }),
-                  onSaved: () {
-                    setState(() {
-                      _showForm = false;
-                      _editingPatient = null;
-                    });
-                    ref.read(patientsProvider.notifier).fetchPatients();
-                    ref
-                        .read(medicalHistoryProvider.notifier)
-                        .fetchHistory(refresh: true);
-                  },
+                  // PatientForm already refreshes patients & history on save.
+                  onSaved: () => setState(() {
+                    _showForm = false;
+                    _editingPatient = null;
+                  }),
                 )
               : PatientListScreen(
                   onAddPatient: () => setState(() {
@@ -123,12 +118,10 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
                     _showForm = false;
                     _editingPatient = null;
                   }),
+                  // TambahKunjunganScreen already refreshes history on save.
                   onSaved: () => setState(() {
                     _showForm = false;
                     _editingPatient = null;
-                    ref
-                        .read(medicalHistoryProvider.notifier)
-                        .fetchHistory(refresh: true);
                   }),
                 )
               : _buildRiwayatKunjungan(),

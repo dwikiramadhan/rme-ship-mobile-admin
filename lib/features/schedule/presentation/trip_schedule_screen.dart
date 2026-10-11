@@ -34,14 +34,12 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
     _debounceTimer = Timer(const Duration(milliseconds: 400), () {
       ref.read(schedulesNotifierProvider.notifier).setSearch(val);
     });
-    setState(() {});
   }
 
   void _onClearSearch() {
     _debounceTimer?.cancel();
     _searchController.clear();
     ref.read(schedulesNotifierProvider.notifier).setSearch('');
-    setState(() {});
   }
 
   void _onFilterSelected(String status) {
@@ -52,7 +50,6 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
     _debounceTimer?.cancel();
     _searchController.clear();
     ref.read(schedulesNotifierProvider.notifier).resetFilters();
-    setState(() {});
   }
 
   @override
@@ -180,54 +177,59 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                         ),
                       ],
                     ),
-                    child: TextField(
-                      controller: _searchController,
-                      onChanged: _onSearchChanged,
-                      style: const TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.text,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Cari kapal, rute, pelabuhan, dokter...',
-                        hintStyle: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.sub,
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0,
+                    child: ValueListenableBuilder<TextEditingValue>(
+                      // Rebuild only the field (for the clear icon) on each
+                      // keystroke instead of the whole screen.
+                      valueListenable: _searchController,
+                      builder: (context, value, _) => TextField(
+                          controller: _searchController,
+                          onChanged: _onSearchChanged,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Cari kapal, rute, pelabuhan, dokter...',
+                            hintStyle: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.sub,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 0,
+                            ),
+                            prefixIcon: const Icon(
+                              LucideIcons.search,
+                              size: 18,
+                              color: AppColors.sub,
+                            ),
+                            suffixIcon: value.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(
+                                      LucideIcons.x,
+                                      size: 16,
+                                      color: AppColors.sub,
+                                    ),
+                                    onPressed: _onClearSearch,
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(40),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(40),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(40),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 14,
+                              horizontal: 16,
+                            ),
+                          ),
                         ),
-                        prefixIcon: const Icon(
-                          LucideIcons.search,
-                          size: 18,
-                          color: AppColors.sub,
-                        ),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(
-                                  LucideIcons.x,
-                                  size: 16,
-                                  color: AppColors.sub,
-                                ),
-                                onPressed: _onClearSearch,
-                              )
-                            : null,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(40),
-                          borderSide: BorderSide.none,
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(40),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(40),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 14,
-                          horizontal: 16,
-                        ),
-                      ),
                     ),
                   ),
 

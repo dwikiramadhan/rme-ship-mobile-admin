@@ -113,7 +113,8 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
   @override
   void didUpdateWidget(covariant ResponsiveMasterDetail oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedId != null && widget.selectedId != oldWidget.selectedId) {
+    if (widget.selectedId != null &&
+        widget.selectedId != oldWidget.selectedId) {
       _selectedId = widget.selectedId;
     }
     if (widget.entries.length != _lastEntriesCount) {
@@ -135,8 +136,12 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
   }
 
   void _onScroll() {
-    if (widget.onLoadMore != null && widget.hasMore && !widget.isLoadingMore && !_internalLoadingMore) {
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 100) {
+    if (widget.onLoadMore != null &&
+        widget.hasMore &&
+        !widget.isLoadingMore &&
+        !_internalLoadingMore) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 100) {
         setState(() => _internalLoadingMore = true);
         widget.onLoadMore!();
         Future.delayed(const Duration(milliseconds: 1500), () {
@@ -168,81 +173,88 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
 
   Widget _list(BuildContext context, {required bool tablet}) {
     final showLoadingMore = widget.isLoadingMore || _internalLoadingMore;
-    final activeSelectedId = _selectedId != null && widget.entries.any((e) => e.id == _selectedId)
+    final activeSelectedId =
+        _selectedId != null && widget.entries.any((e) => e.id == _selectedId)
         ? _selectedId
         : (widget.entries.isNotEmpty ? widget.entries.first.id : null);
 
     final listWidget = widget.isLoading && widget.entries.isEmpty
         ? const SkeletonList()
         : widget.entries.isEmpty
-            ? LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Text('Belum ada data', style: TextStyle(color: AppColors.sub, fontSize: 13)),
-                      ),
+        ? LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Belum ada data',
+                      style: TextStyle(color: AppColors.sub, fontSize: 13),
                     ),
                   ),
                 ),
-              )
-            : ListView.separated(
-                controller: _scrollController,
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(12),
-                itemCount: widget.entries.length + (showLoadingMore ? 1 : 0),
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  if (index >= widget.entries.length) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      alignment: Alignment.center,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2.2, color: AppColors.orange),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'Memuat data pasien...',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.sub.withValues(alpha: 0.9),
-                            ),
-                          ),
-                        ],
+              ),
+            ),
+          )
+        : ListView.separated(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(12),
+            itemCount: widget.entries.length + (showLoadingMore ? 1 : 0),
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              if (index >= widget.entries.length) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  alignment: Alignment.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: AppColors.orange,
+                        ),
                       ),
-                    );
-                  }
+                      const SizedBox(width: 10),
+                      Text(
+                        'Memuat data pasien...',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.sub.withValues(alpha: 0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-                  final entry = widget.entries[index];
-                  return ListItemButton(
-                    active: tablet && activeSelectedId == entry.id,
-                    avatarColor: entry.avatarColor,
-                    avatarBg: entry.avatarBg,
-                    initial: entry.initial,
-                    title: entry.title,
-                    code: entry.code,
-                    subtitle: entry.subtitle,
-                    trailing: entry.badge,
-                    onTap: () {
-                      widget.onEntrySelected?.call(entry.id);
-                      if (tablet) {
-                        setState(() => _selectedId = entry.id);
-                      } else {
-                        _openPhoneDetail(context, entry);
-                      }
-                    },
-                  );
+              final entry = widget.entries[index];
+              return ListItemButton(
+                active: tablet && activeSelectedId == entry.id,
+                avatarColor: entry.avatarColor,
+                avatarBg: entry.avatarBg,
+                initial: entry.initial,
+                title: entry.title,
+                code: entry.code,
+                subtitle: entry.subtitle,
+                trailing: entry.badge,
+                onTap: () {
+                  widget.onEntrySelected?.call(entry.id);
+                  if (tablet) {
+                    setState(() => _selectedId = entry.id);
+                  } else {
+                    _openPhoneDetail(context, entry);
+                  }
                 },
               );
+            },
+          );
 
     final content = widget.onRefresh != null
         ? RefreshIndicator(
@@ -255,7 +267,11 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ScreenHeader(title: widget.title, subtitle: widget.subtitle, trailing: widget.trailing),
+        ScreenHeader(
+          title: widget.title,
+          subtitle: widget.subtitle,
+          trailing: widget.trailing,
+        ),
         if (widget.onSearchChanged != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -267,10 +283,14 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                     curve: Curves.easeInOut,
                     height: 42,
                     decoration: BoxDecoration(
-                      color: _isSearchFocused ? AppColors.card : AppColors.card2,
+                      color: _isSearchFocused
+                          ? AppColors.card
+                          : AppColors.card2,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: _isSearchFocused ? AppColors.orange : AppColors.border,
+                        color: _isSearchFocused
+                            ? AppColors.orange
+                            : AppColors.border,
                         width: _isSearchFocused ? 1.5 : 1,
                       ),
                       boxShadow: _isSearchFocused
@@ -292,7 +312,9 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                             LucideIcons.search,
                             key: ValueKey(_isSearchFocused),
                             size: 16,
-                            color: _isSearchFocused ? AppColors.orange : AppColors.sub,
+                            color: _isSearchFocused
+                                ? AppColors.orange
+                                : AppColors.sub,
                           ),
                         ),
                         const SizedBox(width: 9),
@@ -302,11 +324,13 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                             controller: _searchController,
                             textAlignVertical: TextAlignVertical.center,
                             onChanged: (val) {
-                              setState(() {});
                               _searchDebounce?.cancel();
-                              _searchDebounce = Timer(const Duration(milliseconds: 350), () {
-                                widget.onSearchChanged?.call(val);
-                              });
+                              _searchDebounce = Timer(
+                                const Duration(milliseconds: 350),
+                                () {
+                                  widget.onSearchChanged?.call(val);
+                                },
+                              );
                             },
                             style: const TextStyle(
                               fontSize: 13,
@@ -314,7 +338,9 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                               letterSpacing: 0,
                             ),
                             decoration: InputDecoration(
-                              hintText: widget.searchPlaceholder ?? 'Cari nama atau NIK pasien...',
+                              hintText:
+                                  widget.searchPlaceholder ??
+                                  'Cari nama atau NIK pasien...',
                               hintStyle: const TextStyle(
                                 fontSize: 13,
                                 color: AppColors.sub,
@@ -328,30 +354,37 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                             ),
                           ),
                         ),
-                        if (_searchController.text.isNotEmpty) ...[
-                          GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              setState(() {});
-                              widget.onSearchChanged?.call('');
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 8),
-                              width: 22,
-                              height: 22,
-                              decoration: BoxDecoration(
-                                color: AppColors.sub.withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                LucideIcons.x,
-                                size: 13,
-                                color: AppColors.sub,
-                              ),
-                            ),
-                          ),
-                        ] else
-                          const SizedBox(width: 6),
+                        // Rebuild only the clear button on each keystroke
+                        // instead of the whole list + detail pane.
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _searchController,
+                          builder: (context, value, _) => value.text.isNotEmpty
+                              ? GestureDetector(
+                                  onTap: () {
+                                    _searchController.clear();
+                                    widget.onSearchChanged?.call('');
+                                  },
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.sub.withValues(
+                                        alpha: 0.15,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      LucideIcons.x,
+                                      size: 13,
+                                      color: AppColors.sub,
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox(width: 6),
+                        ),
                       ],
                     ),
                   ),
@@ -368,7 +401,6 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final tablet = isTabletLayout(context);
@@ -377,7 +409,8 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
       return _list(context, tablet: false);
     }
 
-    final activeSelectedId = _selectedId != null && widget.entries.any((e) => e.id == _selectedId)
+    final activeSelectedId =
+        _selectedId != null && widget.entries.any((e) => e.id == _selectedId)
         ? _selectedId
         : (widget.entries.isNotEmpty ? widget.entries.first.id : null);
 
@@ -387,7 +420,9 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
         SizedBox(
           width: 380,
           child: DecoratedBox(
-            decoration: const BoxDecoration(border: Border(right: BorderSide(color: AppColors.border))),
+            decoration: const BoxDecoration(
+              border: Border(right: BorderSide(color: AppColors.border)),
+            ),
             child: _list(context, tablet: true),
           ),
         ),
@@ -397,7 +432,11 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                   padding: const EdgeInsets.all(16),
                   child: widget.detailBuilder(context, activeSelectedId),
                 )
-              : EmptyState(icon: widget.emptyIcon, title: widget.emptyTitle, subtitle: widget.emptySubtitle),
+              : EmptyState(
+                  icon: widget.emptyIcon,
+                  title: widget.emptyTitle,
+                  subtitle: widget.emptySubtitle,
+                ),
         ),
       ],
     );

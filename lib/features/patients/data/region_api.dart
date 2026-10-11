@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_config.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/ttl_cache.dart';
 
 class WilayahProvinsi {
   const WilayahProvinsi({
@@ -83,12 +85,57 @@ class WilayahKelurahan {
   }
 }
 
+/// Administrative regions are static reference data, so each list is kept
+/// for the session instead of being re-downloaded on every form open.
+class _WilayahCache {
+  static const _ttl = Duration(hours: 12);
+  static bool _nonEmpty(List<Object> l) => l.isNotEmpty;
+
+  final provinsi = TtlCache<List<WilayahProvinsi>>(_ttl, shouldCache: _nonEmpty);
+  final kabupatenKota =
+      TtlCache<List<WilayahKabupatenKota>>(_ttl, shouldCache: _nonEmpty);
+  final kecamatan = TtlCache<List<WilayahKecamatan>>(_ttl, shouldCache: _nonEmpty);
+  final kelurahan = TtlCache<List<WilayahKelurahan>>(_ttl, shouldCache: _nonEmpty);
+}
+
 class WilayahApi {
   WilayahApi({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
   final Dio _dio;
 
-  Future<List<WilayahProvinsi>> getProvinsi() async {
+  // Tied to the Dio client (app-wide singleton in production).
+  static final _caches = Expando<_WilayahCache>();
+  _WilayahCache get _cache => _caches[_dio] ??= _WilayahCache();
+
+  // Callers get their own copy so they can't mutate the cached list.
+  Future<List<WilayahProvinsi>> getProvinsi() async => List.of(
+        await _cache.provinsi.getOrFetch(ApiConfig.baseUrl, _fetchProvinsi),
+      );
+
+  Future<List<WilayahKabupatenKota>> getKabupatenKota(int kodeProvinsi) async =>
+      List.of(
+        await _cache.kabupatenKota.getOrFetch(
+          '${ApiConfig.baseUrl}|$kodeProvinsi',
+          () => _fetchKabupatenKota(kodeProvinsi),
+        ),
+      );
+
+  Future<List<WilayahKecamatan>> getKecamatan(double kodeKabkota) async => List.of(
+        await _cache.kecamatan.getOrFetch(
+          '${ApiConfig.baseUrl}|$kodeKabkota',
+          () => _fetchKecamatan(kodeKabkota),
+        ),
+      );
+
+  Future<List<WilayahKelurahan>> getKelurahan(String kodeKecamatan) async =>
+      List.of(
+        await _cache.kelurahan.getOrFetch(
+          '${ApiConfig.baseUrl}|$kodeKecamatan',
+          () => _fetchKelurahan(kodeKecamatan),
+        ),
+      );
+
+  Future<List<WilayahProvinsi>> _fetchProvinsi() async {
     try {
       final res = await _dio.get('/api/v1/wilayah/provinsi');
       final data = res.data;
@@ -103,7 +150,7 @@ class WilayahApi {
     }
   }
 
-  Future<List<WilayahKabupatenKota>> getKabupatenKota(int kodeProvinsi) async {
+  Future<List<WilayahKabupatenKota>> _fetchKabupatenKota(int kodeProvinsi) async {
     try {
       final res = await _dio.get(
         '/api/v1/wilayah/kabupaten-kota',
@@ -121,7 +168,7 @@ class WilayahApi {
     }
   }
 
-  Future<List<WilayahKecamatan>> getKecamatan(double kodeKabkota) async {
+  Future<List<WilayahKecamatan>> _fetchKecamatan(double kodeKabkota) async {
     try {
       final res = await _dio.get(
         '/api/v1/wilayah/kecamatan',
@@ -139,7 +186,7 @@ class WilayahApi {
     }
   }
 
-  Future<List<WilayahKelurahan>> getKelurahan(String kodeKecamatan) async {
+  Future<List<WilayahKelurahan>> _fetchKelurahan(String kodeKecamatan) async {
     try {
       final res = await _dio.get(
         '/api/v1/wilayah/kelurahan',

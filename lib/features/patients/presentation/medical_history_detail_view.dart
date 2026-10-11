@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -76,18 +77,21 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     // Lab info (from lab_examination)
     final labAttachmentUrl = history.labAttachmentUrl;
 
-    debugPrint('══════════════════════════════════════════════════════════════');
-    debugPrint('📋 [MedicalHistoryDetailView] Data History (ID: ${history.id}, Code: ${history.code}):');
-    debugPrint('   Patient: ${history.patientName} (${history.patientId})');
-    debugPrint('   Status: ${history.statusPenanganan}');
-    debugPrint('   Lab Attachment URL: $labAttachmentUrl');
-    debugPrint('   Raw JSON:');
-    try {
-      debugPrint(const JsonEncoder.withIndent('  ').convert(history.rawJson));
-    } catch (_) {
-      debugPrint('${history.rawJson}');
+    // Debug dump only — pretty-printing rawJson on every rebuild is costly.
+    if (kDebugMode) {
+      debugPrint('══════════════════════════════════════════════════════════════');
+      debugPrint('📋 [MedicalHistoryDetailView] Data History (ID: ${history.id}, Code: ${history.code}):');
+      debugPrint('   Patient: ${history.patientName} (${history.patientId})');
+      debugPrint('   Status: ${history.statusPenanganan}');
+      debugPrint('   Lab Attachment URL: $labAttachmentUrl');
+      debugPrint('   Raw JSON:');
+      try {
+        debugPrint(const JsonEncoder.withIndent('  ').convert(history.rawJson));
+      } catch (_) {
+        debugPrint('${history.rawJson}');
+      }
+      debugPrint('══════════════════════════════════════════════════════════════');
     }
-    debugPrint('══════════════════════════════════════════════════════════════');
     final labExam = history.labExamination;
     final labItems = history.labExaminationItems;
     final labCode = history.labExaminationCode;
@@ -818,25 +822,13 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     MedicalHistory history,
     Patient patientObj,
   ) async {
-    final res = await showExaminationInputModal(
+    // On save the modal itself refreshes history (all + per-user) and
+    // patients before closing, so nothing needs re-fetching here.
+    await showExaminationInputModal(
       context,
       patient: patientObj,
       history: history,
     );
-    if (res == true && context.mounted) {
-      final userId = ref.read(authControllerProvider).session?.user.id ?? '';
-      unawaited(
-        ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
-      );
-      if (userId.isNotEmpty) {
-        unawaited(
-          ref
-              .read(medicalHistoryByUserProvider(userId).notifier)
-              .fetchHistory(refresh: true),
-        );
-      }
-      unawaited(ref.read(patientsProvider.notifier).fetchPatients());
-    }
   }
 
   void _showLabDocument(BuildContext context, String url, String title) {

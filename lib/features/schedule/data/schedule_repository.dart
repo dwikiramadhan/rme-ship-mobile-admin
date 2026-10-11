@@ -277,22 +277,31 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
 
   Future<void> load() async {
     try {
-      var schedule = await _repository.fetchScheduleById(_initial.id);
+      // The three requests are independent, so run them in parallel. Provisions
+      // are keyed by schedule code, which the list item already carries.
+      final scheduleFuture = _repository.fetchScheduleById(_initial.id);
+      final provisionsFuture = _initial.code.isNotEmpty
+          ? _repository.fetchProvisionsHistory(_initial.code)
+          : Future.value(<ProvisionHistoryItem>[]);
+      final issuesFuture = _repository.fetchTripIssues(_initial.id);
+
+      // `.wait` handles every future's error, so none goes unobserved.
+      var (schedule, provisions, issues) =
+          await (scheduleFuture, provisionsFuture, issuesFuture).wait;
+
+      // Fall back to the fetched code if it's missing or differs locally.
       final schedCode =
           schedule.code.isNotEmpty ? schedule.code : _initial.code;
-
-      List<ProvisionHistoryItem> provisions = [];
-      if (schedCode.isNotEmpty) {
+      if (schedCode != _initial.code && schedCode.isNotEmpty) {
         provisions = await _repository.fetchProvisionsHistory(schedCode);
       }
-
-      final issues = await _repository.fetchTripIssues(schedule.id);
 
       schedule = schedule.copyWith(
         provisions: provisions,
         tripIssues: issues,
       );
 
+      if (!mounted) return;
       state = AsyncValue.data(schedule);
     } catch (e, st) {
       debugPrint('TripDetailNotifier load error: $e');
@@ -439,6 +448,8 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
   Future<void> updateSchedule(Map<String, dynamic> body) async {
     final current = state.valueOrNull ?? _initial;
     final updated = await _repository.updateSchedule(current.id, body);
+    // The save succeeded; if the screen closed meanwhile there's nothing to update.
+    if (!mounted) return;
     state = AsyncValue.data(updated);
     await refresh();
   }
@@ -469,6 +480,9 @@ class SchedulesNotifier
   String _searchQuery = '';
   String _statusFilter = 'Semua';
   int _totalCount = 0;
+  // Bumped by every page-1 load/refresh. Older responses (including an
+  // in-flight loadMore) are dropped so they can't overwrite newer results.
+  int _requestSeq = 0;
 
   bool get hasMore => _hasMore;
   bool get isLoadingMore => _isLoadingMore;
@@ -487,6 +501,7 @@ class SchedulesNotifier
     String? search,
     String? status,
   }) async {
+    final seq = ++_requestSeq;
     state = const AsyncValue.loading();
     _currentPage = 1;
     if (search != null) _searchQuery = search;
@@ -498,15 +513,18 @@ class SchedulesNotifier
         search: _searchQuery,
         status: _statusFilter,
       );
+      if (seq != _requestSeq || !mounted) return;
       _hasMore = result.hasMore;
       _totalCount = result.total;
       state = AsyncValue.data(result.items);
     } catch (e, st) {
+      if (seq != _requestSeq || !mounted) return;
       state = AsyncValue.error(e, st);
     }
   }
 
   Future<void> refresh() async {
+    final seq = ++_requestSeq;
     _currentPage = 1;
     try {
       final shipCode = await _getShipCode();
@@ -515,10 +533,12 @@ class SchedulesNotifier
         search: _searchQuery,
         status: _statusFilter,
       );
+      if (seq != _requestSeq || !mounted) return;
       _hasMore = result.hasMore;
       _totalCount = result.total;
       state = AsyncValue.data(result.items);
     } catch (e, st) {
+      if (seq != _requestSeq || !mounted) return;
       state = AsyncValue.error(e, st);
     }
   }
@@ -545,6 +565,7 @@ class SchedulesNotifier
   Future<void> loadMore() async {
     if (_isLoadingMore || !_hasMore) return;
     final currentList = state.valueOrNull ?? [];
+    final seq = _requestSeq;
     _isLoadingMore = true;
     try {
       final nextPage = _currentPage + 1;
@@ -555,6 +576,8 @@ class SchedulesNotifier
         search: _searchQuery,
         status: _statusFilter,
       );
+      // The list was reset (search/filter/refresh) while this page loaded.
+      if (seq != _requestSeq || !mounted) return;
       if (result.items.isEmpty) {
         _hasMore = false;
       } else {
@@ -567,7 +590,8 @@ class SchedulesNotifier
       debugPrint('SchedulesNotifier loadMore error: $e');
     } finally {
       _isLoadingMore = false;
-      if (mounted) {
+      // Skip when a newer load owns the state (it may still be loading).
+      if (mounted && seq == _requestSeq) {
         state = AsyncValue.data(state.valueOrNull ?? currentList);
       }
     }

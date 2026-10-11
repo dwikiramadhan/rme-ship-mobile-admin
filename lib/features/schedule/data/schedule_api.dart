@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../../core/network/api_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/network/ttl_cache.dart';
 import '../domain/trip_schedule.dart';
 
 class ScheduleCounter {
@@ -44,10 +45,41 @@ class SchedulePageResult {
   final bool hasMore;
 }
 
+/// Page-1, unfiltered master-data lists. They rarely change but are requested
+/// every time a picker/modal opens, so they're kept for a few minutes.
+class _MasterDataCache {
+  static const _ttl = Duration(minutes: 5);
+
+  final ports = TtlCache<PaginatedPortResult>(
+    _ttl,
+    shouldCache: (r) => r.items.isNotEmpty,
+  );
+  final personnel = TtlCache<PaginatedPersonnelResult>(
+    _ttl,
+    shouldCache: (r) => r.items.isNotEmpty,
+  );
+  final crews = TtlCache<PaginatedCrewResult>(
+    _ttl,
+    shouldCache: (r) => r.items.isNotEmpty,
+  );
+  final poliklinik = TtlCache<PaginatedPoliklinikResult>(
+    _ttl,
+    shouldCache: (r) => r.items.isNotEmpty,
+  );
+}
+
 class ScheduleApi {
   ScheduleApi({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
   final Dio _dio;
+
+  // ScheduleApi is created per modal, so the cache lives with the Dio client
+  // (the app-wide singleton in production, a fresh fake per test).
+  static final _masterDataCaches = Expando<_MasterDataCache>();
+  _MasterDataCache get _masterData => _masterDataCaches[_dio] ??= _MasterDataCache();
+
+  static bool _isFirstUnfilteredPage(int page, String? search) =>
+      page == 1 && (search == null || search.trim().isEmpty);
 
   /// Fetches schedules for a specific ship via GET /api/v1/schedules/ship/:ship_code?page=1&limit=10
   Future<List<JadwalPerjalanan>> getSchedulesByShipId(
@@ -92,7 +124,7 @@ class ScheduleApi {
         queryParameters: queryParams,
       );
       final data = response.data;
-      debugPrint('ScheduleApi [GET schedules/ship/$shipCode] query: $queryParams, response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET schedules/ship/$shipCode] query: $queryParams, response: $data');
 
       if (data is! Map<String, dynamic>) {
         if (data is List) {
@@ -191,7 +223,7 @@ class ScheduleApi {
     try {
       final response = await _dio.get('${ApiConfig.schedulesPath}/$id');
       final data = response.data;
-      debugPrint('ScheduleApi [GET schedules/$id] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET schedules/$id] response: $data');
 
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Format data jadwal tidak valid.');
@@ -221,7 +253,7 @@ class ScheduleApi {
         data: body,
       );
       final data = response.data;
-      debugPrint('ScheduleApi [PUT schedules/$id] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [PUT schedules/$id] response: $data');
 
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Format data jadwal tidak valid.');
@@ -249,7 +281,7 @@ class ScheduleApi {
     try {
       final response = await _dio.get(ApiConfig.schedulesPath);
       final data = response.data;
-      debugPrint('ScheduleApi [GET schedules] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET schedules] response: $data');
 
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Format data jadwal tidak valid.');
@@ -286,7 +318,7 @@ class ScheduleApi {
         '${ApiConfig.shipProvisionsHistoryPath}/schedule/${Uri.encodeComponent(scheduleCode)}',
       );
       final data = response.data;
-      debugPrint('ScheduleApi [GET provisions/$scheduleCode] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET provisions/$scheduleCode] response: $data');
 
       final result = data['result'] ?? data['data'];
       final List rawList = (result is List)
@@ -313,7 +345,7 @@ class ScheduleApi {
   /// Records new provision entry via POST /api/v1/ship-provisions-history
   Future<ProvisionHistoryItem> createProvision(Map<String, dynamic> body) async {
     try {
-      debugPrint('ScheduleApi [POST ${ApiConfig.shipProvisionsHistoryPath}] body: $body');
+      if (kDebugMode) debugPrint('ScheduleApi [POST ${ApiConfig.shipProvisionsHistoryPath}] body: $body');
       final response = await _dio.post(ApiConfig.shipProvisionsHistoryPath, data: body);
       final data = response.data;
       final payload = (data['result'] is Map<String, dynamic>)
@@ -346,7 +378,7 @@ class ScheduleApi {
         queryParameters: {'schedule_id': scheduleId, 'limit': 100},
       );
       final data = response.data;
-      debugPrint('ScheduleApi [GET trip-issues/$scheduleId] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET trip-issues/$scheduleId] response: $data');
 
       final result = data['result'] ?? data['data'];
       final List rawList = (result is List)
@@ -432,6 +464,28 @@ class ScheduleApi {
     int limit = 10,
     String? search,
   }) async {
+    if (!_isFirstUnfilteredPage(page, search)) {
+      return _fetchPorts(page: page, limit: limit, search: search);
+    }
+    final r = await _masterData.ports.getOrFetch(
+      '${ApiConfig.baseUrl}|$limit',
+      () => _fetchPorts(limit: limit),
+    );
+    // Copy the list: pickers append to the list they receive.
+    return PaginatedPortResult(
+      items: [...r.items],
+      total: r.total,
+      page: r.page,
+      limit: r.limit,
+      hasMore: r.hasMore,
+    );
+  }
+
+  Future<PaginatedPortResult> _fetchPorts({
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
     try {
       final queryParams = <String, dynamic>{
         'page': page,
@@ -446,9 +500,11 @@ class ScheduleApi {
         queryParameters: queryParams,
       );
       final data = response.data;
-      debugPrint(
-        'ScheduleApi [GET ${ApiConfig.portsPath}] query: $queryParams, response: $data',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'ScheduleApi [GET ${ApiConfig.portsPath}] query: $queryParams, response: $data',
+        );
+      }
 
       if (data is! Map<String, dynamic>) {
         if (data is List) {
@@ -536,6 +592,34 @@ class ScheduleApi {
     int limit = 10,
     String? search,
   }) async {
+    if (!_isFirstUnfilteredPage(page, search)) {
+      return _fetchMedicalPersonnel(
+        type: type,
+        page: page,
+        limit: limit,
+        search: search,
+      );
+    }
+    final r = await _masterData.personnel.getOrFetch(
+      '${ApiConfig.baseUrl}|$type|$limit',
+      () => _fetchMedicalPersonnel(type: type, limit: limit),
+    );
+    // Copy the list: pickers append to the list they receive.
+    return PaginatedPersonnelResult(
+      items: [...r.items],
+      total: r.total,
+      page: r.page,
+      limit: r.limit,
+      hasMore: r.hasMore,
+    );
+  }
+
+  Future<PaginatedPersonnelResult> _fetchMedicalPersonnel({
+    required String type,
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
     try {
       final queryParams = <String, dynamic>{
         'type': type,
@@ -551,7 +635,7 @@ class ScheduleApi {
         queryParameters: queryParams,
       );
       final data = response.data;
-      debugPrint('ScheduleApi [GET medical-personnel?type=$type&page=$page&limit=$limit] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET medical-personnel?type=$type&page=$page&limit=$limit] response: $data');
 
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Format data tenaga medis tidak valid.');
@@ -620,6 +704,28 @@ class ScheduleApi {
     int limit = 10,
     String? search,
   }) async {
+    if (!_isFirstUnfilteredPage(page, search)) {
+      return _fetchCrews(page: page, limit: limit, search: search);
+    }
+    final r = await _masterData.crews.getOrFetch(
+      '${ApiConfig.baseUrl}|$limit',
+      () => _fetchCrews(limit: limit),
+    );
+    // Copy the list: pickers append to the list they receive.
+    return PaginatedCrewResult(
+      items: [...r.items],
+      total: r.total,
+      page: r.page,
+      limit: r.limit,
+      hasMore: r.hasMore,
+    );
+  }
+
+  Future<PaginatedCrewResult> _fetchCrews({
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
     try {
       final queryParams = <String, dynamic>{
         'page': page,
@@ -634,7 +740,7 @@ class ScheduleApi {
         queryParameters: queryParams,
       );
       final data = response.data;
-      debugPrint('ScheduleApi [GET crews?page=$page&limit=$limit] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET crews?page=$page&limit=$limit] response: $data');
 
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Format data kru kapal tidak valid.');
@@ -703,6 +809,28 @@ class ScheduleApi {
     int limit = 10,
     String? search,
   }) async {
+    if (!_isFirstUnfilteredPage(page, search)) {
+      return _fetchPoliklinik(page: page, limit: limit, search: search);
+    }
+    final r = await _masterData.poliklinik.getOrFetch(
+      '${ApiConfig.baseUrl}|$limit',
+      () => _fetchPoliklinik(limit: limit),
+    );
+    // Copy the list: pickers append to the list they receive.
+    return PaginatedPoliklinikResult(
+      items: [...r.items],
+      total: r.total,
+      page: r.page,
+      limit: r.limit,
+      hasMore: r.hasMore,
+    );
+  }
+
+  Future<PaginatedPoliklinikResult> _fetchPoliklinik({
+    int page = 1,
+    int limit = 10,
+    String? search,
+  }) async {
     try {
       final queryParams = <String, dynamic>{
         'page': page,
@@ -717,7 +845,7 @@ class ScheduleApi {
         queryParameters: queryParams,
       );
       final data = response.data;
-      debugPrint('ScheduleApi [GET poliklinik?page=$page&limit=$limit] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET poliklinik?page=$page&limit=$limit] response: $data');
 
       if (data is! Map<String, dynamic>) {
         throw const ApiException('Format data poliklinik tidak valid.');
@@ -787,7 +915,7 @@ class ScheduleApi {
         ApiConfig.scheduleCounterPath(shipCode),
       );
       final data = response.data;
-      debugPrint('ScheduleApi [GET schedules/ship/$shipCode/counter] response: $data');
+      if (kDebugMode) debugPrint('ScheduleApi [GET schedules/ship/$shipCode/counter] response: $data');
 
       if (data is Map<String, dynamic>) {
         final result = data['result'] ?? data['data'] ?? data;

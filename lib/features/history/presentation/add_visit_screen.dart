@@ -1280,6 +1280,8 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
   final _searchController = TextEditingController();
   String _search = '';
   Timer? _searchDebounce;
+  // Only the newest search may write results (older responses are dropped).
+  int _searchSeq = 0;
   List<Patient> _apiSearchResults = [];
   bool _isSearchingApi = false;
 
@@ -1293,6 +1295,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
   void _onSearchChanged(String query) {
     setState(() => _search = query);
     _searchDebounce?.cancel();
+    final seq = ++_searchSeq;
     if (query.trim().length >= 2) {
       _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
         if (!mounted) return;
@@ -1301,6 +1304,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
           final res = await ref
               .read(patientApiProvider)
               .getPatients(search: query.trim());
+          if (seq != _searchSeq) return;
           if (mounted) {
             setState(() {
               _apiSearchResults = res;
@@ -1308,6 +1312,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
             });
           }
         } catch (_) {
+          if (seq != _searchSeq) return;
           if (mounted) setState(() => _isSearchingApi = false);
         }
       });

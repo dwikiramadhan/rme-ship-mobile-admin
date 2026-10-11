@@ -14,7 +14,64 @@ class _FakePatientsNotifier extends PatientsNotifier {
   }
 }
 
+/// Simulates a "load more" request in flight.
+class _LoadingMorePatientsNotifier extends _FakePatientsNotifier {
+  _LoadingMorePatientsNotifier(super.initial);
+
+  @override
+  bool get isLoadingMore => true;
+}
+
+Patient _patient(String id) => Patient(
+  id: id,
+  nama: 'Pasien $id',
+  nik: '',
+  jk: Gender.l,
+  umur: 30,
+  alamat: '-',
+  keluhanUtama: '-',
+  durasiKeluhan: '-',
+  lokasiKeluhan: '-',
+  vitals: const Vitals(),
+  assignedDokterId: '',
+  waktuMasuk: '05/09/2026 22:39',
+  updatedAt: DateTime(2026, 9, 5),
+);
+
 void main() {
+  for (final count in [2, 3]) {
+    testWidgets(
+      'wide layout shows one centered load-more spinner ($count patients)',
+      (tester) async {
+        tester.view.physicalSize = const Size(1600, 1000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              patientsProvider.overrideWith(
+                (ref) => _LoadingMorePatientsNotifier([
+                  for (var i = 1; i <= count; i++) _patient('$i'),
+                ]),
+              ),
+            ],
+            child: const MaterialApp(home: Scaffold(body: PatientListScreen())),
+          ),
+        );
+        // The spinner animates forever, so pump frames instead of settling.
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final spinner = find.byType(CircularProgressIndicator);
+        expect(spinner, findsOneWidget);
+        // Centered across the list (same horizontal center as the list).
+        final listCenterX = tester.getCenter(find.byType(ListView)).dx;
+        expect(tester.getCenter(spinner).dx, moreOrLessEquals(listCenterX, epsilon: 1));
+      },
+    );
+  }
+
   testWidgets(
     'PatientListScreen displays master patient info without Menunggu Dokter status',
     (tester) async {

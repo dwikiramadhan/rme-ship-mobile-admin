@@ -349,18 +349,23 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       unawaited(
         ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
       );
-      if (currentUserId.isNotEmpty) {
+      // Only refresh lists that already exist; reading them here would
+      // create them and fire an extra initial fetch on top of the refresh.
+      if (currentUserId.isNotEmpty &&
+          ref.exists(medicalHistoryByUserProvider(currentUserId))) {
         unawaited(
           ref
               .read(medicalHistoryByUserProvider(currentUserId).notifier)
               .fetchHistory(refresh: true),
         );
       }
-      unawaited(
-        ref
-            .read(pharmacyPrescriptionHistoryProvider.notifier)
-            .fetchHistory(refresh: true),
-      );
+      if (ref.exists(pharmacyPrescriptionHistoryProvider)) {
+        unawaited(
+          ref
+              .read(pharmacyPrescriptionHistoryProvider.notifier)
+              .fetchHistory(refresh: true),
+        );
+      }
       unawaited(ref.read(patientsProvider.notifier).fetchPatients());
       unawaited(
         ref.read(notificationsProvider.notifier).fetchRecentNotifications(),

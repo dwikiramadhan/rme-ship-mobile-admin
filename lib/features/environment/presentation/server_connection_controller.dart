@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/widgets.dart' show AppLifecycleListener, AppLifecycleState;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/health_api.dart';
@@ -23,12 +24,25 @@ class ServerConnectionNotifier extends StateNotifier<bool> {
       check();
       // Regular background poll
       _startPeriodicCheck();
+      // No point pinging the server while the app is in the background.
+      _lifecycleListener = AppLifecycleListener(onStateChange: _onLifecycleChanged);
     }
   }
 
   final HealthApi _healthApi;
   final Duration _interval;
   Timer? _timer;
+  AppLifecycleListener? _lifecycleListener;
+
+  void _onLifecycleChanged(AppLifecycleState lifecycle) {
+    if (lifecycle == AppLifecycleState.paused) {
+      _timer?.cancel();
+      _timer = null;
+    } else if (lifecycle == AppLifecycleState.resumed && _timer == null) {
+      check();
+      _startPeriodicCheck();
+    }
+  }
 
   void _startPeriodicCheck() {
     _timer?.cancel();
@@ -55,6 +69,7 @@ class ServerConnectionNotifier extends StateNotifier<bool> {
 
   @override
   void dispose() {
+    _lifecycleListener?.dispose();
     _timer?.cancel();
     super.dispose();
   }

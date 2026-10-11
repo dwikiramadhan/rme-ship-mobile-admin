@@ -194,8 +194,14 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
 
   @override
   Widget build(BuildContext context) {
-    final patients = ref.watch(patientsProvider);
-    final patient = patients.where((p) => p.id == widget.patientId).firstOrNull;
+    // Select only this patient so list-wide updates (WS polls, paging)
+    // don't rebuild the detail pane.
+    final patient = ref.watch(
+      patientsProvider.select(
+        (patients) =>
+            patients.where((p) => p.id == widget.patientId).firstOrNull,
+      ),
+    );
     if (_loading || patient == null) {
       return const SkeletonPatientDetail();
     }

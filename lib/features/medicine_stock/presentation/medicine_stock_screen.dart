@@ -179,7 +179,9 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
                       parent: animation,
                       curve: Curves.easeOut,
                     ),
-                    child: child,
+                    // Own layer: the slide then just moves a cached picture instead
+                    // of repainting the whole tab on every animation frame.
+                    child: RepaintBoundary(child: child),
                   ),
                 );
               },

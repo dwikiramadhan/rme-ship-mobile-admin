@@ -1211,8 +1211,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                               : '${ApiConfig.baseUrl}$_existingPhotoUrl',
                           width: 56,
                           height: 56,
+                          // Width only: forcing both dimensions decoded non-square photos
+                          // into a square (squashed). This keeps the aspect ratio so
+                          // BoxFit.cover crops instead.
                           cacheWidth: 168,
-                          cacheHeight: 168,
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) => Container(
                             width: 56,

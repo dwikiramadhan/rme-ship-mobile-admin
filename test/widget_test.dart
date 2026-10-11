@@ -29,6 +29,13 @@ class _FakeAuthRepository implements AuthRepository {
   Future<void> changePassword({required String oldPassword, required String newPassword}) async {}
 }
 
+/// Asset name behind an image provider, unwrapping the ResizeImage that
+/// `Image.asset(cacheWidth: ...)` creates.
+String? _assetNameOf(ImageProvider provider) {
+  final inner = provider is ResizeImage ? provider.imageProvider : provider;
+  return inner is AssetImage ? inner.assetName : null;
+}
+
 void main() {
   testWidgets('boots to login screen with email/password fields', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -50,8 +57,7 @@ void main() {
       find.byWidgetPredicate(
         (w) =>
             w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName == 'assets/images/bayan_logo.png',
+            _assetNameOf(w.image) == 'assets/images/bayan_logo.png',
       ),
       findsOneWidget,
     );
@@ -59,9 +65,7 @@ void main() {
       find.byWidgetPredicate(
         (w) =>
             w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/doctorshare_logo.png',
+            _assetNameOf(w.image) == 'assets/images/doctorshare_logo.png',
       ),
       findsOneWidget,
     );

@@ -54,9 +54,10 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
     return list.firstOrNull;
   }
 
-  bool _isToday(dynamic dateValue) {
+  static final _dateSeparator = RegExp(r'[/ -]');
+
+  bool _isToday(dynamic dateValue, DateTime now) {
     if (dateValue == null) return false;
-    final now = DateTime.now();
     if (dateValue is DateTime) {
       final local = dateValue.toLocal();
       return local.year == now.year &&
@@ -73,7 +74,7 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
             local.month == now.month &&
             local.day == now.day;
       }
-      final parts = trimmed.split(RegExp(r'[/ -]'));
+      final parts = trimmed.split(_dateSeparator);
       if (parts.length >= 3) {
         final d = int.tryParse(parts[0]);
         final m = int.tryParse(parts[1]);
@@ -101,9 +102,13 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
     // Active Voyage: Prefer Ongoing, fallback to first schedule
     final activeVoyage = _findActiveVoyage(schedules);
 
+    // Read the clock once per build instead of once per date check.
+    final now = DateTime.now();
+    bool isToday(dynamic dateValue) => _isToday(dateValue, now);
+
     // 1. Kunjungan Hari Ini: Riwayat kunjungan yang tercatat hari ini
     final todayVisits = histories.where((h) {
-      return _isToday(h.createdAt) || _isToday(h.date) || _isToday(h.updatedAt);
+      return isToday(h.createdAt) || isToday(h.date) || isToday(h.updatedAt);
     }).toList();
     final todayVisitCount = todayVisits.length;
 
@@ -118,8 +123,8 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
 
     // 2. Pasien Hari Ini: Pasien yang terdaftar hari ini atau tercatat memiliki kunjungan/update hari ini
     final todayPatients = patients.where((p) {
-      final isCreatedToday = _isToday(p.createdAt) || _isToday(p.waktuMasuk);
-      final isLastVisitToday = _isToday(p.lastVisit);
+      final isCreatedToday = isToday(p.createdAt) || isToday(p.waktuMasuk);
+      final isLastVisitToday = isToday(p.lastVisit);
       final hasVisitToday = todayVisitPatientIds.contains(p.id) ||
           (p.nik.isNotEmpty && todayVisitPatientNiks.contains(p.nik));
       return isCreatedToday || isLastVisitToday || hasVisitToday;
@@ -136,9 +141,9 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
     // 3. Menunggu Hari Ini: Status Menunggu Dokter dan aktif / terdaftar hari ini
     final todayWaitingCount = patients.where((p) {
       if (p.status != PatientStatus.menungguDokter) return false;
-      final isCreatedToday = _isToday(p.createdAt) || _isToday(p.waktuMasuk);
-      final isUpdatedToday = _isToday(p.updatedAt);
-      final isLastVisitToday = _isToday(p.lastVisit);
+      final isCreatedToday = isToday(p.createdAt) || isToday(p.waktuMasuk);
+      final isUpdatedToday = isToday(p.updatedAt);
+      final isLastVisitToday = isToday(p.lastVisit);
       final hasVisitToday = todayVisitPatientIds.contains(p.id) ||
           (p.nik.isNotEmpty && todayVisitPatientNiks.contains(p.nik));
       return isCreatedToday || isUpdatedToday || isLastVisitToday || hasVisitToday;

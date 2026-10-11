@@ -319,6 +319,7 @@ class _Icd9MultiSearchBottomSheetState
   late List<Icd9Item> _selectedList;
   final Set<String> _selectedCodes = {};
   Timer? _debounceTimer;
+  int _fetchSeq = 0;
   Timer? _initialFetchTimer;
   bool _hasFetchedInitial = false;
 
@@ -426,6 +427,9 @@ class _Icd9MultiSearchBottomSheetState
     bool reset = false,
     bool silent = false,
   }) async {
+    // Only the newest list reset may write results; a stale search or
+    // a loadMore that started before the reset is dropped.
+    final seq = (reset || silent) ? ++_fetchSeq : _fetchSeq;
     if (reset) {
       setState(() {
         _loading = !silent;
@@ -448,7 +452,7 @@ class _Icd9MultiSearchBottomSheetState
         limit: 25,
       );
 
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         if (reset || silent) {
           _results = paginated.data;
@@ -466,7 +470,7 @@ class _Icd9MultiSearchBottomSheetState
         _loadingMore = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || seq != _fetchSeq) return;
       setState(() {
         _loading = false;
         _loadingMore = false;
@@ -514,6 +518,7 @@ class _Icd9MultiSearchBottomSheetState
         _selectedList.add(Icd9Item(code: '', display: trimmed));
         _syncSelectedCodes();
       }
+      _debounceTimer?.cancel();
       _searchController.clear();
       _fetchPage(1, reset: true);
     });
@@ -676,6 +681,7 @@ class _Icd9MultiSearchBottomSheetState
                                     color: AppColors.sub,
                                   ),
                                   onPressed: () {
+                                    _debounceTimer?.cancel();
                                     _searchController.clear();
                                     _fetchPage(1, reset: true);
                                   },

@@ -46,24 +46,28 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final allNotifs = ref.watch(notificationsProvider);
-
-    final notifs = allNotifs.where((p) {
-      final isWaitingDoc = p.status == PatientStatus.menungguDokter &&
-          (p.statusPenanganan == null ||
-              p.statusPenanganan == '' ||
-              p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
-              p.statusPenanganan == 'Pemeriksaan awal');
-      final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
-      return isWaitingDoc || isLabReady;
-    }).toList();
+    // Only the badge count is needed; selecting it means the whole home
+    // screen rebuilds only when that number changes.
+    final notifsCount = ref.watch(
+      notificationsProvider.select(
+        (allNotifs) => allNotifs.where((p) {
+          final isWaitingDoc = p.status == PatientStatus.menungguDokter &&
+              (p.statusPenanganan == null ||
+                  p.statusPenanganan == '' ||
+                  p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
+                  p.statusPenanganan == 'Pemeriksaan awal');
+          final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
+          return isWaitingDoc || isLabReady;
+        }).length,
+      ),
+    );
 
     final tabs = [
       ShellNavItem(
         key: 'notifikasi',
         label: 'Notifikasi',
         icon: LucideIcons.bell,
-        badgeCount: notifs.length,
+        badgeCount: notifsCount,
       ),
       const ShellNavItem(
         key: 'pasien',
@@ -129,7 +133,9 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
           ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
           final uid =
               ref.read(authControllerProvider).session?.user.id ?? '';
-          if (uid.isNotEmpty) {
+          // Only refresh the per-user list if something already uses it;
+          // reading it here would create it and fire a second identical fetch.
+          if (uid.isNotEmpty && ref.exists(medicalHistoryByUserProvider(uid))) {
             ref
                 .read(medicalHistoryByUserProvider(uid).notifier)
                 .fetchHistory(refresh: true);
@@ -152,12 +158,10 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
               onBack: () => Navigator.of(ctx).pop(),
               onSaved: () {
                 Navigator.of(ctx).pop();
-                ref
-                    .read(medicalHistoryProvider.notifier)
-                    .fetchHistory(refresh: true);
+                // medicalHistoryProvider is already refreshed by the screen.
                 final uid =
                     ref.read(authControllerProvider).session?.user.id ?? '';
-                if (uid.isNotEmpty) {
+                if (uid.isNotEmpty && ref.exists(medicalHistoryByUserProvider(uid))) {
                   ref
                       .read(medicalHistoryByUserProvider(uid).notifier)
                       .fetchHistory(refresh: true);

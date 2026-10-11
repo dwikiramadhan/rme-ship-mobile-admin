@@ -134,17 +134,19 @@ class ServerDiscovery {
   }
 
   static Future<bool> _pingHealth(String targetUrl) async {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(milliseconds: 700),
+        receiveTimeout: const Duration(milliseconds: 700),
+      ),
+    );
     try {
-      final dio = Dio(
-        BaseOptions(
-          connectTimeout: const Duration(milliseconds: 700),
-          receiveTimeout: const Duration(milliseconds: 700),
-        ),
-      );
       final res = await dio.get('$targetUrl${ApiConfig.healthPath}');
       return res.statusCode == 200;
     } catch (_) {
       return false;
+    } finally {
+      dio.close(force: true);
     }
   }
 

@@ -64,6 +64,8 @@ class SideNavRail extends StatelessWidget {
                 'assets/images/bayan_logo.png',
                 width: 32,
                 height: 32,
+                // Decode at display size (the source PNG is 600x600).
+                cacheWidth: (32 * MediaQuery.devicePixelRatioOf(context)).round(),
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const Icon(
                   Icons.local_hospital_rounded,

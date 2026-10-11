@@ -237,9 +237,11 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                       final wide = constraints.maxWidth > 700;
 
                       if (wide) {
-                        final totalItems =
-                            sorted.length + (showLoadingMore ? 1 : 0);
-                        final rowCount = (totalItems + 1) ~/ 2;
+                        // Two cards per row, plus one full-width row for the
+                        // load-more spinner so it sits centered under the grid.
+                        final patientRowCount = (sorted.length + 1) ~/ 2;
+                        final rowCount =
+                            patientRowCount + (showLoadingMore ? 1 : 0);
 
                         return ListView.separated(
                           controller: _scrollController,
@@ -249,16 +251,24 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: 12),
                           itemBuilder: (context, rowIndex) {
+                            if (rowIndex >= patientRowCount) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                alignment: Alignment.center,
+                                child: const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: AppColors.blue,
+                                  ),
+                                ),
+                              );
+                            }
+
                             final firstIndex = rowIndex * 2;
                             final secondIndex = firstIndex + 1;
-
-                            final isFirstLoading = firstIndex >= sorted.length;
-                            final isSecondLoading =
-                                secondIndex >= sorted.length && showLoadingMore;
-
-                            final p1 = firstIndex < sorted.length
-                                ? sorted[firstIndex]
-                                : null;
+                            final p1 = sorted[firstIndex];
                             final p2 = secondIndex < sorted.length
                                 ? sorted[secondIndex]
                                 : null;
@@ -268,47 +278,19 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Expanded(
-                                    child: isFirstLoading
-                                        ? Container(
-                                            padding: const EdgeInsets.all(16),
-                                            alignment: Alignment.center,
-                                            child: const SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: AppColors.blue,
-                                              ),
-                                            ),
-                                          )
-                                        : (p1 != null
-                                              ? _PatientCard(
-                                                  key: ValueKey(p1.id),
-                                                  patient: p1,
-                                                )
-                                              : const SizedBox.shrink()),
+                                    child: _PatientCard(
+                                      key: ValueKey(p1.id),
+                                      patient: p1,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
-                                    child: isSecondLoading
-                                        ? Container(
-                                            padding: const EdgeInsets.all(16),
-                                            alignment: Alignment.center,
-                                            child: const SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: AppColors.blue,
-                                              ),
-                                            ),
+                                    child: p2 != null
+                                        ? _PatientCard(
+                                            key: ValueKey(p2.id),
+                                            patient: p2,
                                           )
-                                        : (p2 != null
-                                              ? _PatientCard(
-                                                  key: ValueKey(p2.id),
-                                                  patient: p2,
-                                                )
-                                              : const SizedBox.shrink()),
+                                        : const SizedBox.shrink(),
                                   ),
                                 ],
                               ),
@@ -432,8 +414,10 @@ class _PatientCard extends StatelessWidget {
                                 : '${ApiConfig.baseUrl}${patient.photoUrl}',
                             width: 38,
                             height: 38,
+                            // Width only: forcing both dimensions decoded non-square photos
+                            // into a square (squashed). This keeps the aspect ratio so
+                            // BoxFit.cover crops instead.
                             cacheWidth: 114,
-                            cacheHeight: 114,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) => Text(
                               initial,

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import 'api_config.dart';
 import 'api_exception.dart';
@@ -42,40 +43,40 @@ class DioClient {
             }
           }
 
-          final fullUrl = options.uri.toString();
-          // Log endpoint hit
-          // ignore: avoid_print
-          print('🌐 [API REQ] ${options.method.toUpperCase()} $fullUrl');
-          if (options.data != null) {
-            // ignore: avoid_print
-            print('   📦 Body: ${options.data}');
+          if (kDebugMode) {
+            debugPrint('🌐 [API REQ] ${options.method.toUpperCase()} ${options.uri}');
+            // Never log credentials, even in debug builds.
+            if (options.data != null && !_isAuthPath(options.path)) {
+              debugPrint('   📦 Body: ${options.data}');
+            }
           }
 
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          final fullUrl = response.requestOptions.uri.toString();
-          final method = response.requestOptions.method.toUpperCase();
-          // ignore: avoid_print
-          print('✅ [API RES] ${response.statusCode} $method $fullUrl');
+          if (kDebugMode) {
+            final method = response.requestOptions.method.toUpperCase();
+            debugPrint('✅ [API RES] ${response.statusCode} $method ${response.requestOptions.uri}');
+          }
           return handler.next(response);
         },
         onError: (DioException e, handler) async {
           final fullUrl = e.requestOptions.uri.toString();
-          final method = e.requestOptions.method.toUpperCase();
-          final status = e.response?.statusCode ?? 'ERROR';
-          // ignore: avoid_print
-          print('❌ [API ERR] $status $method $fullUrl -> ${e.message}');
-          if (e.response?.data != null) {
-            // ignore: avoid_print
-            print('   ⚠️ Error Body: ${e.response?.data}');
+          if (kDebugMode) {
+            final method = e.requestOptions.method.toUpperCase();
+            final status = e.response?.statusCode ?? 'ERROR';
+            debugPrint('❌ [API ERR] $status $method $fullUrl -> ${e.message}');
+            if (e.response?.data != null) {
+              debugPrint('   ⚠️ Error Body: ${e.response?.data}');
+            }
           }
 
           final statusCode = e.response?.statusCode;
           final isLoginEndpoint = e.requestOptions.path.contains(ApiConfig.loginPath);
           if (statusCode == 401 && !isLoginEndpoint) {
-            // ignore: avoid_print
-            print('🔒 [API ERR] 401 Unauthorized detected on $fullUrl -> redirecting to login');
+            if (kDebugMode) {
+              debugPrint('🔒 [API ERR] 401 Unauthorized detected on $fullUrl -> redirecting to login');
+            }
             await _storage.clear();
             onUnauthorized?.call();
           }
@@ -85,8 +86,13 @@ class DioClient {
       ),
     );
 
+    dio.interceptors.add(RetryInterceptor(dio));
+
     return _instance = dio;
   }
+
+  static bool _isAuthPath(String path) =>
+      path.contains(ApiConfig.loginPath) || path.contains(ApiConfig.changePasswordPath);
 
   /// Maps Dio's transport-level failures into an [ApiException] the UI can
   /// show directly. Callers still need to interpret their own response body
@@ -118,6 +124,49 @@ class DioClient {
         }(),
       DioExceptionType.cancel => const ApiException('Permintaan dibatalkan.'),
       _ => const ApiException('Terjadi kesalahan yang tidak terduga.'),
+    };
+  }
+}
+
+/// Retries idempotent GET requests that failed for transient reasons
+/// (connection drop, 502/503/504) with exponential backoff. 4xx responses,
+/// timeouts, cancellations and non-GET requests are never retried.
+class RetryInterceptor extends Interceptor {
+  RetryInterceptor(this._dio, {this.baseDelay = const Duration(milliseconds: 400)});
+
+  final Dio _dio;
+  final Duration baseDelay;
+
+  static const _maxRetries = 2;
+  static const _attemptKey = 'retry_attempt';
+  static const _retryableStatuses = {502, 503, 504};
+
+  @override
+  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+    final options = err.requestOptions;
+    final attempt = (options.extra[_attemptKey] as int?) ?? 0;
+    if (attempt >= _maxRetries || !_isRetryable(err)) {
+      return handler.next(err);
+    }
+
+    await Future<void>.delayed(baseDelay * (1 << attempt));
+    options.extra[_attemptKey] = attempt + 1;
+    try {
+      handler.resolve(await _dio.fetch<dynamic>(options));
+    } on DioException catch (e) {
+      handler.next(e);
+    }
+  }
+
+  bool _isRetryable(DioException err) {
+    final options = err.requestOptions;
+    if (options.method.toUpperCase() != 'GET') return false;
+    if (options.cancelToken?.isCancelled ?? false) return false;
+    return switch (err.type) {
+      DioExceptionType.connectionError => true,
+      DioExceptionType.badResponse =>
+        _retryableStatuses.contains(err.response?.statusCode),
+      _ => false,
     };
   }
 }
