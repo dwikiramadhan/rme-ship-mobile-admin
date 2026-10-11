@@ -842,6 +842,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     });
   }
 
+  /// Updates the patient's own data (identity, address, guardian, notes).
+  /// It does not create a visit: new visits go through "Input Kunjungan
+  /// Baru", so editing a typo never adds a medical record.
   Future<Patient> updatePatient(Patient patient) async {
     final updated = await _api.updatePatient(
       patient.id,
@@ -870,117 +873,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       kodeKelurahan: updated.kodeKelurahan ?? patient.kodeKelurahan,
       kodePos: updated.kodePos ?? patient.kodePos,
       updatedAt: updated.updatedAt,
-      assignedDokterId: patient.assignedDokterId,
-      keluhanUtama: patient.keluhanUtama,
-      durasiKeluhan: patient.durasiKeluhan,
-      lokasiKeluhan: patient.lokasiKeluhan,
-      vitals: patient.vitals,
     );
-
-    if (patient.assignedDokterId.isNotEmpty) {
-      try {
-        final triageNotes = StringBuffer('[Triage]');
-        if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
-          triageNotes.write(' Durasi: ${patient.durasiKeluhan} |');
-        }
-        if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
-          triageNotes.write(' Lokasi: ${patient.lokasiKeluhan} |');
-        }
-        if (patient.vitals.tekananDarah.isNotEmpty) {
-          triageNotes.write(' TD: ${patient.vitals.tekananDarah} |');
-        }
-        if (patient.vitals.nadi.isNotEmpty) {
-          triageNotes.write(' Nadi: ${patient.vitals.nadi} |');
-        }
-        if (patient.vitals.suhu.isNotEmpty) {
-          triageNotes.write(' Suhu: ${patient.vitals.suhu} |');
-        }
-        if (patient.vitals.frekuensiNapas.isNotEmpty) {
-          triageNotes.write(' RR: ${patient.vitals.frekuensiNapas} |');
-        }
-        if (patient.vitals.spo2.isNotEmpty) {
-          triageNotes.write(' SpO2: ${patient.vitals.spo2} |');
-        }
-        var finalNotes = triageNotes.toString();
-        if (finalNotes.endsWith('|')) {
-          finalNotes = finalNotes.substring(0, finalNotes.length - 1).trim();
-        }
-        if (finalNotes == '[Triage]') {
-          finalNotes = 'Update Penugasan Dokter';
-        }
-
-        int? systolic;
-        int? diastolic;
-        if (patient.vitals.tekananDarah.contains('/')) {
-          final parts = patient.vitals.tekananDarah.split('/');
-          systolic = int.tryParse(parts[0].trim());
-          diastolic = int.tryParse(parts[1].trim());
-        }
-        final heartRate = int.tryParse(
-          patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''),
-        );
-        final temperature = double.tryParse(
-          patient.vitals.suhu
-              .replaceAll(',', '.')
-              .replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-        final respiratoryRate = int.tryParse(
-          patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''),
-        );
-        final oxygenSaturation = double.tryParse(
-          patient.vitals.spo2
-              .replaceAll(',', '.')
-              .replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-
-        var formattedComplaint = patient.keluhanUtama.isNotEmpty
-            ? patient.keluhanUtama
-            : 'Pemeriksaan awal';
-        final extraComplaint = <String>[];
-        if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
-          extraComplaint.add('Durasi: ${patient.durasiKeluhan}');
-        }
-        if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
-          extraComplaint.add('Lokasi: ${patient.lokasiKeluhan}');
-        }
-        if (extraComplaint.isNotEmpty) {
-          formattedComplaint =
-              '$formattedComplaint • ${extraComplaint.join(' • ')}';
-        }
-
-        await _api.addMedicalRecord(patient.id, {
-          'doctor_id': patient.assignedDokterId,
-          'ship_id': '3a7ff982-e187-49f8-a34e-95f775afda61',
-          'port_id': 'f7d71b54-4c2c-4b10-a601-b82a604c7315',
-          'complaint': formattedComplaint,
-          'diagnosis': patient.diagnosa ?? 'Pemeriksaan Umum',
-          'treatment': patient.resep.isNotEmpty
-              ? patient.resep
-                    .map((r) => '${r.obat} ${r.dosis} (${r.instruksi})')
-                    .join(', ')
-              : 'Menunggu Pemeriksaan Dokter',
-          'notes': finalNotes,
-          'date': DateTime.now().toIso8601String().split('T').first,
-          if (patient.vitals.tekananDarah.isNotEmpty)
-            'blood_pressure': patient.vitals.tekananDarah,
-          'systolic': ?systolic,
-          'diastolic': ?diastolic,
-          'heart_rate': ?heartRate,
-          'temperature': ?temperature,
-          'respiratory_rate': ?respiratoryRate,
-          'oxygen_saturation': ?oxygenSaturation,
-        });
-      } catch (e) {
-        debugPrint('updatePatient medical record error: $e');
-      }
-    }
-
-    _wsService.send({
-      'type': 'patient_assigned',
-      'patient_id': patient.id,
-      'doctor_id': patient.assignedDokterId,
-      'nama': fullPatient.nama,
-    });
 
     _update(patient.id, (_) => fullPatient);
     return fullPatient;

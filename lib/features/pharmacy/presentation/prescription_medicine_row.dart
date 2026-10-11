@@ -8,6 +8,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../doctor/domain/medicine_item.dart';
 import '../../doctor/presentation/widgets/medicine_search_modal.dart';
 import '../../patients/domain/prescription_item.dart';
+import '../../../core/utils/capitalize_first_formatter.dart';
 
 /// Port of the prototype's `PrescriptionMedicineRow` — one prescription line with an
 /// inline "Ganti Obat" (substitute drug) action for out-of-stock cases.
@@ -905,6 +906,8 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                         const SizedBox(height: 4),
                         TextField(
                           controller: _customInstruksiCtrl,
+                          textCapitalization: freeTextCapitalization,
+                          inputFormatters: freeTextFormatters,
                           style: const TextStyle(
                             fontSize: 11,
                             color: AppColors.text,
@@ -1025,6 +1028,8 @@ class _PrescriptionMedicineRowState extends State<PrescriptionMedicineRow> {
                         ),
                         child: TextField(
                           controller: _notesCtrl,
+                          textCapitalization: freeTextCapitalization,
+                          inputFormatters: freeTextFormatters,
                           maxLines: 2,
                           style: const TextStyle(
                             fontSize: 12,

@@ -25,6 +25,7 @@ import '../domain/vitals.dart';
 import 'patient_detail_screen.dart';
 import 'patient_info_card.dart';
 import 'status_meta.dart';
+import 'widgets/lab_document_viewer.dart';
 
 /// Detail pane for a selected [MedicalHistory] item shown on the right side of
 /// the screen on tablet, and pushed as a full page on mobile.
@@ -33,10 +34,15 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     super.key,
     required this.history,
     this.canExamine,
+    this.embedded = false,
   });
 
   final MedicalHistory history;
   final bool? canExamine;
+
+  /// Shown inside the patient's own detail page (e.g. a modal): hides the
+  /// patient card and the action buttons, which would only lead back here.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -271,8 +277,10 @@ class MedicalHistoryDetailView extends ConsumerWidget {
           ],
 
           // 2. Patient Info Summary Card
-          PatientInfoCard(patient: patientObj),
-          const SizedBox(height: 12),
+          if (!embedded) ...[
+            PatientInfoCard(patient: patientObj),
+            const SizedBox(height: 12),
+          ],
 
           // 3. Detail Kunjungan & Pemeriksaan Medis
           AppCard(
@@ -345,7 +353,8 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       (history.createdAt != null &&
                           history.createdAt!.isNotEmpty)
                       ? DateHelper.formatDateTime(history.createdAt)
-                      : (history.date ?? '-'),
+                      // `date` has no time of day: show the date only.
+                      : DateHelper.formatDate(history.date),
                 ),
                 const SizedBox(height: 10),
                 _buildInfoRow(
@@ -366,6 +375,15 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       ? 'SIP: ${history.doctorSip}'
                       : null,
                 ),
+                if (history.createdByName != null) ...[
+                  const SizedBox(height: 10),
+                  _buildInfoRow(
+                    icon: LucideIcons.userPlus,
+                    label: 'Dibuat oleh',
+                    value: history.createdByName!,
+                    extra: history.createdByRole,
+                  ),
+                ],
                 if (history.shipName?.isNotEmpty == true ||
                     history.portName?.isNotEmpty == true) ...[
                   const SizedBox(height: 10),
@@ -732,6 +750,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                   ),
                 ),
 
+                if (!embedded) ...[
                 const SizedBox(height: 16),
 
                 // Button 1: Doctor Examination / Medical Record Form (Hanya jika belum didiagnosa)
@@ -808,6 +827,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                     ),
                   ),
                 ),
+                ],
               ],
             ),
           ),
@@ -842,7 +862,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 540, maxHeight: 680),
+          constraints: const BoxConstraints(maxWidth: 720),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -930,126 +950,11 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                   ],
                 ),
               ),
-              // Body
-              Flexible(
-                child: isPdf
-                    ? Container(
-                        padding: const EdgeInsets.all(32),
-                        color: const Color(0xFFF8FAFC),
-                        child: Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 68,
-                                height: 68,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEE2E2),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Icon(
-                                  LucideIcons.fileText,
-                                  size: 36,
-                                  color: Color(0xFFDC2626),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                fileName,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 6),
-                              const Text(
-                                'Dokumen Hasil Pemeriksaan Laboratorium (PDF)',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  color: AppColors.sub,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 14),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  url,
-                                  style: const TextStyle(
-                                    fontSize: 10.5,
-                                    color: AppColors.sub,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: Colors.black,
-                        child: InteractiveViewer(
-                          clipBehavior: Clip.none,
-                          child: Center(
-                            child: Image.network(
-                              url,
-                              fit: BoxFit.contain,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Padding(
-                                      padding: EdgeInsets.all(40),
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                      ),
-                                    );
-                                  },
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Padding(
-                                    padding: const EdgeInsets.all(32),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          LucideIcons.alertCircle,
-                                          size: 36,
-                                          color: Colors.white70,
-                                        ),
-                                        const SizedBox(height: 10),
-                                        const Text(
-                                          'Gagal memuat dokumen gambar',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          fileName,
-                                          style: const TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 11,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                            ),
-                          ),
-                        ),
-                      ),
+              // Body: downloads with the login token, then shows the PDF
+              // pages or the image.
+              SizedBox(
+                height: MediaQuery.sizeOf(ctx).height * 0.72,
+                child: LabDocumentViewer(url: url, fileName: fileName),
               ),
             ],
           ),
@@ -1139,13 +1044,15 @@ class MedicalHistoryDetailView extends ConsumerWidget {
           children: [
             Icon(icon, size: 14, color: effectiveColor),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                letterSpacing: 0,
-                fontWeight: FontWeight.w600,
-                color: effectiveColor,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 0,
+                  fontWeight: FontWeight.w600,
+                  color: effectiveColor,
+                ),
               ),
             ),
           ],

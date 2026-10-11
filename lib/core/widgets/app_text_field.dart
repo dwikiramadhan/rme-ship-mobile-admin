@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_colors.dart';
+import '../utils/capitalize_first_formatter.dart';
 
 /// Port of the prototype's `Input` / `TextArea` components: a bold 13px
 /// label (with a red required-asterisk) above a soft-filled field.
@@ -24,6 +25,7 @@ class AppTextField extends StatelessWidget {
     this.labelFontSize,
     this.style,
     this.labelStyle,
+    this.capitalizeFirst = true,
   });
 
   final String label;
@@ -42,6 +44,18 @@ class AppTextField extends StatelessWidget {
   final double? labelFontSize;
   final TextStyle? style;
   final TextStyle? labelStyle;
+
+  /// Uppercase the first letter of free text. Ignored for number, password,
+  /// email, URL and phone fields.
+  final bool capitalizeFirst;
+
+  bool get _isFreeText {
+    if (!capitalizeFirst || numbersOnly || obscureText) return false;
+    final type = keyboardType;
+    return type == null ||
+        type == TextInputType.text ||
+        type == TextInputType.multiline;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +77,12 @@ class AppTextField extends StatelessWidget {
           maxLines: obscureText ? 1 : maxLines,
           validator: validator,
           autovalidateMode: autovalidateMode,
+          textCapitalization: _isFreeText
+              ? freeTextCapitalization
+              : TextCapitalization.none,
           inputFormatters: numbersOnly
               ? [FilteringTextInputFormatter.digitsOnly]
-              : null,
+              : (_isFreeText ? freeTextFormatters : null),
           style:
               style ??
               TextStyle(

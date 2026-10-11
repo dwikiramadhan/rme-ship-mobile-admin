@@ -82,7 +82,8 @@ class DateHelper {
     return '$day $month ${local.year}';
   }
 
-  /// Format string ISO / timestamp / DateTime menjadi format tanggal & jam: `05 Sep 2026 14:30`
+  /// Format string ISO / timestamp / DateTime menjadi format tanggal & jam
+  /// beserta zona waktu perangkat: `05 Sep 2026 14:30 WIB`
   static String formatDateTime(
     dynamic raw, {
     bool shortMonth = true,
@@ -97,7 +98,55 @@ class DateHelper {
     final date = formatDate(local, shortMonth: shortMonth, fallback: fallback);
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
-    return '$date $hour:$minute';
+    return '$date $hour:$minute ${zoneOf(local)}';
+  }
+
+  /// Nama zona waktu Indonesia untuk sebuah offset UTC: WIB (+7), WITA (+8),
+  /// WIT (+9). Offset lain ditulis apa adanya, mis. `UTC+5:30` atau `UTC`.
+  static String zoneLabel(Duration offset) {
+    switch (offset.inMinutes) {
+      case 420: // +7
+        return 'WIB';
+      case 480: // +8
+        return 'WITA';
+      case 540: // +9
+        return 'WIT';
+      case 0:
+        return 'UTC';
+    }
+    final sign = offset.isNegative ? '-' : '+';
+    final hours = offset.inHours.abs();
+    final minutes = offset.inMinutes.abs() % 60;
+    return minutes == 0
+        ? 'UTC$sign$hours'
+        : 'UTC$sign$hours:${minutes.toString().padLeft(2, '0')}';
+  }
+
+  /// Zona waktu perangkat pada saat [dt] (ikut aturan zona perangkat).
+  static String zoneOf(DateTime dt) => zoneLabel(dt.toLocal().timeZoneOffset);
+
+  /// Offset UTC untuk label zona Indonesia (`WIB`/`WITA`/`WIT`), atau null
+  /// jika labelnya tidak dikenali.
+  static Duration? offsetOfZone(String zone) {
+    switch (zone.trim().toUpperCase()) {
+      case 'WIB':
+        return const Duration(hours: 7);
+      case 'WITA':
+        return const Duration(hours: 8);
+      case 'WIT':
+        return const Duration(hours: 9);
+    }
+    return null;
+  }
+
+  /// Jam dinding [dt] di zona [zone] (mis. jadwal kapal yang dicatat dalam
+  /// WITA), sebagai DateTime lokal biasa yang hanya dipakai untuk tampilan
+  /// atau form. Zona tak dikenal: jam perangkat.
+  static DateTime wallClockIn(DateTime dt, String zone) {
+    final offset = offsetOfZone(zone);
+    if (offset == null) return dt.toLocal();
+    final z = dt.toUtc().add(offset);
+    return DateTime(z.year, z.month, z.day, z.hour, z.minute, z.second);
   }
 }
 

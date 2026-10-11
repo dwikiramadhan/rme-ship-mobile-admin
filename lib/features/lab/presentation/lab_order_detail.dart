@@ -7,16 +7,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/app_text_field.dart';
+import '../../../core/widgets/vital_tile.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../patients/domain/doctor.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/medical_history.dart';
 import '../../patients/domain/patient.dart';
+import '../../patients/domain/vitals.dart';
+import '../../doctor/presentation/widgets/doctor_exam_summary.dart';
 import '../../patients/presentation/patient_info_card.dart';
 
 class _LabItemForm {
@@ -338,7 +339,10 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     final isMedRecSelesai =
         effectiveStatus == 'selesai' || effectiveStatus == 'completed';
 
+    // The referral saved on the server wins; older records fall back to
+    // what can be derived from the visit.
     final order =
+        medHistory?.requestedLabOrder ??
         patient.labOrder ??
         LabOrder(
           id: medHistory?.id ?? widget.patientId,
@@ -361,41 +365,22 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     // Ensure items are initialized if opened freshly
     _initItems(order);
 
-    final doctorsList = ref.watch(doctorsProvider).valueOrNull ?? kDoctors;
-    final effectiveDoctorId =
-        (medHistory?.doctorId != null && medHistory!.doctorId!.isNotEmpty)
-        ? medHistory.doctorId!
-        : patient.assignedDokterId;
-
-    Doctor? matchedDoctor;
-    if (effectiveDoctorId.isNotEmpty) {
-      matchedDoctor = doctorsList
-          .where((d) => d.id.toLowerCase() == effectiveDoctorId.toLowerCase())
-          .firstOrNull;
-    }
-
-    String resolvedDoctorName = CleanTextHelper.cleanName(
-      medHistory?.doctorName,
+    // Doctor's examination for the selected record (not whichever visit
+    // patientsProvider last loaded), with the lab order resolved above.
+    final examPatient = (medHistory?.toPatient() ?? patient).copyWith(
+      labOrder: order,
     );
-    if (resolvedDoctorName.isEmpty) {
-      resolvedDoctorName = CleanTextHelper.cleanName(patient.doctorName);
-    }
-    if (resolvedDoctorName.isEmpty && matchedDoctor != null) {
-      resolvedDoctorName = CleanTextHelper.cleanName(matchedDoctor.nama);
-    }
-    final doctor = resolvedDoctorName.isNotEmpty ? resolvedDoctorName : '—';
-    final done = order.status == LabOrderStatus.selesai || isMedRecSelesai;
-
-    final jenisItems = order.jenis
-        .split(RegExp(r'[\n\r,;•]+'))
-        .map((s) => s.replaceAll(RegExp(r'^\s*[-*•\d+.\)]\s*'), '').trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-    final displayJenisItems = jenisItems.isNotEmpty
-        ? jenisItems
-        : (order.jenis.trim().isNotEmpty
-              ? [order.jenis.trim()]
-              : const <String>[]);
+    // A visit still at "Menunggu Lab" is waiting for results by definition.
+    final isMenungguLab = effectiveStatus == 'menunggu lab';
+    final done = isMedRecSelesai ||
+        (!isMenungguLab && order.status == LabOrderStatus.selesai);
+    final visitVitals = medHistory?.vitals ?? const Vitals();
+    final noteVitals = _VitalValues.fromVitals(visitVitals);
+    // Referral saved by the doctor (requested_test / doctor_notes). Its note
+    // is shown in the request box, so the other box then only holds vitals.
+    final referral = medHistory?.requestedLabOrder;
+    final boxNote = referral != null ? '' : order.catatan;
+    final showNoteBox = boxNote.isNotEmpty || noteVitals.hasAny;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,128 +391,27 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Hasil Pemeriksaan Dokter',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.blue,
-                ),
-              ),
-              Text.rich(
-                TextSpan(
-                  text: 'Diminta oleh ',
-                  style: const TextStyle(fontSize: 11.5, color: AppColors.sub),
-                  children: [
-                    TextSpan(
-                      text: doctor,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.text,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (displayJenisItems.isNotEmpty)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int i = 0; i < displayJenisItems.length; i++)
-                      Padding(
-                        padding: EdgeInsets.only(
-                          bottom: i == displayJenisItems.length - 1 ? 0 : 5,
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              margin: const EdgeInsets.only(top: 6, right: 8),
-                              width: 5,
-                              height: 5,
-                              decoration: const BoxDecoration(
-                                color: AppColors.sky,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            Expanded(
-                              child: Text(
-                                displayJenisItems[i],
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  // fontWeight: FontWeight.w500,
-                                  color: AppColors.text,
-                                  height: 1,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                )
-              else
-                Text(
-                  order.jenis.isNotEmpty ? order.jenis : '—',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.text,
-                  ),
-                ),
-              const SizedBox(height: 6),
-              if (order.catatan.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.orangeLt.withValues(alpha: 0.45),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: AppColors.orange.withValues(alpha: 0.22),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
+              DoctorExamSummary(
+                patient: examPatient,
+                beforeDiagnosis: (referral != null || showNoteBox)
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Icon(
-                            LucideIcons.messageSquare,
-                            size: 13,
-                            // color: AppColors.orange,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Catatan Khusus Dokter',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              // color: AppColors.orange,
-                              letterSpacing: 0.1,
+                          if (referral != null) _LabRequestBox(order: referral),
+                          if (referral != null && showNoteBox)
+                            const SizedBox(height: 10),
+                          if (showNoteBox)
+                            _DoctorNoteBox(
+                              note: boxNote,
+                              vitals: noteVitals,
+                              title: referral != null
+                                  ? 'Tanda Vital Pasien'
+                                  : 'Catatan Khusus Dokter',
                             ),
-                          ),
                         ],
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        order.catatan,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          // fontWeight: FontWeight.w500,
-                          color: AppColors.text,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                      )
+                    : null,
+              ),
             ],
           ),
         ),
@@ -847,6 +731,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                                 labelFontSize: 11,
                                 fontSize: 11.5,
                                 placeholder: 'cth: g/dL',
+                                capitalizeFirst: false,
                                 onChanged: (_) => setState(() {}),
                               ),
                             ),
@@ -1040,6 +925,332 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
       ],
     );
   }
+}
+
+/// Orange "Catatan Khusus Dokter" box: the doctor's note for the lab, with
+/// triage vitals rendered as a VitalTile grid.
+class _DoctorNoteBox extends StatelessWidget {
+  const _DoctorNoteBox({
+    required this.note,
+    this.vitals = _VitalValues.empty,
+    this.title = 'Catatan Khusus Dokter',
+  });
+
+  final String note;
+  final String title;
+
+  /// The visit's recorded vital signs; fills in what the note doesn't say.
+  final _VitalValues vitals;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      decoration: BoxDecoration(
+        color: AppColors.orangeLt.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.orange.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.messageSquare, size: 13),
+              const SizedBox(width: 6),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          _DoctorNoteContent(note: note, vitals: vitals),
+        ],
+      ),
+    );
+  }
+}
+
+/// The doctor's lab referral: the requested examination and the note for
+/// the analyst (lab_examination.requested_test / doctor_notes).
+class _LabRequestBox extends StatelessWidget {
+  const _LabRequestBox({required this.order});
+
+  final LabOrder order;
+
+  @override
+  Widget build(BuildContext context) {
+    final note = order.catatan.trim();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
+      decoration: BoxDecoration(
+        color: AppColors.skyLt.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.sky.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(LucideIcons.flaskConical, size: 13, color: AppColors.sky),
+              SizedBox(width: 6),
+              Text(
+                'Permintaan Pemeriksaan Lab',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.sky,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _LabRequestField(label: 'Jenis Pemeriksaan', value: order.jenis),
+          const SizedBox(height: 8),
+          _LabRequestField(label: 'Catatan untuk Analis', value: note),
+        ],
+      ),
+    );
+  }
+}
+
+class _LabRequestField extends StatelessWidget {
+  const _LabRequestField({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final empty = value.trim().isEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.sub,
+            letterSpacing: 0.4,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          empty ? '-' : value.trim(),
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: empty ? FontWeight.w400 : FontWeight.w600,
+            color: empty ? AppColors.sub : AppColors.text,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Vital signs pulled out of a triage-style note such as
+/// "[Triage] Durasi: 2 hari | TD: 120/80 | Nadi: 80 | Suhu: 36.5 | RR: 20 | SpO2: 98".
+/// Same format the repository writes and `Patient` parses.
+class _ParsedDoctorNote {
+  const _ParsedDoctorNote({
+    required this.td,
+    required this.nadi,
+    required this.suhu,
+    required this.rr,
+    required this.spo2,
+    required this.otherParts,
+  });
+
+  factory _ParsedDoctorNote.parse(String note) {
+    var td = '', nadi = '', suhu = '', rr = '', spo2 = '';
+    final otherParts = <String>[];
+
+    String valueAfter(String part, List<String> prefixes) {
+      for (final prefix in prefixes) {
+        if (part.startsWith(prefix)) return part.substring(prefix.length).trim();
+      }
+      return '';
+    }
+
+    for (final rawPart in note.split('|')) {
+      final part = rawPart.replaceFirst('[Triage]', '').trim();
+      if (part.isEmpty) continue;
+      if (part.startsWith('TD:')) {
+        td = valueAfter(part, ['TD:']);
+      } else if (part.startsWith('Nadi:') || part.startsWith('HR:')) {
+        nadi = valueAfter(part, ['Nadi:', 'HR:']);
+      } else if (part.startsWith('Suhu:') || part.startsWith('Temp:')) {
+        suhu = valueAfter(part, ['Suhu:', 'Temp:']);
+      } else if (part.startsWith('RR:')) {
+        rr = valueAfter(part, ['RR:']);
+      } else if (part.startsWith('SpO2:')) {
+        spo2 = valueAfter(part, ['SpO2:']);
+      } else {
+        otherParts.add(part);
+      }
+    }
+
+    return _ParsedDoctorNote(
+      td: td,
+      nadi: nadi,
+      suhu: suhu,
+      rr: rr,
+      spo2: spo2,
+      otherParts: otherParts,
+    );
+  }
+
+  final String td;
+  final String nadi;
+  final String suhu;
+  final String rr;
+  final String spo2;
+  final List<String> otherParts;
+
+  bool get hasVitals => [td, nadi, suhu, rr, spo2].any((v) => v.isNotEmpty);
+}
+
+/// Body of the "Catatan Khusus Dokter" box: vital signs as the same
+/// VitalTile grid used on the doctor's medical-history detail, followed by the
+/// rest of the note. Notes without vitals render as plain text, as before.
+class _DoctorNoteContent extends StatelessWidget {
+  const _DoctorNoteContent({required this.note, this.vitals = _VitalValues.empty});
+
+  final String note;
+  final _VitalValues vitals;
+
+  static const _textStyle = TextStyle(
+    fontSize: 11,
+    color: AppColors.text,
+    height: 1.3,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final parsed = _ParsedDoctorNote.parse(note);
+    // Values written in the note win; the visit's recorded vitals fill gaps.
+    String pick(String fromNote, String recorded) =>
+        fromNote.isNotEmpty ? fromNote : recorded;
+    final td = pick(parsed.td, vitals.td);
+    final nadi = pick(parsed.nadi, vitals.nadi);
+    final suhu = pick(parsed.suhu, vitals.suhu);
+    final rr = pick(parsed.rr, vitals.rr);
+    final spo2 = pick(parsed.spo2, vitals.spo2);
+    final hasVitals = [td, nadi, suhu, rr, spo2].any((v) => v.isNotEmpty);
+    if (!hasVitals) {
+      return Text(note, style: _textStyle);
+    }
+    final rest = parsed.hasVitals ? parsed.otherParts.join(' · ') : note.trim();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Same breakpoints/spacing as the doctor's vitals grid.
+            final w = constraints.maxWidth;
+            final int crossAxisCount = w >= 700 ? 5 : (w >= 440 ? 3 : 2);
+            final double childAspectRatio =
+                w >= 700 ? 2.1 : (w >= 440 ? 2.6 : 2.5);
+
+            return GridView.count(
+              padding: EdgeInsets.zero,
+              crossAxisCount: crossAxisCount,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: childAspectRatio,
+              children: [
+                VitalTile(
+                  icon: LucideIcons.heart,
+                  label: 'Tekanan Darah',
+                  value: td,
+                  unit: 'mmHg',
+                  color: AppColors.red,
+                ),
+                VitalTile(
+                  icon: LucideIcons.activity,
+                  label: 'Nadi',
+                  value: nadi,
+                  unit: 'bpm',
+                  color: AppColors.blue,
+                ),
+                VitalTile(
+                  icon: LucideIcons.thermometer,
+                  label: 'Suhu Tubuh',
+                  value: suhu,
+                  unit: '°C',
+                  color: AppColors.yellow,
+                ),
+                VitalTile(
+                  icon: LucideIcons.activity,
+                  label: 'Frek. Napas',
+                  value: rr,
+                  unit: 'x/mnt',
+                  color: AppColors.purple,
+                ),
+                VitalTile(
+                  icon: LucideIcons.droplet,
+                  label: 'SpO₂',
+                  value: spo2,
+                  unit: '%',
+                  color: AppColors.green,
+                ),
+              ],
+            );
+          },
+        ),
+        if (rest.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(rest, style: _textStyle),
+        ],
+      ],
+    );
+  }
+}
+
+/// Display strings for the five vital signs (empty when not recorded).
+class _VitalValues {
+  const _VitalValues({
+    this.td = '',
+    this.nadi = '',
+    this.suhu = '',
+    this.rr = '',
+    this.spo2 = '',
+  });
+
+  static const empty = _VitalValues();
+
+  factory _VitalValues.fromVitals(Vitals v) {
+    String number(num? n) =>
+        n == null ? '' : (n % 1 == 0 ? n.toInt().toString() : n.toString());
+    String text(String s, num? fallback) =>
+        s.trim().isNotEmpty ? s.trim() : number(fallback);
+    return _VitalValues(
+      td: v.tekananDarah.trim(),
+      nadi: text(v.nadi, v.heartRate),
+      suhu: text(v.suhu, v.temperature),
+      rr: text(v.frekuensiNapas, v.respiratoryRate),
+      spo2: text(v.spo2, v.oxygenSaturation),
+    );
+  }
+
+  final String td;
+  final String nadi;
+  final String suhu;
+  final String rr;
+  final String spo2;
+
+  bool get hasAny => [td, nadi, suhu, rr, spo2].any((v) => v.isNotEmpty);
 }
 
 extension _FirstOrNull<T> on Iterable<T> {

@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_card.dart';
 import '../domain/patient.dart';
+import '../../../core/utils/date_helper.dart';
 
 /// Port of the prototype's `PatientInfoCard` — the identity +
 /// keluhan + vitals summary shown in every role's detail pane,
@@ -155,12 +156,17 @@ class PatientInfoCard extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 2),
+                          // Full address, wrapping onto as many lines as needed.
                           Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
-                                LucideIcons.mapPin,
-                                size: 12,
-                                color: AppColors.sub,
+                              const Padding(
+                                padding: EdgeInsets.only(top: 2),
+                                child: Icon(
+                                  LucideIcons.mapPin,
+                                  size: 12,
+                                  color: AppColors.sub,
+                                ),
                               ),
                               const SizedBox(width: 4),
                               Expanded(
@@ -170,8 +176,6 @@ class PatientInfoCard extends StatelessWidget {
                                     fontSize: 12,
                                     color: AppColors.sub,
                                   ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -219,7 +223,7 @@ class PatientInfoCard extends StatelessWidget {
                     _MuiPatientMetaItem(
                       icon: LucideIcons.calendar,
                       label: 'Terdaftar',
-                      value: patient.waktuMasuk,
+                      value: DateHelper.formatDateTime(patient.waktuMasuk),
                     ),
                   ],
                 ),

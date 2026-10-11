@@ -52,6 +52,8 @@ class Vitals extends Equatable {
         json['tekanan_darah']?.toString() ??
         json['bloodPressure']?.toString() ??
         '';
+    // Some endpoints send "120/80 mmHg"; the unit is shown separately.
+    bp = bp.replaceFirst(RegExp(r'\s*mm\s*hg\s*$', caseSensitive: false), '').trim();
     if (bp.isEmpty && sys != null && dia != null) {
       bp = '$sys/$dia';
     }

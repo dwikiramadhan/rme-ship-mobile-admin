@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
@@ -309,7 +310,9 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           );
 
       // Refresh riwayat kunjungan
-      unawaited(ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true));
+      unawaited(
+        ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -394,7 +397,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                     Text(
                       'Input Kunjungan Baru',
                       style: TextStyle(
-                        fontSize: 16.0,
+                        fontSize: 14.0,
                         fontWeight: FontWeight.w800,
                         color: AppColors.text,
                       ),
@@ -402,10 +405,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                     SizedBox(height: 2),
                     Text(
                       'Pencatatan rekam medis & pemeriksaan triage kunjungan pasien',
-                      style: TextStyle(
-                        fontSize: 12.0,
-                        color: AppColors.sub,
-                      ),
+                      style: TextStyle(fontSize: 11.0, color: AppColors.sub),
                     ),
                   ],
                 ),
@@ -431,7 +431,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   child: Text(
                     _errorMessage!,
                     style: const TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                       color: AppColors.red,
                       fontWeight: FontWeight.w600,
                     ),
@@ -561,7 +561,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Pilih Pasien',
                   style: TextStyle(
-                    fontSize: 14.0,
+                    fontSize: 12.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -572,6 +572,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   label: 'Terpilih',
                   color: AppColors.green,
                   background: AppColors.greenLt,
+                  fontSize: 10,
                 ),
             ],
           ),
@@ -579,6 +580,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
 
           // Selector field styled after "Assign ke Dokter"
           const AppFieldLabel(
+            fontSize: 11,
             label: 'Nama Pasien / No. RM',
             required: true,
           ),
@@ -625,7 +627,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               Text(
                                 _selectedPatient!.nama,
                                 style: const TextStyle(
-                                  fontSize: 13.5,
+                                  fontSize: 12.0,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.text,
                                 ),
@@ -634,7 +636,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               Text(
                                 '${_selectedPatient!.registerNo.isNotEmpty ? _selectedPatient!.registerNo : "-"} • NIK: ${_selectedPatient!.nik}',
                                 style: const TextStyle(
-                                  fontSize: 12.0,
+                                  fontSize: 11.0,
                                   color: AppColors.sub,
                                 ),
                               ),
@@ -643,7 +645,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                         : const Text(
                             'Pilih pasien...',
                             style: TextStyle(
-                              fontSize: 13.5,
+                              fontSize: 12.0,
                               color: AppColors.sub,
                             ),
                           ),
@@ -694,7 +696,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w800,
-                    fontSize: 16,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -706,7 +708,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                     Text(
                       p.nama,
                       style: const TextStyle(
-                        fontSize: 16.0,
+                        fontSize: 14.0,
                         fontWeight: FontWeight.w800,
                         color: AppColors.text,
                       ),
@@ -727,7 +729,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                           child: Text(
                             p.registerNo.isNotEmpty ? p.registerNo : 'RM: -',
                             style: const TextStyle(
-                              fontSize: 11.0,
+                              fontSize: 10.0,
                               fontWeight: FontWeight.w700,
                               color: AppColors.blue,
                             ),
@@ -737,7 +739,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                         Text(
                           'NIK: ${p.nik}',
                           style: const TextStyle(
-                            fontSize: 12.0,
+                            fontSize: 11.0,
                             color: AppColors.sub,
                           ),
                         ),
@@ -773,7 +775,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             const SizedBox(height: 8),
             Text(
               'Alamat: ${p.alamat}',
-              style: const TextStyle(fontSize: 12.0, color: AppColors.sub),
+              style: const TextStyle(fontSize: 11.0, color: AppColors.sub),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -801,12 +803,12 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
       children: [
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 12.0, color: AppColors.sub),
+          style: const TextStyle(fontSize: 11.0, color: AppColors.sub),
         ),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 12.0,
+            fontSize: 11.0,
             fontWeight: FontWeight.w700,
             color: AppColors.text,
           ),
@@ -847,7 +849,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Poliklinik & Dokter Pemeriksa',
                   style: TextStyle(
-                    fontSize: 14.0,
+                    fontSize: 12.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -859,6 +861,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
 
           // Dropdown Poliklinik
           AppSelect<String>(
+            labelFontSize: 11,
+            fontSize: 12,
             label: 'Poliklinik Tujuan',
             required: true,
             value: _poliCode,
@@ -871,6 +875,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
 
           // Dokter Pemeriksa Selector
           const AppFieldLabel(
+            fontSize: 11,
             label: 'Dokter Pemeriksa',
             required: true,
           ),
@@ -911,7 +916,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               child: Text(
                                 selectedDoctor?.nama ?? 'Pilih Dokter...',
                                 style: const TextStyle(
-                                  fontSize: 13.5,
+                                  fontSize: 12.0,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.text,
                                 ),
@@ -934,7 +939,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                                 child: const Text(
                                   'Akun Anda',
                                   style: TextStyle(
-                                    fontSize: 10.5,
+                                    fontSize: 9.5,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.green,
                                   ),
@@ -948,7 +953,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                               ? '${selectedDoctor.spesialisasi} • ${selectedDoctor.availability ?? (selectedDoctor.online ? "Online" : "Offline")}'
                               : 'Klik untuk memilih dokter dari armada kapal',
                           style: const TextStyle(
-                            fontSize: 12.0,
+                            fontSize: 11.0,
                             color: AppColors.sub,
                           ),
                         ),
@@ -998,7 +1003,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Keluhan Pasien',
                   style: TextStyle(
-                    fontSize: 14.0,
+                    fontSize: 12.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -1010,6 +1015,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
 
           // Keluhan Utama (Wajib)
           AppTextField(
+            labelFontSize: 11,
+            fontSize: 12,
             label: 'Keluhan Utama',
             required: true,
             controller: _keluhanUtama,
@@ -1022,6 +1029,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             children: [
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'Durasi Keluhan',
                   controller: _durasiKeluhan,
                   placeholder: 'Contoh: 2 hari',
@@ -1030,6 +1039,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'Lokasi Keluhan',
                   controller: _lokasiKeluhan,
                   placeholder: 'Contoh: Kepala, perut',
@@ -1070,7 +1081,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Tanda-Tanda Vital (Triage)',
                   style: TextStyle(
-                    fontSize: 14.0,
+                    fontSize: 12.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -1081,9 +1092,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           const SizedBox(height: 14),
 
           // Tekanan Darah (Sistolik & Diastolik)
-          const AppFieldLabel(
-            label: 'Tekanan Darah (TD) - mmHg',
-          ),
+          const AppFieldLabel(fontSize: 11, label: 'Tekanan Darah (TD) - mmHg'),
           const SizedBox(height: 5),
           Row(
             children: [
@@ -1092,10 +1101,18 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _sistolik,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(fontSize: 14.0, color: AppColors.text, letterSpacing: 0),
+                  style: const TextStyle(
+                    fontSize: 12.0,
+                    color: AppColors.text,
+                    letterSpacing: 0,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'Sistolik (120)',
-                    hintStyle: TextStyle(fontSize: 13.0, color: AppColors.sub, letterSpacing: 0),
+                    hintStyle: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.sub,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ),
               ),
@@ -1104,7 +1121,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   '/',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     color: AppColors.sub,
                     fontWeight: FontWeight.bold,
                   ),
@@ -1115,10 +1132,18 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   controller: _diastolik,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(fontSize: 14.0, color: AppColors.text, letterSpacing: 0),
+                  style: const TextStyle(
+                    fontSize: 12.0,
+                    color: AppColors.text,
+                    letterSpacing: 0,
+                  ),
                   decoration: const InputDecoration(
                     hintText: 'Diastolik (80)',
-                    hintStyle: TextStyle(fontSize: 13.0, color: AppColors.sub, letterSpacing: 0),
+                    hintStyle: TextStyle(
+                      fontSize: 11.5,
+                      color: AppColors.sub,
+                      letterSpacing: 0,
+                    ),
                   ),
                 ),
               ),
@@ -1131,6 +1156,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             children: [
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'Denyut Nadi (bpm)',
                   controller: _nadi,
                   numbersOnly: true,
@@ -1141,6 +1168,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'Suhu Tubuh (°C)',
                   controller: _suhu,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -1158,6 +1187,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             children: [
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'Laju Napas / RR (x/mnt)',
                   controller: _rr,
                   numbersOnly: true,
@@ -1168,6 +1199,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'SpO2 (%)',
                   controller: _spo2,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -1185,6 +1218,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             children: [
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'Berat Badan (kg)',
                   controller: _beratBadan,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -1196,6 +1231,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: AppTextField(
+                  labelFontSize: 11,
+                  fontSize: 12,
                   label: 'Tinggi Badan (cm)',
                   controller: _tinggiBadan,
                   keyboardType: const TextInputType.numberWithOptions(
@@ -1239,7 +1276,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 child: Text(
                   'Catatan / Anjuran (Opsional)',
                   style: TextStyle(
-                    fontSize: 14.0,
+                    fontSize: 12.0,
                     fontWeight: FontWeight.w700,
                     color: AppColors.text,
                   ),
@@ -1249,6 +1286,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           ),
           const SizedBox(height: 14),
           AppTextField(
+            labelFontSize: 11,
+            fontSize: 12,
             label: 'Catatan Kunjungan',
             controller: _catatan,
             maxLines: 2,
@@ -1384,7 +1423,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                 const Text(
                   'Pilih Pasien',
                   style: TextStyle(
-                    fontSize: 16.0,
+                    fontSize: 14.0,
                     fontWeight: FontWeight.w800,
                     color: AppColors.text,
                   ),
@@ -1423,14 +1462,14 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                       onChanged: _onSearchChanged,
                       textAlignVertical: TextAlignVertical.center,
                       style: const TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 12.0,
                         color: AppColors.text,
                         letterSpacing: 0,
                       ),
                       decoration: const InputDecoration(
                         hintText: 'Cari nama pasien, NIK, atau No. RM...',
                         hintStyle: TextStyle(
-                          fontSize: 13.0,
+                          fontSize: 11.5,
                           color: AppColors.sub,
                           letterSpacing: 0,
                         ),
@@ -1490,7 +1529,7 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                           ? 'Mencari data pasien...'
                           : 'Pasien tidak ditemukan.',
                       style: const TextStyle(
-                        fontSize: 13.0,
+                        fontSize: 11.5,
                         color: AppColors.sub,
                       ),
                     ),
@@ -1506,129 +1545,180 @@ class _PatientSearchModalState extends ConsumerState<PatientSearchModal> {
                       final p = displayList[index];
                       final isSelected = p.id == widget.selectedId;
 
-                      return GestureDetector(
+                      return _PatientPickerTile(
+                        patient: p,
+                        selected: isSelected,
                         onTap: () => widget.onSelect(p),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.blueLt.withValues(alpha: 0.6)
-                                : AppColors.card2,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? AppColors.blue
-                                  : AppColors.border,
-                              width: isSelected ? 1.5 : 1.0,
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: isSelected
-                                      ? AppColors.blue
-                                      : AppColors.blueLt,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  p.nama.isNotEmpty
-                                      ? p.nama[0].toUpperCase()
-                                      : 'P',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : AppColors.blue,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      p.nama,
-                                      style: TextStyle(
-                                        fontSize: 13.5,
-                                        fontWeight: FontWeight.w700,
-                                        color: isSelected
-                                            ? AppColors.blue
-                                            : AppColors.text,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      crossAxisAlignment:
-                                          WrapCrossAlignment.center,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 6,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.card,
-                                            borderRadius: BorderRadius.circular(
-                                              4,
-                                            ),
-                                            border: Border.all(
-                                              color: AppColors.border,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            p.registerNo.isNotEmpty
-                                                ? p.registerNo
-                                                : 'RM: -',
-                                            style: const TextStyle(
-                                              fontSize: 10.5,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppColors.blue,
-                                            ),
-                                          ),
-                                        ),
-                                        Text(
-                                          'NIK: ${p.nik}',
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            color: AppColors.sub,
-                                          ),
-                                        ),
-                                        Text(
-                                          '• ${p.jk.label} • ${p.umur} thn',
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            color: AppColors.sub,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (isSelected)
-                                const Icon(
-                                  LucideIcons.check,
-                                  size: 18,
-                                  color: AppColors.blue,
-                                ),
-                            ],
-                          ),
-                        ),
                       );
                     },
                   ),
           ),
         ],
       ),
+    );
+  }
+}
+
+/// One row in the "Pilih Pasien" list: avatar, name + No. RM, then a short
+/// line of facts (gender/age, NIK, last visit). Facts the patient doesn't
+/// have are left out rather than shown as "-".
+class _PatientPickerTile extends StatelessWidget {
+  const _PatientPickerTile({
+    required this.patient,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Patient patient;
+  final bool selected;
+  final VoidCallback onTap;
+
+  String get _genderAge {
+    // Age is derived from the date of birth; without it, umur is just 0.
+    if (patient.dob == null || patient.dob!.trim().isEmpty) {
+      return patient.jk.label;
+    }
+    final age = patient.umur < 1 ? '< 1 thn' : '${patient.umur} thn';
+    return '${patient.jk.label} · $age';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = patient;
+    final nik = p.nik.trim();
+    final rm = p.registerNo.trim();
+    final lastVisit = p.lastVisit?.trim() ?? '';
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          decoration: BoxDecoration(
+            color: selected ? AppColors.blueLt : AppColors.card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected ? AppColors.blue : AppColors.border,
+              width: selected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.blue : AppColors.blueLt,
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  p.nama.isNotEmpty ? p.nama[0].toUpperCase() : 'P',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: selected ? Colors.white : AppColors.blue,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            p.nama,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: selected ? AppColors.blue : AppColors.text,
+                            ),
+                          ),
+                        ),
+                        if (rm.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 1.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppColors.card
+                                  : AppColors.blueLt,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              rm,
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.blue,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 3,
+                      children: [
+                        _PatientFact(icon: LucideIcons.user, text: _genderAge),
+                        if (nik.isNotEmpty)
+                          _PatientFact(icon: LucideIcons.idCard, text: nik),
+                        if (lastVisit.isNotEmpty)
+                          _PatientFact(
+                            icon: LucideIcons.calendarClock,
+                            text:
+                                'Terakhir ${DateHelper.formatDate(lastVisit)}',
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                selected ? LucideIcons.circleCheck : LucideIcons.chevronRight,
+                size: selected ? 18 : 16,
+                color: selected ? AppColors.blue : AppColors.sub,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientFact extends StatelessWidget {
+  const _PatientFact({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 11, color: AppColors.sub),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(fontSize: 10.5, color: AppColors.sub),
+        ),
+      ],
     );
   }
 }

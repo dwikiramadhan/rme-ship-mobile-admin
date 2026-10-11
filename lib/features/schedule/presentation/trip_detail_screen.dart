@@ -7,6 +7,8 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../domain/trip_schedule.dart';
 import 'widgets/edit_schedule_modal.dart';
+import '../../../core/utils/capitalize_first_formatter.dart';
+import '../../../core/utils/date_helper.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
   const TripDetailScreen({super.key, required this.item});
@@ -54,8 +56,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     overlay.insert(entry);
   }
 
-  String _formatFullDateTime(DateTime? dt, [String tz = 'WIB']) {
-    if (dt == null) return '—';
+  /// [tz] is the zone the time was recorded in (WIB/WITA/WIT): the time is
+  /// shown as the clock reads there. Without it, the device's time and zone
+  /// are used.
+  String _formatFullDateTime(DateTime? value, [String? tz]) {
+    if (value == null) return '—';
+    final dt = tz == null ? value.toLocal() : DateHelper.wallClockIn(value, tz);
+    final zone = tz ?? DateHelper.zoneOf(value);
     const days = [
       'Senin',
       'Selasa',
@@ -85,7 +92,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final year = dt.year;
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
-    return '$dayName, $day $month $year $hour:$minute $tz';
+    return '$dayName, $day $month $year $hour:$minute $zone';
   }
 
   String _getInitials(String name) {
@@ -924,7 +931,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               ),
                             ),
                             TextSpan(
-                              text: _formatFullDateTime(schedule.berangkat),
+                              text: _formatFullDateTime(schedule.berangkat, schedule.berangkatTz),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.text,
@@ -956,7 +963,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               ),
                             ),
                             TextSpan(
-                              text: _formatFullDateTime(schedule.tiba),
+                              text: _formatFullDateTime(schedule.tiba, schedule.tibaTz),
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.text,
@@ -2503,6 +2510,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             const SizedBox(height: 14),
                             TextField(
                               controller: notesController,
+                              textCapitalization: freeTextCapitalization,
+                              inputFormatters: freeTextFormatters,
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF1E293B),
@@ -3147,6 +3156,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             const SizedBox(height: 14),
                             TextField(
                               controller: notesController,
+                              textCapitalization: freeTextCapitalization,
+                              inputFormatters: freeTextFormatters,
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF1E293B),
@@ -3627,6 +3638,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       children: [
                         TextField(
                           controller: descController,
+                          textCapitalization: freeTextCapitalization,
+                          inputFormatters: freeTextFormatters,
                           maxLines: 2,
                           style: const TextStyle(
                             fontSize: 12.5,
@@ -3979,6 +3992,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       children: [
                         TextField(
                           controller: descController,
+                          textCapitalization: freeTextCapitalization,
+                          inputFormatters: freeTextFormatters,
                           maxLines: 2,
                           style: const TextStyle(
                             fontSize: 12.5,

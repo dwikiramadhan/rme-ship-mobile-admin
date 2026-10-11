@@ -342,7 +342,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       // Verify LabOrderDetail rendered
+      // Doctor's examination summary (same as the doctor's detail screen)
       expect(find.text('Hasil Pemeriksaan Dokter'), findsOneWidget);
+      expect(find.text('DIAGNOSA KLINIS'), findsOneWidget);
       expect(find.text('Hasil Pemeriksaan Lab'), findsOneWidget);
       expect(find.text('Tambah Parameter Pemeriksaan'), findsOneWidget);
 

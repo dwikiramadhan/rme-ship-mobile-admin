@@ -4,14 +4,19 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/trip_schedule.dart';
+import '../../../../core/utils/date_helper.dart';
 
 class TripDetailSheet extends StatelessWidget {
   const TripDetailSheet({super.key, required this.item});
 
   final JadwalPerjalanan item;
 
-  String _formatDateTime(DateTime? dt, [String tz = 'WIB']) {
-    if (dt == null) return '—';
+  /// [tz] is the stop's zone (WIB/WITA/WIT): the time is shown as the clock
+  /// reads there. Without it, the device's time and zone are used.
+  String _formatDateTime(DateTime? value, [String? tz]) {
+    if (value == null) return '—';
+    final dt = tz == null ? value.toLocal() : DateHelper.wallClockIn(value, tz);
+    final zone = tz ?? DateHelper.zoneOf(value);
     const months = [
       'Jan',
       'Feb',
@@ -31,7 +36,7 @@ class TripDetailSheet extends StatelessWidget {
     final year = dt.year;
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
-    return '$day $month $year, $hour:$minute $tz';
+    return '$day $month $year, $hour:$minute $zone';
   }
 
   @override
@@ -462,7 +467,7 @@ class TripDetailSheet extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          _formatDateTime(item.berangkat),
+                                          _formatDateTime(item.berangkat, item.berangkatTz),
                                           style: const TextStyle(
                                             fontSize: 12,
                                             color: AppColors.sub,
@@ -547,7 +552,7 @@ class TripDetailSheet extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          _formatDateTime(item.tiba),
+                                          _formatDateTime(item.tiba, item.tibaTz),
                                           style: const TextStyle(
                                             fontSize: 12,
                                             color: AppColors.sub,

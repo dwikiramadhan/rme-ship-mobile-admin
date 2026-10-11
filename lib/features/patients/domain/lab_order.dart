@@ -102,3 +102,10 @@ class LabOrder extends Equatable {
   @override
   List<Object?> get props => [id, jenis, catatan, status, hasil];
 }
+
+/// `lab_order` payload for PATCH /patients/:id/medical-records/:recordId: the
+/// backend stores it as a Pending lab examination for the analyst.
+Map<String, dynamic> labOrderRequestJson(LabOrder order) => {
+  'requested_test': order.jenis,
+  'notes': order.catatan,
+};

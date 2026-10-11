@@ -135,7 +135,14 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         _identityType = 'NIK';
       }
       _bloodType = Patient.normalizeBloodType(p.bloodType);
-      _alamat.text = p.alamat;
+      if (p.kodeKelurahan != null && p.kodeKelurahan!.isNotEmpty) {
+        // Region is restored from the code; the field holds only the street.
+        _alamat.text = _streetPart(p.alamat);
+      } else {
+        // No region code: edit the stored address as-is.
+        _isManualAddress = true;
+        _alamat.text = p.alamat;
+      }
       _namaWali.text = p.namaWali ?? '';
       _hubunganWali = p.hubunganWali;
       _keterangan.text = p.keterangan ?? '';
@@ -197,6 +204,14 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _loadingWilayah = false;
     });
 
+    if (widget.isEdit) {
+      final kodeKel = widget.initialPatient?.kodeKelurahan;
+      if (!_isManualAddress && kodeKel != null && kodeKel.isNotEmpty) {
+        await _restoreWilayah(kodeKel, list);
+      }
+      return;
+    }
+
     if (!_isManualAddress && _selectedProvinsi == null && list.isNotEmpty) {
       final defaultProv =
           list
@@ -214,6 +229,63 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         }
       }
     }
+  }
+
+  /// Street part of a stored address ("Jl. X No. 1, Kel. A, Kec. B, ..." ->
+  /// "Jl. X No. 1"); the region parts are rebuilt from the selections.
+  static String _streetPart(String address) {
+    final i = address.indexOf(', Kel. ');
+    return (i >= 0 ? address.substring(0, i) : address).trim();
+  }
+
+  /// Selects the patient's province → regency → district → village from a
+  /// village code such as `61.07.04.2006`. If any level can't be found the
+  /// form falls back to the stored address in manual mode, so nothing is
+  /// silently replaced by another region.
+  Future<void> _restoreWilayah(
+    String kodeKelurahan,
+    List<WilayahProvinsi> provinsiList,
+  ) async {
+    final parts = kodeKelurahan.split('.');
+    final prov = parts.length == 4
+        ? provinsiList
+              .where((p) => p.kodeProvinsi == int.tryParse(parts[0]))
+              .firstOrNull
+        : null;
+    if (prov == null) return _fallbackToManualAddress();
+
+    await _onProvinsiChanged(prov);
+    final kabCode = '${parts[0]}.${parts[1]}';
+    final kab = _kabkotaList
+        .where((k) => k.kodeKabkota.toStringAsFixed(2) == kabCode)
+        .firstOrNull;
+    if (kab == null) return _fallbackToManualAddress();
+
+    await _onKabkotaChanged(kab);
+    final kecCode = parts.take(3).join('.');
+    final kec = _kecamatanList
+        .where((k) => k.kodeKecamatan == kecCode)
+        .firstOrNull;
+    if (kec == null) return _fallbackToManualAddress();
+
+    await _onKecamatanChanged(kec);
+    final kel = _kelurahanList
+        .where((k) => k.kodeKelurahan == kodeKelurahan)
+        .firstOrNull;
+    if (kel == null) return _fallbackToManualAddress();
+    if (mounted) setState(() => _selectedKelurahan = kel);
+  }
+
+  void _fallbackToManualAddress() {
+    if (!mounted) return;
+    setState(() {
+      _isManualAddress = true;
+      _alamat.text = widget.initialPatient?.alamat ?? _alamat.text;
+      _selectedProvinsi = null;
+      _selectedKabkota = null;
+      _selectedKecamatan = null;
+      _selectedKelurahan = null;
+    });
   }
 
   Future<void> _onProvinsiChanged(WilayahProvinsi? prov) async {
@@ -319,12 +391,14 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     super.dispose();
   }
 
+  /// Editing only touches patient data; a new patient also needs the
+  /// triage (complaint + doctor) for its first visit.
   bool get _valid =>
       _nama.text.trim().isNotEmpty &&
       _jk != null &&
       _dob != null &&
-      _keluhanUtama.text.trim().isNotEmpty &&
-      _dokterId != null;
+      (widget.isEdit ||
+          (_keluhanUtama.text.trim().isNotEmpty && _dokterId != null));
 
   Future<void> _save() async {
     if (!_valid) return;
@@ -398,7 +472,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           fullAddress = parts.join(', ');
         }
       }
-      if (fullAddress.isEmpty) fullAddress = 'Kalimantan Timur';
+      // New patients get a placeholder; an edit never invents an address.
+      if (fullAddress.isEmpty && !widget.isEdit) {
+        fullAddress = 'Kalimantan Timur';
+      }
 
       final kodeKel = (!_isManualAddress && _selectedKelurahan != null)
           ? _selectedKelurahan!.kodeKelurahan
@@ -421,6 +498,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
       final p = widget.initialPatient;
       if (p != null) {
+        // Patient data only: complaint, vitals and doctor belong to visits.
         final updatedPatient = p.copyWith(
           nama: _nama.text.trim(),
           nik: nikValue,
@@ -438,23 +516,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           keterangan: effectiveKeterangan,
           kodeKelurahan: kodeKel,
           kodePos: kodePosVal,
-          keluhanUtama: _keluhanUtama.text.trim().isNotEmpty
-              ? _keluhanUtama.text.trim()
-              : 'Pemeriksaan umum',
-          durasiKeluhan: _durasiKeluhan.text.trim().isNotEmpty
-              ? _durasiKeluhan.text.trim()
-              : '-',
-          lokasiKeluhan: _lokasiKeluhan.text.trim().isNotEmpty
-              ? _lokasiKeluhan.text.trim()
-              : '-',
-          vitals: Vitals(
-            tekananDarah: _td.text.trim(),
-            nadi: _nadi.text.trim(),
-            suhu: _suhu.text.trim(),
-            frekuensiNapas: _rr.text.trim(),
-            spo2: _spo2.text.trim(),
-          ),
-          assignedDokterId: _dokterId!,
           updatedAt: DateTime.now(),
         );
         await ref.read(patientsProvider.notifier).updatePatient(updatedPatient);
@@ -631,7 +692,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                       const SizedBox(height: 1.5),
                       Text(
                         widget.isEdit
-                            ? 'Perbarui identitas & keluhan klinis'
+                            ? 'Perbarui identitas & data diri pasien'
                             : 'Input identitas & registrasi pasien ke antrian',
                         style: const TextStyle(
                           fontSize: 9.5,
@@ -652,6 +713,33 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final wide = constraints.maxWidth > 700;
+                  if (widget.isEdit) {
+                    final identity = _buildIdentityCard();
+                    final addressAndGuardian = Column(
+                      children: [
+                        _buildWilayahCard(),
+                        const SizedBox(height: 14),
+                        _buildGuardianCard(),
+                      ],
+                    );
+                    if (wide) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: identity),
+                          const SizedBox(width: 14),
+                          Expanded(child: addressAndGuardian),
+                        ],
+                      );
+                    }
+                    return Column(
+                      children: [
+                        identity,
+                        const SizedBox(height: 14),
+                        addressAndGuardian,
+                      ],
+                    );
+                  }
                   final leftColumn = Column(
                     children: [
                       _buildDoctorCard(doctorList),

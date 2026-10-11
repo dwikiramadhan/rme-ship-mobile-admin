@@ -9,6 +9,33 @@ import 'package:bayan_rme/features/patients/presentation/medical_history_detail_
 import 'package:bayan_rme/features/patients/presentation/status_meta.dart';
 
 void main() {
+  test('reads vitals, code and creator from the patient detail record shape', () {
+    // Shape of `medical_records[]` in GET /patients/:id.
+    final history = MedicalHistory.fromApiJson({
+      'id': 'mr-1',
+      'reg_code': 'RJ05092026-00001',
+      'created_at': '2026-09-05T07:30:00Z',
+      'vital_signs': {
+        'systolic': 120,
+        'diastolic': 80,
+        'blood_pressure': '120/80 mmHg',
+        'heart_rate': 88,
+        'temperature': 36.8,
+        'respiratory_rate': 20,
+        'oxygen_saturation': 98,
+      },
+      'created_by_user': {'id': 'u-1', 'full_name': 'Ns. Rina', 'role': 'Perawat'},
+    });
+
+    expect(history.code, 'RJ05092026-00001');
+    expect(history.vitals.tekananDarah, '120/80');
+    expect(history.heartRate, 88);
+    expect(history.temperature, 36.8);
+    expect(history.respiratoryRate, 20);
+    expect(history.oxygenSaturation, 98);
+    expect(history.createdByName, 'Ns. Rina');
+  });
+
   group('MedicalHistory Domain & Serialization', () {
     final sampleJson = {
       "id": "e15f4a0c-8082-45f3-ae25-fdc822554636",
@@ -358,7 +385,9 @@ void main() {
       await tester.ensureVisible(btn);
       await tester.pumpAndSettle();
       await tester.tap(btn);
-      await tester.pumpAndSettle();
+      // The viewer keeps a spinner while downloading, so don't wait to settle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Dokumen Hasil Lab'), findsOneWidget);
       expect(find.text('hasil_lab_budi.pdf'), findsWidgets);
@@ -419,10 +448,73 @@ void main() {
       await tester.ensureVisible(btn);
       await tester.pumpAndSettle();
       await tester.tap(btn);
-      await tester.pumpAndSettle();
+      // The viewer keeps a spinner while downloading, so don't wait to settle.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Dokumen Hasil Lab'), findsOneWidget);
       expect(find.text('lab_result_doctor.pdf'), findsWidgets);
     },
   );
+
+  testWidgets('MedicalHistoryDetailView shows who created the record', (
+    tester,
+  ) async {
+    final history = MedicalHistory.fromApiJson({
+      'id': '3',
+      'code': 'RJ003',
+      'patient_id': 'p3',
+      'patient_name': 'Lando Norris',
+      'status_penanganan': 'Menunggu Dokter',
+      'created_by': 'u-1',
+      'created_by_user': {'id': 'u-1', 'full_name': 'Ns. Rina', 'role': 'Perawat'},
+    });
+    expect(history.createdByName, 'Ns. Rina');
+    expect(history.createdByRole, 'Perawat');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MedicalHistoryDetailView(history: history),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Dibuat oleh'), findsOneWidget);
+    expect(find.text('Ns. Rina'), findsOneWidget);
+    expect(find.text('Perawat'), findsOneWidget);
+  });
+
+  testWidgets('MedicalHistoryDetailView hides creator row for older records', (
+    tester,
+  ) async {
+    final history = MedicalHistory.fromApiJson({
+      'id': '4',
+      'code': 'RJ004',
+      'patient_id': 'p4',
+      'patient_name': 'Oscar Piastri',
+      'status_penanganan': 'Menunggu Dokter',
+    });
+    expect(history.createdByName, isNull);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MedicalHistoryDetailView(history: history),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Dibuat oleh'), findsNothing);
+  });
 }

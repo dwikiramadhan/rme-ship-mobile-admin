@@ -9,6 +9,7 @@ import '../../../core/utils/diagnosis_helper.dart';
 import '../../nurse/presentation/patient_form.dart';
 import '../data/patient_repository.dart';
 import '../domain/patient.dart';
+import 'widgets/medical_record_detail_sheet.dart';
 
 /// Screen detail data pasien dengan visual design yang selaras dengan web Bayan RME:
 /// - Top Bar: [← Kembali ke Data Pasien], [Refresh], [✏️ Edit Pasien]
@@ -33,6 +34,15 @@ class PatientDetailScreen extends ConsumerStatefulWidget {
 class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
   int _selectedTabIndex = 0;
   int _previousTabIndex = 0;
+
+  /// The calendar day of a date-only value (e.g. `2026-10-11T00:00:00Z`) as
+  /// a local midnight, so it is shown as a date without a time.
+  static DateTime? _calendarDay(dynamic raw) {
+    final parsed = raw is DateTime ? raw : DateTime.tryParse('${raw ?? ''}');
+    if (parsed == null) return null;
+    final day = parsed.isUtc ? parsed : parsed.toLocal();
+    return DateTime(day.year, day.month, day.day);
+  }
 
   String _formatIndonesianDateTime(dynamic raw) {
     if (raw == null) return '-';
@@ -111,7 +121,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
     if (local.hour == 0 && local.minute == 0) {
       return '$dayName, $day-$month-$year';
     }
-    return '$dayName, $day-$month-$year $hour:$min WIB';
+    return '$dayName, $day-$month-$year $hour:$min ${DateHelper.zoneOf(local)}';
   }
 
   void _showPrescriptionDialog(
@@ -391,6 +401,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
             .toString();
     final phone = (data['phone'] ?? widget.initialPatient?.phone ?? '-')
         .toString();
+    final address =
+        (data['address'] ?? widget.initialPatient?.alamat ?? '').toString().trim();
     final lastVisit =
         (data['last_visit'] ?? widget.initialPatient?.lastVisit ?? '-')
             .toString();
@@ -446,159 +458,20 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
         ? records.length
         : (widget.initialPatient != null ? 1 : 0);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 1. Top Bar, fixed above the scrolling content.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          child: _buildTopBar(context, data),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Top Bar: [← Kembali ke Data Pasien], [Refresh], [Edit Pasien]
-          Row(
-            children: [
-              // Kembali button
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => Navigator.of(context).pop(),
-                  borderRadius: BorderRadius.circular(30),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          LucideIcons.arrowLeft,
-                          size: 15,
-                          color: Color(0xFF334155),
-                        ),
-                        SizedBox(width: 6),
-                        Text(
-                          'Kembali ke Data Pasien',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF334155),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(),
-              // Refresh button
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () =>
-                      ref.invalidate(patientDetailProvider(widget.patientId)),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      LucideIcons.refreshCw,
-                      size: 14,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Edit Pasien button
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () {
-                    final patientObj = Patient.fromApiJson(data);
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PatientForm(
-                          initialPatient: patientObj,
-                          onBack: () => Navigator.of(context).pop(),
-                          onSaved: () {
-                            Navigator.of(context).pop();
-                            // PatientForm already refreshes patients & history.
-                            ref.invalidate(
-                              patientDetailProvider(widget.patientId),
-                            );
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(30),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: const Color(0xFFFDBA74)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          LucideIcons.pencil,
-                          size: 13,
-                          color: Color(0xFFEA580C),
-                        ),
-                        SizedBox(width: 5),
-                        Text(
-                          'Edit Pasien',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFFEA580C),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
           // 2. Main Patient Card (Header dengan 4 Stat Box)
           Container(
             padding: const EdgeInsets.all(18),
@@ -694,7 +567,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                             name,
                             style: const TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               color: Color(0xFF0F172A),
                               letterSpacing: -0.3,
                             ),
@@ -712,6 +585,34 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          // Full address, wrapping onto as many lines as needed.
+                          if (address.isNotEmpty && address != '-') ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 1.5),
+                                  child: Icon(
+                                    LucideIcons.mapPin,
+                                    size: 12,
+                                    color: AppColors.sub,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    address,
+                                    style: const TextStyle(
+                                      fontSize: 11.5,
+                                      height: 1.35,
+                                      color: AppColors.sub,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -821,22 +722,8 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
 
           const SizedBox(height: 18),
 
-          // 3. Tab Navigation (Underline Oranye)
-          Row(
-            children: [
-              _buildTabItem(
-                index: 0,
-                icon: LucideIcons.fileText,
-                label: 'Riwayat Rekam Medis ($totalVisits)',
-              ),
-              const SizedBox(width: 20),
-              _buildTabItem(
-                index: 1,
-                icon: LucideIcons.user,
-                label: 'Profil & Identitas Lengkap',
-              ),
-            ],
-          ),
+          // 3. Tab Navigation (segmented, sliding indicator)
+          _buildTabBar(totalVisits),
 
           const SizedBox(height: 14),
 
@@ -891,6 +778,174 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
           ),
         ],
       ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// [← Kembali ke Data Pasien] ... [Refresh] [Edit Pasien]
+  Widget _buildTopBar(BuildContext context, Map<String, dynamic> data) {
+    return Row(
+      children: [
+        // Kembali button: takes the free width, so Edit Pasien sits top-right.
+        Expanded(
+          child: Align(
+          alignment: Alignment.centerLeft,
+          child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => Navigator.of(context).pop(),
+            borderRadius: BorderRadius.circular(30),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.arrowLeft,
+                    size: 15,
+                    color: Color(0xFF334155),
+                  ),
+                  SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      'Kembali ke Data Pasien',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        ),
+        ),
+        const SizedBox(width: 8),
+        // Refresh button
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () =>
+                ref.invalidate(patientDetailProvider(widget.patientId)),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                LucideIcons.refreshCw,
+                size: 14,
+                color: Color(0xFF64748B),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Edit Pasien button
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              final patientObj = Patient.fromApiJson(data);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  // The form is a plain body widget (it is embedded in the
+                  // nurse home's Scaffold elsewhere), so a pushed page needs
+                  // its own Scaffold for text fields, ink and snackbars.
+                  builder: (_) => Scaffold(
+                    backgroundColor: AppColors.bg,
+                    body: SafeArea(
+                      child: PatientForm(
+                        initialPatient: patientObj,
+                        onBack: () => Navigator.of(context).pop(),
+                        onSaved: () {
+                          Navigator.of(context).pop();
+                          // PatientForm already refreshes patients & history.
+                          ref.invalidate(
+                            patientDetailProvider(widget.patientId),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(30),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 13,
+                vertical: 7,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFFDBA74)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    LucideIcons.pencil,
+                    size: 13,
+                    color: Color(0xFFEA580C),
+                  ),
+                  SizedBox(width: 5),
+                  Text(
+                    'Edit Pasien',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFEA580C),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -915,7 +970,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 9.5,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: Color(0xFF94A3B8),
               letterSpacing: 0.3,
             ),
@@ -927,9 +982,80 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13.5,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               color: valueColor ?? const Color(0xFF0F172A),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _selectTab(int index) {
+    if (_selectedTabIndex == index) return;
+    setState(() {
+      _previousTabIndex = _selectedTabIndex;
+      _selectedTabIndex = index;
+    });
+  }
+
+  /// Two equal segments with one white indicator that slides between them,
+  /// so switching tabs is a single smooth motion (no splash, no flicker).
+  Widget _buildTabBar(int totalVisits) {
+    const duration = Duration(milliseconds: 250);
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Stack(
+        children: [
+          AnimatedAlign(
+            duration: duration,
+            curve: Curves.easeOutCubic,
+            alignment: _selectedTabIndex == 0
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              heightFactor: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(9),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: _buildTabItem(
+                  index: 0,
+                  icon: LucideIcons.fileText,
+                  label: 'Riwayat Rekam Medis ($totalVisits)',
+                  duration: duration,
+                ),
+              ),
+              Expanded(
+                child: _buildTabItem(
+                  index: 1,
+                  icon: LucideIcons.user,
+                  label: 'Profil & Identitas Lengkap',
+                  duration: duration,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -940,53 +1066,41 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
     required int index,
     required IconData icon,
     required String label,
+    required Duration duration,
   }) {
     final isSelected = _selectedTabIndex == index;
-    return InkWell(
-      onTap: () {
-        if (_selectedTabIndex != index) {
-          setState(() {
-            _previousTabIndex = _selectedTabIndex;
-            _selectedTabIndex = index;
-          });
-        }
-      },
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      hoverColor: Colors.transparent,
-      focusColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isSelected ? const Color(0xFFEA580C) : Colors.transparent,
-              width: 2.5,
-            ),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: isSelected
-                  ? const Color(0xFFEA580C)
-                  : const Color(0xFF64748B),
-            ),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected
-                    ? const Color(0xFFEA580C)
-                    : const Color(0xFF64748B),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _selectTab(index),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        // Only the colour animates; the font weight stays the same so the
+        // label never jumps in width.
+        child: TweenAnimationBuilder<Color?>(
+          duration: duration,
+          tween: ColorTween(end: isSelected ? AppColors.orange : AppColors.sub),
+          builder: (context, color, _) => Center(
+            // Scales the label down slightly on narrow phones instead of
+            // overflowing or cutting it off.
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 15, color: color),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1041,12 +1155,14 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
       itemBuilder: (context, index) {
         final record = records[index];
         final queueNumber = '#${records.length - index}';
+        // `date` is a calendar date only (stored as midnight UTC): without a
+        // real timestamp, show just that day instead of a made-up time.
+        final dateOnly = record['date'] ?? record['Date'];
         final rawDate = record['created_at'] ??
             record['CreatedAt'] ??
             record['visit_date'] ??
             record['visitDate'] ??
-            record['date'] ??
-            record['Date'] ??
+            _calendarDay(dateOnly) ??
             record['tanggal'] ??
             record['tanggal_kunjungan'] ??
             record['waktu_kunjungan'] ??
@@ -1063,16 +1179,19 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
             ? formattedDate
             : 'Tanggal Kunjungan';
 
-        final shipName = record['service_ship'] is Map
-            ? record['service_ship']['name']?.toString() ??
-                  'RSK dr. Lie Dharmawan Bayan Peduli I'
-            : (record['ship_name']?.toString() ??
-                  'RSK dr. Lie Dharmawan Bayan Peduli I');
-        final harbor = record['service_ship'] is Map
-            ? record['service_ship']['location']?.toString() ??
-                  record['service_ship']['port_name']?.toString() ??
-                  'Pelabuhan Tanjung Priok'
-            : (record['harbor']?.toString() ?? 'Pelabuhan Tanjung Priok');
+        final shipName = (record['service_ship'] is Map
+                ? record['service_ship']['name']
+                : record['ship_name'])
+            ?.toString()
+            .trim() ??
+            '';
+        final harbor = (record['service_ship'] is Map
+                ? record['service_ship']['location'] ??
+                      record['service_ship']['port_name']
+                : record['harbor'])
+            ?.toString()
+            .trim() ??
+            '';
 
         final statusStr =
             (record['status'] ??
@@ -1081,21 +1200,24 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                 .toString();
         final isSelesai = statusStr.toLowerCase().contains('selesai');
 
-        final doctorName = record['doctor'] is Map
-            ? record['doctor']['name']?.toString() ?? 'dr. Andika Pratama'
-            : (record['doctor_name']?.toString() ?? 'dr. Andika Pratama');
-        final doctorSip = record['doctor'] is Map
-            ? record['doctor']['sip']?.toString() ??
-                  '7/B.15a/31.73.08.1002.19.BJ/4/TM.09.74/e/2025'
-            : (record['doctor_sip']?.toString() ??
-                  '7/B.15a/31.73.08.1002.19.BJ/4/TM.09.74/e/2025');
+        final doctorName = (record['doctor'] is Map
+                ? record['doctor']['name']
+                : record['doctor_name'])
+            ?.toString()
+            .trim() ??
+            '';
+        final doctorSip = (record['doctor'] is Map
+                ? record['doctor']['sip']
+                : record['doctor_sip'])
+            ?.toString()
+            .trim() ??
+            '';
 
         final complaint =
-            (record['complaint'] ??
-                    record['keluhan'] ??
-                    record['keluhan_utama'] ??
-                    'Demam dan sakit kepala')
-                .toString();
+            (record['complaint'] ?? record['keluhan'] ?? record['keluhan_utama'])
+                ?.toString()
+                .trim() ??
+            '';
         final diagnosis = formatDiagnoses(
           record['diagnoses'],
           fallback: record['diagnosis'] ?? record['diagnosa'],
@@ -1105,323 +1227,24 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
             record['prescription'] ??
             record['medicines'];
 
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header Card: Tag #, Kalender + Jam • Kapal & Pelabuhan, Status & Action (Responsive)
-              LayoutBuilder(
-                builder: (context, cardConstraints) {
-                  final isWide = cardConstraints.maxWidth > 850;
-
-                  final visitInfoWidget = Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      // Nomor Tag
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Text(
-                          queueNumber,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF475569),
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        LucideIcons.calendar,
-                        size: 13,
-                        color: Color(0xFFEA580C),
-                      ),
-                      Text(
-                        displayDate,
-                        style: const TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
-                        ),
-                      ),
-                      const Text(
-                        '•',
-                        style: TextStyle(color: Color(0xFF94A3B8)),
-                      ),
-                      const Icon(
-                        LucideIcons.ship,
-                        size: 13,
-                        color: Color(0xFF64748B),
-                      ),
-                      Text(
-                        '$shipName ($harbor)',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  );
-
-                  final actionWidgets = Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      // Status Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3.5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isSelesai
-                              ? const Color(0xFFECFDF5)
-                              : const Color(0xFFEFF6FF),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelesai
-                                ? const Color(0xFFA7F3D0)
-                                : const Color(0xFFBFDBFE),
-                          ),
-                        ),
-                        child: Text(
-                          statusStr,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: isSelesai
-                                ? const Color(0xFF059669)
-                                : const Color(0xFF2563EB),
-                          ),
-                        ),
-                      ),
-                      if (isSelesai) ...[
-                        // Tombol Detail Resep
-                        InkWell(
-                          onTap: () => _showPrescriptionDialog(
-                            context,
-                            prescriptions,
-                            patientName,
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: const Color(0xFFFDBA74),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  LucideIcons.eye,
-                                  size: 12,
-                                  color: Color(0xFFEA580C),
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Detail Resep',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFFEA580C),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Tombol Unduh Resep
-                        InkWell(
-                          onTap: () => _downloadPrescription(context),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF0D9488),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  LucideIcons.download,
-                                  size: 12,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Unduh Resep',
-                                  style: TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-
-                  if (isWide) {
-                    return Row(
-                      children: [
-                        Expanded(child: visitInfoWidget),
-                        const SizedBox(width: 12),
-                        actionWidgets,
-                      ],
-                    );
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      visitInfoWidget,
-                      const SizedBox(height: 8),
-                      actionWidgets,
-                    ],
-                  );
-                },
-              ),
-
-              const SizedBox(height: 12),
-
-              // Body Box: Dokter Pemeriksa, Keluhan Utama, Diagnosis
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Dokter Pemeriksa
-                    Expanded(
-                      flex: 4,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'DOKTER PEMERIKSA',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF94A3B8),
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            doctorSip.isNotEmpty
-                                ? '$doctorName (SIP: $doctorSip)'
-                                : doctorName,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Keluhan Utama
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'KELUHAN UTAMA',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF94A3B8),
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            complaint,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF334155),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Diagnosis (Label Oranye)
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'DIAGNOSIS',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFEA580C),
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            diagnosis,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+        return _MedicalRecordCard(
+          queueNumber: queueNumber,
+          date: displayDate,
+          shipName: shipName,
+          harbor: harbor,
+          status: statusStr,
+          isDone: isSelesai,
+          doctorName: doctorName,
+          doctorSip: doctorSip,
+          complaint: complaint,
+          diagnosis: diagnosis,
+          onViewPrescription: () =>
+              _showPrescriptionDialog(context, prescriptions, patientName),
+          onDownloadPrescription: () => _downloadPrescription(context),
+          onTap: () => showMedicalRecordDetailSheet(context, record),
+          // By visit number (#1, #2, ...), so colours don't shift when a
+          // new visit is added on top.
+          isEven: (records.length - index).isEven,
         );
       },
     );
@@ -1452,188 +1275,164 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
         ? data['poliklinik']['name']?.toString() ?? '-'
         : (data['poli_code']?.toString() ?? '-');
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildProfileSectionHeader(
-            'Identitas Diri & Informasi Pribadi',
-            LucideIcons.user,
-          ),
-          const SizedBox(height: 12),
-          _buildProfileGrid([
-            _ProfileField('Nama Lengkap', name),
-            _ProfileField(
-              'Nomor Induk Kependudukan (NIK)',
-              (nik.isNotEmpty && nik != '-')
-                  ? nik
-                  : ((photoUrl != null && photoUrl.isNotEmpty)
-                      ? 'Foto Pasien (Terlampir)'
-                      : '-'),
-            ),
-            _ProfileField(
-              'No. Registrasi / Rekam Medis',
-              regNo.isNotEmpty ? regNo : '-',
-            ),
-            _ProfileField('Jenis Kelamin', gender),
-            _ProfileField(
-              'Tanggal Lahir',
-              dob.isNotEmpty && dob != '-' ? formatDate(dob) : '-',
-            ),
-            _ProfileField('Golongan Darah', bloodType),
-            _ProfileField('Nomor Telepon / Handphone', phone),
-          ]),
+    final hasMedicalNote = keterangan.trim().isNotEmpty && keterangan != '-';
 
-          if (photoUrl != null && photoUrl.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _ProfileSection(
+          title: 'Identitas Diri & Informasi Pribadi',
+          icon: LucideIcons.user,
+          children: [
+            _ProfileFieldGrid([
+              _ProfileField('Nama Lengkap', name),
+              _ProfileField(
+                'Nomor Induk Kependudukan (NIK)',
+                (nik.isNotEmpty && nik != '-')
+                    ? nik
+                    : ((photoUrl != null && photoUrl.isNotEmpty)
+                        ? 'Foto Pasien (Terlampir)'
+                        : '-'),
               ),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      photoUrl.startsWith('http')
-                          ? photoUrl
-                          : '${ApiConfig.baseUrl}$photoUrl',
-                      width: 56,
-                      height: 56,
-                      // Width only: forcing both dimensions decoded non-square photos
-                      // into a square (squashed). This keeps the aspect ratio so
-                      // BoxFit.cover crops instead.
-                      cacheWidth: 168,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        width: 56,
-                        height: 56,
-                        color: const Color(0xFFE2E8F0),
-                        child: const Icon(LucideIcons.image, color: Color(0xFF94A3B8)),
-                      ),
+              _ProfileField(
+                'No. Registrasi / Rekam Medis',
+                regNo.isNotEmpty ? regNo : '-',
+              ),
+              _ProfileField('Jenis Kelamin', gender),
+              _ProfileField(
+                'Tanggal Lahir',
+                dob.isNotEmpty && dob != '-' ? formatDate(dob) : '-',
+              ),
+              _ProfileField('Golongan Darah', bloodType),
+              _ProfileField('Nomor Telepon / Handphone', phone),
+            ]),
+                if (photoUrl != null && photoUrl.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
                       children: [
-                        Text(
-                          'Foto Identitas Pasien',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            photoUrl.startsWith('http')
+                                ? photoUrl
+                                : '${ApiConfig.baseUrl}$photoUrl',
+                            width: 56,
+                            height: 56,
+                            // Width only: forcing both dimensions decoded non-square photos
+                            // into a square (squashed). This keeps the aspect ratio so
+                            // BoxFit.cover crops instead.
+                            cacheWidth: 168,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Container(
+                              width: 56,
+                              height: 56,
+                              color: const Color(0xFFE2E8F0),
+                              child: const Icon(LucideIcons.image, color: Color(0xFF94A3B8)),
+                            ),
                           ),
                         ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Foto wajah/identitas terdaftar pada rekam medis pasien',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Foto Identitas Pasien',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1E293B),
+                                ),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                'Foto wajah/identitas terdaftar pada rekam medis pasien',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton.icon(
+                          onPressed: () => _showFullPhoto(
+                            context,
+                            photoUrl.startsWith('http')
+                                ? photoUrl
+                                : '${ApiConfig.baseUrl}$photoUrl',
+                            name,
+                          ),
+                          icon: const Icon(LucideIcons.eye, size: 14),
+                          label: const Text('Lihat Foto', style: TextStyle(fontSize: 12)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFE05315),
+                            side: const BorderSide(color: Color(0xFFFDBA74)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => _showFullPhoto(
-                      context,
-                      photoUrl.startsWith('http')
-                          ? photoUrl
-                          : '${ApiConfig.baseUrl}$photoUrl',
-                      name,
-                    ),
-                    icon: const Icon(LucideIcons.eye, size: 14),
-                    label: const Text('Lihat Foto', style: TextStyle(fontSize: 12)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFE05315),
-                      side: const BorderSide(color: Color(0xFFFDBA74)),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
                 ],
-              ),
-            ),
           ],
-
-          const SizedBox(height: 20),
-          const Divider(color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 14),
-
-          _buildProfileSectionHeader(
-            'Alamat Tempat Tinggal',
-            LucideIcons.mapPin,
-          ),
-          const SizedBox(height: 12),
-          _buildProfileGrid([
-            _ProfileField('Alamat Lengkap', address),
-            _ProfileField('Kode Pos', postalCode),
-          ]),
-
-          const SizedBox(height: 20),
-          const Divider(color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 14),
-
-          _buildProfileSectionHeader(
-            'Kontak Darurat & Wali',
-            LucideIcons.users,
-          ),
-          const SizedBox(height: 12),
-          _buildProfileGrid([
-            _ProfileField('Nama Wali', namaWali),
-            _ProfileField('Hubungan Wali', hubunganWali),
-          ]),
-
-          const SizedBox(height: 20),
-          const Divider(color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 14),
-
-          _buildProfileSectionHeader(
-            'Informasi Layanan & Catatan Khusus',
-            LucideIcons.stethoscope,
-          ),
-          const SizedBox(height: 12),
-          _buildProfileGrid([
-            _ProfileField('Kapal Layanan Terdaftar', shipName),
-            _ProfileField('Poliklinik Terdaftar', poliName),
-            _ProfileField('Catatan Medis / Riwayat Alergi', keterangan),
-          ]),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileSectionHeader(String title, IconData icon) {
-    return Row(
-      children: [
-        Icon(icon, size: 15, color: const Color(0xFFEA580C)),
-        const SizedBox(width: 7),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
-          ),
+        ),
+        const SizedBox(height: 12),
+        _ProfileSection(
+          title: 'Alamat Tempat Tinggal',
+          icon: LucideIcons.mapPin,
+          children: [
+            _ProfileFieldGrid([
+              _ProfileField('Alamat Lengkap', address),
+              _ProfileField('Kode Pos', postalCode),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _ProfileSection(
+          title: 'Kontak Darurat & Wali',
+          icon: LucideIcons.users,
+          children: [
+            _ProfileFieldGrid([
+              _ProfileField('Nama Wali', namaWali),
+              _ProfileField('Hubungan Wali', hubunganWali),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _ProfileSection(
+          title: 'Informasi Layanan & Catatan Khusus',
+          icon: LucideIcons.stethoscope,
+          children: [
+            _ProfileFieldGrid([
+              _ProfileField('Kapal Layanan Terdaftar', shipName),
+              _ProfileField('Poliklinik Terdaftar', poliName),
+              if (!hasMedicalNote)
+                const _ProfileField('Catatan Medis / Riwayat Alergi', '-'),
+            ]),
+            // Allergies / medical notes matter clinically: give them their own
+            // highlighted box instead of a plain field.
+            if (hasMedicalNote) ...[
+              const SizedBox(height: 12),
+              _MedicalNoteCallout(note: keterangan),
+            ],
+          ],
         ),
       ],
     );
   }
+
 
   void _showFullPhoto(BuildContext context, String imageUrl, String name) {
     showDialog(
@@ -1697,63 +1496,629 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
       ),
     );
   }
-
-  Widget _buildProfileGrid(List<_ProfileField> fields) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isNarrow = constraints.maxWidth < 600;
-        return Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          children: fields.map((f) {
-            return SizedBox(
-              width: isNarrow
-                  ? constraints.maxWidth
-                  : (constraints.maxWidth - 16) / 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      f.label.toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF94A3B8),
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2.5),
-                    Text(
-                      f.value.isNotEmpty ? f.value : '-',
-                      style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
 }
 
 class _ProfileField {
   const _ProfileField(this.label, this.value);
   final String label;
   final String value;
+}
+
+/// One visit in "Riwayat Rekam Medis": header (number, date, ship, status),
+/// the clinical summary, and the prescription actions for finished visits.
+class _MedicalRecordCard extends StatelessWidget {
+  const _MedicalRecordCard({
+    required this.queueNumber,
+    required this.date,
+    required this.shipName,
+    required this.harbor,
+    required this.status,
+    required this.isDone,
+    required this.doctorName,
+    required this.doctorSip,
+    required this.complaint,
+    required this.diagnosis,
+    required this.onViewPrescription,
+    required this.onDownloadPrescription,
+    required this.onTap,
+    required this.isEven,
+  });
+
+  final String queueNumber;
+  final String date;
+  final String shipName;
+  final String harbor;
+  final String status;
+  final bool isDone;
+  final String doctorName;
+  final String doctorSip;
+  final String complaint;
+  final String diagnosis;
+  final VoidCallback onViewPrescription;
+  final VoidCallback onDownloadPrescription;
+
+  /// Opens the visit's full detail.
+  final VoidCallback onTap;
+
+  /// Even-numbered visits get a soft tinted background (odd ones stay white)
+  /// so neighbouring cards are easy to tell apart.
+  final bool isEven;
+
+  String get _location => [
+    shipName,
+    harbor,
+  ].where((s) => s.isNotEmpty).join(' · ');
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = isDone ? AppColors.green : AppColors.sky;
+    final statusBg = isDone ? AppColors.greenLt : AppColors.skyLt;
+
+    final radius = BorderRadius.circular(14);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Ink(
+      decoration: BoxDecoration(
+        color: isEven ? AppColors.orangeLt : AppColors.card,
+        borderRadius: radius,
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            // Badge, date block, status and arrow share one centre line.
+            child: Row(
+              children: [
+                Container(
+                  constraints: const BoxConstraints(minWidth: 34),
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    // On the tinted card the badge turns white to stay visible.
+                    color: isEven ? AppColors.card : AppColors.orangeLt,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.orange.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Text(
+                    queueNumber,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.orange,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            LucideIcons.calendar,
+                            size: 13,
+                            color: AppColors.orange,
+                          ),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              date,
+                              style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.text,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_location.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 1),
+                              child: Icon(
+                                LucideIcons.ship,
+                                size: 12,
+                                color: AppColors.sub,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                _location,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.sub,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusBg,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: statusColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        status,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const Icon(
+                  LucideIcons.chevronRight,
+                  size: 16,
+                  color: AppColors.sub,
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: AppColors.border),
+
+          // Clinical summary: three columns when there is room, stacked on phones.
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final doctor = _RecordFact(
+                  icon: LucideIcons.stethoscope,
+                  label: 'Dokter Pemeriksa',
+                  value: doctorName.isNotEmpty ? doctorName : '-',
+                  detail: doctorSip.isNotEmpty ? 'SIP: $doctorSip' : null,
+                );
+                final keluhan = _RecordFact(
+                  icon: LucideIcons.messageSquare,
+                  label: 'Keluhan Utama',
+                  value: complaint.isNotEmpty ? complaint : '-',
+                );
+                final diagnosa = _DiagnosisBox(diagnosis: diagnosis);
+
+                if (constraints.maxWidth >= 600) {
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(flex: 4, child: doctor),
+                        const SizedBox(width: 16),
+                        Expanded(flex: 3, child: keluhan),
+                        const SizedBox(width: 16),
+                        Expanded(flex: 4, child: diagnosa),
+                      ],
+                    ),
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    doctor,
+                    const SizedBox(height: 12),
+                    keluhan,
+                    const SizedBox(height: 12),
+                    diagnosa,
+                  ],
+                );
+              },
+            ),
+          ),
+
+          if (isDone) ...[
+            const Divider(height: 1, thickness: 1, color: AppColors.border),
+            Container(
+              // Footer stays a shade darker than the card body.
+              color: isEven
+                  ? AppColors.orange.withValues(alpha: 0.06)
+                  : AppColors.card2,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onViewPrescription,
+                    icon: const Icon(LucideIcons.eye, size: 14),
+                    label: const Text('Detail Resep'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.orange,
+                      side: BorderSide(
+                        color: AppColors.orange.withValues(alpha: 0.45),
+                      ),
+                      backgroundColor: AppColors.card,
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  FilledButton.icon(
+                    onPressed: onDownloadPrescription,
+                    icon: const Icon(LucideIcons.download, size: 14),
+                    label: const Text('Unduh Resep'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.orange,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      textStyle: const TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+        ),
+      ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Icon + small caps label + bold value (+ optional muted detail line).
+class _RecordFact extends StatelessWidget {
+  const _RecordFact({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.detail,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: AppColors.sub),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.sub,
+                  letterSpacing: 0.4,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.text,
+                ),
+              ),
+              if (detail != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  detail!,
+                  style: const TextStyle(fontSize: 10.5, color: AppColors.sub),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The visit's diagnosis, emphasised with an orange accent bar.
+class _DiagnosisBox extends StatelessWidget {
+  const _DiagnosisBox({required this.diagnosis});
+
+  final String diagnosis;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = diagnosis.trim();
+    final isEmpty = text.isEmpty || text == '-' || text == '—';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 10),
+      decoration: BoxDecoration(
+        color: AppColors.orangeLt,
+        borderRadius: BorderRadius.circular(10),
+        border: const Border(
+          left: BorderSide(color: AppColors.orange, width: 3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'DIAGNOSIS',
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.orange,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            isEmpty ? 'Belum ada diagnosis' : text,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: isEmpty ? FontWeight.w400 : FontWeight.w600,
+              color: isEmpty ? AppColors.sub : AppColors.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A titled white card for one group of profile data.
+class _ProfileSection extends StatelessWidget {
+  const _ProfileSection({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.orangeLt,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 15, color: AppColors.orange),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, thickness: 1, color: AppColors.border),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Label/value pairs, two per row when there is room, each underlined.
+class _ProfileFieldGrid extends StatelessWidget {
+  const _ProfileFieldGrid(this.fields);
+
+  final List<_ProfileField> fields;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 20.0;
+        final twoColumns = constraints.maxWidth >= 560;
+        final width = twoColumns
+            ? (constraints.maxWidth - gap) / 2
+            : constraints.maxWidth;
+        return Wrap(
+          spacing: gap,
+          children: [
+            for (final f in fields)
+              SizedBox(width: width, child: _ProfileFieldTile(field: f)),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProfileFieldTile extends StatelessWidget {
+  const _ProfileFieldTile({required this.field});
+
+  final _ProfileField field;
+
+  @override
+  Widget build(BuildContext context) {
+    final value = field.value.trim();
+    final isEmpty = value.isEmpty || value == '-' || value == 'null';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.bg, width: 1.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            field.label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.sub,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isEmpty ? '-' : value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isEmpty ? FontWeight.w400 : FontWeight.w500,
+              color: isEmpty ? AppColors.sub : AppColors.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Highlighted box for allergies / special medical notes.
+class _MedicalNoteCallout extends StatelessWidget {
+  const _MedicalNoteCallout({required this.note});
+
+  final String note;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.redLt,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(LucideIcons.triangleAlert, size: 16, color: AppColors.red),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'CATATAN MEDIS / RIWAYAT ALERGI',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.red,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  note.trim(),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.text,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

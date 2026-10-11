@@ -23,6 +23,7 @@ import '../../domain/icd9_item.dart';
 import 'icd10_search_picker.dart';
 import 'icd9_search_picker.dart';
 import 'medicine_search_modal.dart';
+import '../../../../core/utils/capitalize_first_formatter.dart';
 
 /// Dosis options
 const List<String> _kDosisList = [
@@ -303,6 +304,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         'status': _statusKondisi,
         'status_penanganan': statusPenanganan,
         'prescriptions': prescriptionsPayload,
+        // Saved by the backend as a Pending lab order for the analyst.
+        if (labOrder != null) 'lab_order': labOrderRequestJson(labOrder),
       };
 
       await ref
@@ -554,6 +557,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         const SizedBox(height: 6),
                         TextField(
                           controller: _tindakanFreetext,
+                          textCapitalization: freeTextCapitalization,
+                          inputFormatters: freeTextFormatters,
                           maxLines: 2,
                           style: const TextStyle(
                             fontSize: 11.5,
@@ -810,6 +815,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                 const SizedBox(height: 5),
                                 TextField(
                                   controller: _catatanLab,
+                                  textCapitalization: freeTextCapitalization,
+                                  inputFormatters: freeTextFormatters,
                                   maxLines: 2,
                                   style: const TextStyle(
                                     fontSize: 11.5,
@@ -1732,6 +1739,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
             const SizedBox(height: 4),
             TextField(
               controller: row.customInstruksiCtrl,
+              textCapitalization: freeTextCapitalization,
+              inputFormatters: freeTextFormatters,
               style: const TextStyle(
                 fontSize: 11,
                 color: AppColors.text,

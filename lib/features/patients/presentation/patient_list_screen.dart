@@ -489,30 +489,37 @@ class _PatientCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  // Tanggal Created At (Kanan Atas)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Registered',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF94A3B8),
-                            fontWeight: FontWeight.w500,
+                  // Tanggal Created At (Kanan Atas). Shares the row with the
+                  // name so a long date (with its time zone) never overflows.
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Registered',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF94A3B8),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          displayDate,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Color(0xFF374151),
-                            fontWeight: FontWeight.w400,
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              displayDate,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF374151),
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],

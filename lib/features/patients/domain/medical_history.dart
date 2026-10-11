@@ -186,6 +186,7 @@ class MedicalHistory {
 
     final rawCode =
         json['code'] ??
+        json['reg_code'] ??
         json['register_no'] ??
         json['registration_code'] ??
         json['visit_code'] ??
@@ -255,12 +256,15 @@ class MedicalHistory {
     }
 
     // Vitals from API (keys: systolic, diastolic, blood_pressure, heart_rate, temperature, respiratory_rate, oxygen_saturation)
+    // Nested as `vitals` or (patient detail endpoint) `vital_signs`.
     Map<String, dynamic> vitalsMap = json;
-    if (json['vitals'] is Map) {
-      vitalsMap = {
-        ...json,
-        ...Map<String, dynamic>.from(json['vitals'] as Map),
-      };
+    for (final key in const ['vitals', 'vital_signs']) {
+      if (json[key] is Map) {
+        vitalsMap = {
+          ...vitalsMap,
+          ...Map<String, dynamic>.from(json[key] as Map),
+        };
+      }
     }
     final parsedVitals = Vitals.fromJson(vitalsMap);
     final effectiveVitals = !parsedVitals.isEmpty
@@ -372,7 +376,7 @@ class MedicalHistory {
               : (patient?.resepStatus ??
                     (effectiveResep.isNotEmpty ? ResepStatus.baru : null)));
 
-    LabOrder? effectiveLabOrder = patient?.labOrder;
+    LabOrder? effectiveLabOrder = requestedLabOrder ?? patient?.labOrder;
     if (effectiveLabOrder == null) {
       String labJenis = '';
       String labCatatan = '';
@@ -606,6 +610,45 @@ class MedicalHistory {
   }
 
   /// Returns the lab_examination object from rawJson
+  /// User who created this record (`created_by_user` from the backend).
+  /// Null for records created before the backend started tracking it.
+  Map<String, dynamic>? get _createdByUser {
+    final user = rawJson['created_by_user'];
+    return user is Map ? Map<String, dynamic>.from(user) : null;
+  }
+
+  String? get createdByName {
+    final name = (_createdByUser?['full_name'] ?? _createdByUser?['name'])
+        ?.toString()
+        .trim();
+    return (name != null && name.isNotEmpty) ? name : null;
+  }
+
+  String? get createdByRole {
+    final role = _createdByUser?['role']?.toString().trim();
+    return (role != null && role.isNotEmpty) ? role : null;
+  }
+
+  /// The doctor's lab referral as saved on the server
+  /// (`lab_examination.requested_test` / `doctor_notes`). Null for records
+  /// referred before referrals were stored.
+  LabOrder? get requestedLabOrder {
+    final exam = labExamination;
+    final test = exam?['requested_test']?.toString().trim() ?? '';
+    if (exam == null || test.isEmpty) return null;
+    // Only this order's own results count: the generic getters fall back to
+    // the patient's latest lab, which may belong to another visit.
+    final items = exam['items'];
+    final attachment = exam['attachment_url']?.toString().trim() ?? '';
+    final hasResults = (items is List && items.isNotEmpty) || attachment.isNotEmpty;
+    return LabOrder(
+      id: exam['id']?.toString() ?? id,
+      jenis: test,
+      catatan: exam['doctor_notes']?.toString().trim() ?? '',
+      status: hasResults ? LabOrderStatus.selesai : LabOrderStatus.baru,
+    );
+  }
+
   Map<String, dynamic>? get labExamination {
     final raw = rawJson['lab_examination'] ??
         rawJson['lab_examinations'] ??

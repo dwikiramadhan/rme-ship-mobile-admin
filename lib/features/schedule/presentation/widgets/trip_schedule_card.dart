@@ -4,13 +4,16 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../domain/trip_schedule.dart';
 import '../trip_detail_screen.dart';
+import '../../../../core/utils/date_helper.dart';
 
 class TripScheduleCard extends StatelessWidget {
   const TripScheduleCard({super.key, required this.item});
 
   final JadwalPerjalanan item;
 
-  String _formatDateShort(DateTime dt) {
+  String _formatDateShort(DateTime value, String? tz) {
+    final dt = tz == null ? value.toLocal() : DateHelper.wallClockIn(value, tz);
+    final zone = tz ?? DateHelper.zoneOf(value);
     const months = [
       'Jan',
       'Feb',
@@ -29,7 +32,7 @@ class TripScheduleCard extends StatelessWidget {
     final month = months[dt.month - 1];
     final hour = dt.hour.toString().padLeft(2, '0');
     final minute = dt.minute.toString().padLeft(2, '0');
-    return '$day $month · $hour:$minute';
+    return '$day $month · $hour:$minute $zone';
   }
 
   void _showDetail(BuildContext context) {
@@ -260,7 +263,7 @@ class TripScheduleCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  _formatDateShort(item.berangkat),
+                                  _formatDateShort(item.berangkat, item.berangkatTz),
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
@@ -379,7 +382,7 @@ class TripScheduleCard extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  _formatDateShort(item.tiba),
+                                  _formatDateShort(item.tiba, item.tibaTz),
                                   style: const TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,

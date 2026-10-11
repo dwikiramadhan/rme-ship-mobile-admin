@@ -9,6 +9,7 @@ import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/domain/prescription_item.dart';
+import '../../../core/utils/date_helper.dart';
 
 enum NotificationRole { doctor, pharmacy, lab }
 
@@ -414,7 +415,7 @@ class _NotificationCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          patient.waktuMasuk.isNotEmpty ? patient.waktuMasuk : 'Baru saja',
+                          patient.waktuMasuk.isNotEmpty ? DateHelper.formatDateTime(patient.waktuMasuk) : 'Baru saja',
                           style: const TextStyle(fontSize: 11, color: AppColors.sub),
                         ),
                       ],

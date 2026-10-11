@@ -29,6 +29,17 @@ class _FakeAuthRepository implements AuthRepository {
   Future<void> changePassword({required String oldPassword, required String newPassword}) async {}
 }
 
+/// Records login attempts (and fails them so the app stays on the login page).
+class _RecordingAuthRepository extends _FakeAuthRepository {
+  final logins = <(String, String)>[];
+
+  @override
+  Future<AuthSession> login({required String email, required String password, bool rememberMe = true}) {
+    logins.add((email, password));
+    return super.login(email: email, password: password, rememberMe: rememberMe);
+  }
+}
+
 /// Asset name behind an image provider, unwrapping the ResizeImage that
 /// `Image.asset(cacheWidth: ...)` creates.
 String? _assetNameOf(ImageProvider provider) {
@@ -37,6 +48,26 @@ String? _assetNameOf(ImageProvider provider) {
 }
 
 void main() {
+  testWidgets('test-account button logs in with that account (debug builds)', (WidgetTester tester) async {
+    final repo = _RecordingAuthRepository();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [authRepositoryProvider.overrideWithValue(repo)],
+        child: const BayanRmeApp(),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.text('Akun Testing (mode debug)'), findsOneWidget);
+    final dokter1 = find.text('Dokter 1');
+    await tester.ensureVisible(dokter1);
+    await tester.tap(dokter1);
+    await tester.pump();
+
+    expect(repo.logins, [('dokter1@gmail.com', '123456')]);
+  });
+
   testWidgets('boots to login screen with email/password fields', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(

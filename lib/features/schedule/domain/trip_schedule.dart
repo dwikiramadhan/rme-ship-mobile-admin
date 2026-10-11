@@ -492,6 +492,11 @@ class JadwalPerjalanan extends Equatable {
   final String catatan;
   final double progressPersen;
   final List<ScheduleStop> stops;
+
+  /// Zone the departure/arrival were recorded in (first stop's departure,
+  /// last stop's arrival). Null when the trip has no stops.
+  String? get berangkatTz => stops.isEmpty ? null : stops.first.departureTz;
+  String? get tibaTz => stops.isEmpty ? null : stops.last.arrivalTz;
   final int fuelLiters;
   final int waterLiters;
   final List<ScheduleClinicItem> clinics;

@@ -177,6 +177,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                 label: 'URL / IP Server Backend',
                 controller: _urlCtrl,
                 placeholder: 'cth: 192.168.1.26:8080',
+                capitalizeFirst: false,
                 onChanged: (_) {
                   if (_testSuccess != null) {
                     setState(() {

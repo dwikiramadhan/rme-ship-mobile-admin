@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -121,6 +122,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
           rememberMe: _rememberMe,
         );
+  }
+
+  /// Debug-only shortcut: fill a test account and log in with it.
+  void _quickLogin(_TestAccount account) {
+    _emailController.text = account.email;
+    _passwordController.text = account.password;
+    _submit();
   }
 
   void _showForgotPasswordNotice() {
@@ -659,8 +667,119 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onPressed: isLoading ? null : _submit,
             ),
             const SizedBox(height: 20),
+            // Test-account shortcuts. kDebugMode is a compile-time constant,
+            // so this (and the credentials) is stripped from release builds.
+            if (kDebugMode) ...[
+              _TestAccountsPanel(
+                enabled: !isLoading,
+                onSelect: _quickLogin,
+              ),
+              const SizedBox(height: 20),
+            ],
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _TestAccount {
+  const _TestAccount(this.label, this.email, this.password);
+
+  final String label;
+  final String email;
+  final String password;
+}
+
+/// Development test accounts — only referenced behind `kDebugMode`.
+const _testAccounts = [
+  _TestAccount('Perawat 1', 'perawat1@gmail.com', '123456'),
+  _TestAccount('Dokter 1', 'dokter1@gmail.com', '123456'),
+  _TestAccount('Dokter 2', 'dokter2@gmail.com', '123456'),
+  _TestAccount('Lab 1', 'lab1@gmail.com', '123456'),
+  _TestAccount('Apoteker 1', 'pharmacist1@gmail.com', '123456'),
+];
+
+/// One-tap login buttons for the test accounts (debug builds only).
+class _TestAccountsPanel extends StatelessWidget {
+  const _TestAccountsPanel({required this.enabled, required this.onSelect});
+
+  final bool enabled;
+  final ValueChanged<_TestAccount> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.card2,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(LucideIcons.flaskConical, size: 14, color: AppColors.sub),
+              SizedBox(width: 6),
+              Text(
+                'Akun Testing (mode debug)',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.sub,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final account in _testAccounts)
+                OutlinedButton(
+                  onPressed: enabled ? () => onSelect(account) : null,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.blue,
+                    side: const BorderSide(color: AppColors.border),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        account.label,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                      Text(
+                        account.email,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.sub,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

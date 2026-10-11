@@ -7,6 +7,7 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/schedule_api.dart';
 import '../../domain/trip_schedule.dart';
+import '../../../../core/utils/date_helper.dart';
 
 class EditScheduleModal extends StatefulWidget {
   const EditScheduleModal({
@@ -67,8 +68,9 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
               portId: stop.portId,
               portCode: stop.portCode,
               portName: stop.portName,
-              departure: stop.departure,
-              arrival: stop.arrival,
+              // The form edits the clock time in each stop's own zone.
+              departure: _wallClock(stop.departure, stop.departureTz),
+              arrival: _wallClock(stop.arrival, stop.arrivalTz),
               departureTz: stop.departureTz,
               arrivalTz: stop.arrivalTz,
             ),
@@ -81,14 +83,14 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
           portName: s.pelabuhanAsal.isNotEmpty
               ? s.pelabuhanAsal
               : 'Pilih Pelabuhan Asal',
-          departure: s.berangkat,
+          departure: _wallClock(s.berangkat, 'WIB'),
         ),
         _StopFormItem(
           portCode: s.kodeTujuan,
           portName: s.pelabuhanTujuan.isNotEmpty
               ? s.pelabuhanTujuan
               : 'Pilih Pelabuhan Tujuan',
-          arrival: s.tiba,
+          arrival: _wallClock(s.tiba, 'WIT'),
           arrivalTz: 'WIT',
         ),
       ];
@@ -189,6 +191,9 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
       }
     }
   }
+
+  static DateTime? _wallClock(DateTime? dt, String tz) =>
+      dt == null ? null : DateHelper.wallClockIn(dt, tz);
 
   String _formatDateTimeDisplay(DateTime? dt) {
     if (dt == null) return '—';
