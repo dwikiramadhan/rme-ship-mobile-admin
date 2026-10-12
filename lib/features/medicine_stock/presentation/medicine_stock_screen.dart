@@ -115,34 +115,10 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
       shipMedicineHistoryProvider(effectiveShipCode),
     );
 
-
-    final filteredStockItems = stockState.items.where((item) {
-      if (_stockFilter == 'TERSEDIA') return !item.isOutOfStock;
-      if (_stockFilter == 'HABIS') return item.isOutOfStock;
-      return true;
-    }).toList();
-
-    final isStockTab = _selectedTabIndex == 0;
-    final subtitle = isStockTab
-        ? (stockState.isLoading
-              ? 'Memuat data inventaris...'
-              : _stockFilter == 'SEMUA'
-                  ? '${stockState.total} jenis obat'
-                  : _stockFilter == 'TERSEDIA'
-                      ? (stockState.hasMore
-                          ? '${filteredStockItems.length} obat tersedia dimuat'
-                          : '${filteredStockItems.length} jenis obat tersedia')
-                      : (stockState.hasMore
-                          ? '${filteredStockItems.length} obat habis dimuat'
-                          : '${filteredStockItems.length} jenis obat habis'))
-        : (historyState.isLoading
-              ? 'Memuat riwayat transaksi...'
-              : '${historyState.total} transaksi tercatat');
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ScreenHeader(title: 'Stok & Transaksi Obat', subtitle: subtitle),
+        const ScreenHeader(title: 'Stok & Transaksi Obat'),
         _buildTabBar(),
         Expanded(
           child: ClipRect(
@@ -152,8 +128,7 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
               switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, animation) {
                 final isForward = _selectedTabIndex >= _previousTabIndex;
-                final isCurrent =
-                    child.key == ValueKey<int>(_selectedTabIndex);
+                final isCurrent = child.key == ValueKey<int>(_selectedTabIndex);
 
                 final inOffset = isForward
                     ? const Offset(0.20, 0.0)
@@ -295,7 +270,7 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: fgColor,
               ),
@@ -525,51 +500,54 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
                 },
               ),
             ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              child: Center(
-                child: state.isLoadingMore
-                    ? const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.blue,
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 16,
+                ),
+                child: Center(
+                  child: state.isLoadingMore
+                      ? const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.blue,
+                              ),
                             ),
-                          ),
-                          SizedBox(width: 10),
-                          Text(
-                            'Memuat data obat...',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.sub,
-                            ),
-                          ),
-                        ],
-                      )
-                    : (filteredItems.isNotEmpty && !state.hasMore
-                          ? Text(
-                              _stockFilter == 'SEMUA'
-                                  ? 'Semua ${state.total} jenis obat telah dimuat'
-                                  : 'Semua ${state.total} jenis obat telah dimuat (${filteredItems.length} sesuai filter)',
-                              style: const TextStyle(
-                                fontSize: 11.5,
+                            SizedBox(width: 10),
+                            Text(
+                              'Memuat data obat...',
+                              style: TextStyle(
+                                fontSize: 12,
                                 color: AppColors.sub,
                               ),
-                            )
-                          : const SizedBox.shrink()),
+                            ),
+                          ],
+                        )
+                      : (filteredItems.isNotEmpty && !state.hasMore
+                            ? Text(
+                                _stockFilter == 'SEMUA'
+                                    ? 'Semua ${state.total} jenis obat telah dimuat'
+                                    : 'Semua ${state.total} jenis obat telah dimuat (${filteredItems.length} sesuai filter)',
+                                style: const TextStyle(
+                                  fontSize: 11.5,
+                                  color: AppColors.sub,
+                                ),
+                              )
+                            : const SizedBox.shrink()),
+                ),
               ),
             ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-        ],
-      );
-    },
-  );
+            const SliverToBoxAdapter(child: SizedBox(height: 20)),
+          ],
+        );
+      },
+    );
   }
 
   // ==========================================
@@ -722,9 +700,9 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
                   controller: controller,
                   onChanged: onChanged,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     color: scheme.onSurface,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                     letterSpacing: 0,
                   ),
                   decoration: InputDecoration(
@@ -785,10 +763,7 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
               },
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 8), trailing],
         ],
       ),
     );
@@ -808,11 +783,17 @@ class _StockItemCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    final (statusColor, statusBg, statusLabel) = switch ((item.isOutOfStock, item.isLowStock)) {
+    final (statusColor, statusBg, statusLabel) = switch ((
+      item.isOutOfStock,
+      item.isLowStock,
+    )) {
       (true, _) => (AppColors.red, AppColors.redLt, 'Habis'),
       (false, true) => (AppColors.orange, AppColors.orangeLt, 'Menipis'),
       _ => (AppColors.green, AppColors.greenLt, 'Tersedia'),
     };
+
+    // Only warnings get a badge; "Tersedia" is the normal case.
+    final showBadge = item.isOutOfStock || item.isLowStock;
 
     final unitLabel = item.unitOfMeasurement.isNotEmpty
         ? item.unitOfMeasurement
@@ -854,7 +835,7 @@ class _StockItemCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: scheme.onSurface,
                   ),
                 ),
@@ -869,7 +850,6 @@ class _StockItemCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 10.5,
-                            fontWeight: FontWeight.w500,
                             color: Color(0xFF7E8B9B),
                           ),
                         ),
@@ -892,7 +872,7 @@ class _StockItemCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
                             color: Color(0xFF475569),
                           ),
                         ),
@@ -923,23 +903,24 @@ class _StockItemCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             color: statusColor,
                           ),
                         ),
                       ),
-                      const SizedBox(width: 4),
+                      if (showBadge) const SizedBox(width: 4),
                     ],
-                    AppBadge(
-                      label: statusLabel,
-                      color: statusColor,
-                      background: statusBg,
-                      fontSize: 10,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 5,
-                        vertical: 1.5,
+                    if (showBadge)
+                      AppBadge(
+                        label: statusLabel,
+                        color: statusColor,
+                        background: statusBg,
+                        fontSize: 10,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1.5,
+                        ),
                       ),
-                    ),
                   ],
                 ),
                 if (!item.isOutOfStock &&
@@ -954,7 +935,6 @@ class _StockItemCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 9.5,
                       color: AppColors.sub,
-                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -1016,7 +996,6 @@ class _HistoryItemCard extends StatelessWidget {
                     formattedTime,
                     style: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
                       color: AppColors.sub,
                     ),
                   ),
@@ -1043,7 +1022,7 @@ class _HistoryItemCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               color: scheme.onSurface,
             ),
           ),
@@ -1055,7 +1034,6 @@ class _HistoryItemCard extends StatelessWidget {
                   CleanTextHelper.cleanCode(item.medicineSku),
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w500,
                     color: Color(0xFF7E8B9B),
                   ),
                 ),
@@ -1077,7 +1055,7 @@ class _HistoryItemCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       color: Color(0xFF475569),
                     ),
                   ),
@@ -1144,7 +1122,7 @@ class _HistoryItemCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                     color: scheme.onSurface,
                   ),
                 ),

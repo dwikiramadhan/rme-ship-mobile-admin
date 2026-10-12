@@ -24,6 +24,7 @@ import 'icd10_search_picker.dart';
 import 'icd9_search_picker.dart';
 import 'medicine_search_modal.dart';
 import '../../../../core/utils/capitalize_first_formatter.dart';
+import '../../../patients/presentation/widgets/lab_document_viewer.dart';
 
 /// Dosis options
 const List<String> _kDosisList = [
@@ -131,12 +132,14 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   @override
   void initState() {
     super.initState();
-    final rawOp = widget.history.operation ??
+    final rawOp =
+        widget.history.operation ??
         widget.history.rawJson['operation'] ??
         widget.history.rawJson['Operation'];
     if (rawOp is String && rawOp.isNotEmpty) {
       _operation = rawOp;
     }
+    if (_isFollowUp) _prefillFromVisit();
     // Warm up ICD-10 and ICD-9 caches eagerly so pickers open with 0ms delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -144,6 +147,83 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         ref.read(icd9ApiProvider).prefetchInitial();
       }
     });
+  }
+
+  /// Back from the lab: the doctor continues the earlier exam.
+  bool get _isFollowUp => widget.history.isLabFollowUp;
+
+  /// Fills the form with what the doctor already recorded for this visit
+  /// (diagnoses, procedures, condition, any prescription), so continuing
+  /// after the lab doesn't start from an empty form.
+  void _prefillFromVisit() {
+    final h = widget.history;
+    final raw = h.rawJson;
+
+    List<(String, String)> icdList(dynamic list) => [
+      if (list is List)
+        for (final e in list)
+          if (e is Map && '${e['code'] ?? ''}'.trim().isNotEmpty)
+            (
+              '${e['code']}'.trim(),
+              '${e['display'] ?? e['name'] ?? e['code']}'.trim(),
+            ),
+    ];
+
+    _diagnosaList.addAll([
+      for (final (code, display) in icdList(raw['diagnoses']))
+        Icd10Item(code: code, display: display),
+    ]);
+    if (_diagnosaList.isEmpty) {
+      for (final code in (h.diagnosis ?? '').split(',')) {
+        final c = code.trim();
+        if (c.isNotEmpty && c != '-' && c != '—') {
+          _diagnosaList.add(Icd10Item(code: c, display: c));
+        }
+      }
+    }
+    _tindakanList.addAll([
+      for (final (code, display) in icdList(raw['procedures']))
+        Icd9Item(code: code, display: display),
+    ]);
+
+    final status = (h.status ?? '').trim();
+    if (_kStatusKondisiList.contains(status)) _statusKondisi = status;
+
+    final prescriptions = raw['prescriptions'];
+    if (prescriptions is List && prescriptions.isNotEmpty) {
+      final rows = <_ResepRowData>[];
+      for (final p in prescriptions) {
+        if (p is! Map) continue;
+        final medicine = p['medicine'] is Map ? p['medicine'] as Map : const {};
+        final name = '${medicine['name'] ?? p['name'] ?? p['sku'] ?? ''}'
+            .trim();
+        if (name.isEmpty) continue;
+        final row = _ResepRowData()
+          ..obat = name
+          ..sku = p['sku']?.toString();
+        final unit = '${medicine['unit'] ?? ''}'.trim();
+        if (unit.isNotEmpty) row.satuan = unit;
+        final dosage = '${p['dosage'] ?? ''}'.trim();
+        if (_kDosisList.contains(dosage)) row.dosis = dosage;
+        row.jumlahCtrl.text = '${p['quantity'] ?? 1}';
+        final instructions = '${p['instructions'] ?? ''}'.trim();
+        if (_kAturanPakaiList.contains(instructions)) {
+          row.aturanPakai = instructions;
+        } else if (instructions.isNotEmpty) {
+          row.aturanPakai = 'Input manual';
+          row.customInstruksiCtrl.text = instructions;
+        }
+        rows.add(row);
+      }
+      if (rows.isNotEmpty) {
+        for (final r in _resep) {
+          r.dispose();
+        }
+        _resep
+          ..clear()
+          ..addAll(rows);
+      }
+    }
   }
 
   @override
@@ -324,7 +404,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
           ref.read(authControllerProvider).session?.user.id ?? '';
 
       // Immediately update local state in history providers so list status updates instantly
-      ref.read(medicalHistoryProvider.notifier).updateHistoryStatus(
+      ref
+          .read(medicalHistoryProvider.notifier)
+          .updateHistoryStatus(
             recordId: recordId,
             patientId: patientId,
             statusPenanganan: statusPenanganan,
@@ -376,16 +458,18 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
 
       Navigator.of(context).pop(true);
 
-      ref.read(inAppNotificationProvider.notifier).showNotification(
-        InAppNotificationItem(
-          id: 'success_save_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Rekam Medis Berhasil Disimpan',
-          message:
-              'Data pemeriksaan klinis dan resep untuk ${widget.patient.nama} berhasil disimpan ke sistem.',
-          type: InAppNotificationType.success,
-          patientId: patientId,
-        ),
-      );
+      ref
+          .read(inAppNotificationProvider.notifier)
+          .showNotification(
+            InAppNotificationItem(
+              id: 'success_save_${DateTime.now().millisecondsSinceEpoch}',
+              title: 'Rekam Medis Berhasil Disimpan',
+              message:
+                  'Data pemeriksaan klinis dan resep untuk ${widget.patient.nama} berhasil disimpan ke sistem.',
+              type: InAppNotificationType.success,
+              patientId: patientId,
+            ),
+          );
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -457,8 +541,10 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               color: AppColors.orangeLt,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(
-                              LucideIcons.stethoscope,
+                            child: Icon(
+                              _isFollowUp
+                                  ? LucideIcons.flaskConical
+                                  : LucideIcons.stethoscope,
                               size: 16,
                               color: AppColors.orange,
                             ),
@@ -467,11 +553,13 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Form Input Rekam Medis',
-                                style: TextStyle(
+                              Text(
+                                _isFollowUp
+                                    ? 'Lanjutan Pemeriksaan (Setelah Lab)'
+                                    : 'Form Input Rekam Medis',
+                                style: const TextStyle(
                                   fontSize: 13.5,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w600,
                                   color: AppColors.text,
                                   letterSpacing: 0,
                                 ),
@@ -513,6 +601,12 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Lab results the doctor is continuing from.
+                        if (_isFollowUp) ...[
+                          _LabResultSummary(history: widget.history),
+                          const SizedBox(height: 16),
+                        ],
+
                         // Section 1: Diagnosa Klinis (ICD-10)
                         Icd10MultiSearchPicker(
                           label: 'Diagnosa Klinis (ICD-10 / Nama Penyakit)',
@@ -608,7 +702,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               'Operation',
                               style: TextStyle(
                                 fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.text,
                                 letterSpacing: 0,
                               ),
@@ -657,7 +751,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               child: _operationToggleButton(
                                 label: 'Major',
                                 value: 'Major',
-                                icon: LucideIcons.activity,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -665,7 +758,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               child: _operationToggleButton(
                                 label: 'Minor',
                                 value: 'Minor',
-                                icon: LucideIcons.scissors,
                               ),
                             ),
                           ],
@@ -685,7 +777,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               'Perlu Pemeriksaan Laboratorium?',
                               style: TextStyle(
                                 fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.text,
                                 letterSpacing: 0,
                               ),
@@ -699,7 +791,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               child: _labToggleButton(
                                 label: 'Tidak Perlu Lab',
                                 value: false,
-                                icon: LucideIcons.xCircle,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -707,7 +798,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               child: _labToggleButton(
                                 label: 'Ya, Perlu Rujukan Lab',
                                 value: true,
-                                icon: LucideIcons.flaskConical,
                               ),
                             ),
                           ],
@@ -745,7 +835,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                       ' *',
                                       style: TextStyle(
                                         fontSize: 11.5,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w600,
                                         color: AppColors.red,
                                         letterSpacing: 0,
                                       ),
@@ -874,7 +964,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                     'Resep Obat Pasien',
                                     style: TextStyle(
                                       fontSize: 11.5,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w600,
                                       color: AppColors.text,
                                       letterSpacing: 0,
                                     ),
@@ -883,7 +973,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                     ' *',
                                     style: TextStyle(
                                       color: AppColors.red,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w600,
                                       letterSpacing: 0,
                                     ),
                                   ),
@@ -897,18 +987,13 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                 decoration: BoxDecoration(
                                   color: AppColors.orangeLt,
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: AppColors.orange.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                  ),
                                 ),
                                 child: Text(
                                   '${_resep.length} Item Obat',
                                   style: const TextStyle(
                                     fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.orange,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.sub,
                                     letterSpacing: 0,
                                   ),
                                 ),
@@ -972,7 +1057,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               'Status Kondisi Pasien',
                               style: TextStyle(
                                 fontSize: 11.5,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.text,
                                 letterSpacing: 0,
                               ),
@@ -981,7 +1066,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               ' *',
                               style: TextStyle(
                                 color: AppColors.red,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 letterSpacing: 0,
                               ),
                             ),
@@ -990,7 +1075,12 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         const SizedBox(height: 6),
 
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          // Dense button + 6px padding: about 36px high, like
+                          // the other compact fields (default is 48px).
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.inputBg,
                             borderRadius: BorderRadius.circular(8),
@@ -999,6 +1089,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               isExpanded: true,
+                              isDense: true,
                               value: _statusKondisi,
                               dropdownColor: AppColors.card,
                               icon: const Icon(
@@ -1010,24 +1101,14 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                 for (final s in _kStatusKondisiList)
                                   DropdownMenuItem(
                                     value: s,
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          LucideIcons.activity,
-                                          size: 12,
-                                          color: AppColors.sub,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          s,
-                                          style: const TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w400,
-                                            color: AppColors.text,
-                                            letterSpacing: 0,
-                                          ),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      s,
+                                      style: const TextStyle(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w400,
+                                        color: AppColors.text,
+                                        letterSpacing: 0,
+                                      ),
                                     ),
                                   ),
                               ],
@@ -1105,11 +1186,13 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                           color: Colors.white,
                                         ),
                                       )
-                                    : const Text(
-                                        'Simpan Rekam Medis',
-                                        style: TextStyle(
+                                    : Text(
+                                        _isFollowUp && !_needLab
+                                            ? 'Simpan & Kirim ke Farmasi'
+                                            : 'Simpan Rekam Medis',
+                                        style: const TextStyle(
                                           fontSize: 12.0,
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w600,
                                           color: Colors.white,
                                           letterSpacing: 0,
                                         ),
@@ -1134,7 +1217,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   Widget _operationToggleButton({
     required String label,
     required String value,
-    required IconData icon,
   }) {
     final active = _operation == value;
     final activeColor = value == 'Major'
@@ -1146,7 +1228,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     final activeBorder = activeColor;
 
     final color = active ? activeColor : AppColors.text;
-    final iconColor = active ? activeColor : AppColors.sub;
     final bg = active ? activeBg : Colors.white;
     final border = active ? activeBorder : AppColors.border;
 
@@ -1159,11 +1240,11 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: border, width: active ? 1.2 : 1.0),
+          border: Border.all(color: border),
           boxShadow: active
               ? [
                   BoxShadow(
@@ -1177,55 +1258,40 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 13.5, color: iconColor),
-            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: active ? FontWeight.w500 : FontWeight.w400,
                 color: color,
                 letterSpacing: 0,
               ),
             ),
-            if (active) ...[
-              const SizedBox(width: 4),
-              Icon(LucideIcons.check, size: 12, color: activeColor),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _labToggleButton({
-    required String label,
-    required bool value,
-    required IconData icon,
-  }) {
+  Widget _labToggleButton({required String label, required bool value}) {
     final active = _needLab == value;
-    final activeColor = value
-        ? const Color(0xFF0284C7)
-        : const Color(0xFF059669);
-    final activeBg = value ? const Color(0xFFF0F9FF) : const Color(0xFFECFDF5);
-    final activeBorder = value
-        ? const Color(0xFF0284C7)
-        : const Color(0xFF059669);
+    // Both choices use the same blue when selected.
+    const activeColor = Color(0xFF0284C7);
+    const activeBg = Color(0xFFF0F9FF);
 
     final color = active ? activeColor : AppColors.text;
-    final iconColor = active ? activeColor : AppColors.sub;
     final bg = active ? activeBg : Colors.white;
-    final border = active ? activeBorder : AppColors.border;
+    final border = active ? activeColor : AppColors.border;
 
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () => setState(() => _needLab = value),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: border, width: active ? 1.2 : 1.0),
+          border: Border.all(color: border),
           boxShadow: active
               ? [
                   BoxShadow(
@@ -1239,13 +1305,11 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 13.5, color: iconColor),
-            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                fontWeight: active ? FontWeight.w500 : FontWeight.w400,
                 color: color,
                 letterSpacing: 0,
               ),
@@ -1285,16 +1349,17 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                     width: 18,
                     height: 18,
                     alignment: Alignment.center,
-                    decoration: const BoxDecoration(
-                      color: AppColors.orange,
+                    // Outlined number: orange ring, no fill.
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.orange),
                     ),
                     child: Text(
                       '${index + 1}',
                       style: const TextStyle(
                         fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.orange,
                         letterSpacing: 0,
                       ),
                     ),
@@ -1304,7 +1369,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                     index == 0 ? 'Obat Utama' : 'Obat Tambahan #${index + 1}',
                     style: const TextStyle(
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.text,
                       letterSpacing: 0,
                     ),
@@ -1360,7 +1425,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                 ' *',
                 style: TextStyle(
                   fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.red,
                   letterSpacing: 0,
                 ),
@@ -1528,12 +1593,13 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                             },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(
-                                horizontal: 3,
-                                vertical: 6,
+                                horizontal: 5,
+                                vertical: 5,
                               ),
+                              // Slightly thicker stroke than the default.
                               child: Icon(
-                                LucideIcons.minus,
-                                size: 12,
+                                LucideIcons.minus500,
+                                size: 15,
                                 color: AppColors.sub,
                               ),
                             ),
@@ -1549,8 +1615,8 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                               textAlign: TextAlign.center,
                               cursorColor: AppColors.orange,
                               style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
                                 color: AppColors.text,
                                 letterSpacing: 0,
                               ),
@@ -1583,12 +1649,13 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                             },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(
-                                horizontal: 3,
-                                vertical: 6,
+                                horizontal: 5,
+                                vertical: 5,
                               ),
+                              // Slightly thicker stroke than the default.
                               child: Icon(
-                                LucideIcons.plus,
-                                size: 12,
+                                LucideIcons.plus500,
+                                size: 15,
                                 color: AppColors.orange,
                               ),
                             ),
@@ -1644,7 +1711,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: AppColors.text,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w400,
                                     letterSpacing: 0,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -1705,7 +1772,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                   style: const TextStyle(
                                     fontSize: 11,
                                     color: AppColors.text,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w400,
                                     letterSpacing: 0,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -1770,6 +1837,165 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Read-only summary of this visit's lab results, shown at the top of the
+/// form when the doctor continues after the lab.
+class _LabResultSummary extends StatelessWidget {
+  const _LabResultSummary({required this.history});
+
+  final MedicalHistory history;
+
+  @override
+  Widget build(BuildContext context) {
+    final exam = history.labExamination ?? const <String, dynamic>{};
+    final items = [
+      if (exam['items'] is List)
+        for (final it in exam['items'] as List)
+          if (it is Map) Map<String, dynamic>.from(it),
+    ];
+    final attachment = '${exam['attachment_url'] ?? ''}'.trim();
+    final requested = history.requestedLabOrder?.jenis ?? '';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.skyLt.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.sky.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.flaskConical,
+                size: 14,
+                color: AppColors.sky,
+              ),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Hasil Pemeriksaan Lab',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.sky,
+                  ),
+                ),
+              ),
+              if (attachment.isNotEmpty)
+                TextButton.icon(
+                  onPressed: () => showLabDocumentDialog(context, attachment),
+                  icon: const Icon(LucideIcons.eye, size: 13),
+                  label: const Text(
+                    'Lihat Dokumen',
+                    style: TextStyle(fontSize: 11.5),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.sky,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+            ],
+          ),
+          if (requested.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              requested,
+              style: const TextStyle(fontSize: 11.5, color: AppColors.sub),
+            ),
+          ],
+          if (items.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            for (final it in items) _LabResultRow(item: it),
+          ] else if (attachment.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'Hasil terlampir dalam dokumen.',
+              style: TextStyle(fontSize: 11.5, color: AppColors.sub),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _LabResultRow extends StatelessWidget {
+  const _LabResultRow({required this.item});
+
+  final Map<String, dynamic> item;
+
+  @override
+  Widget build(BuildContext context) {
+    String field(String key) => '${item[key] ?? ''}'.trim();
+    final value = [
+      field('result_value'),
+      field('unit'),
+    ].where((s) => s.isNotEmpty).join(' ');
+    final range = field('reference_range');
+    final status = field('status');
+    final abnormal = status.isNotEmpty && status.toLowerCase() != 'normal';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  field('test_name'),
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.text),
+                ),
+                if (range.isNotEmpty)
+                  Text(
+                    'Rujukan: $range',
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      color: AppColors.sub,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value.isNotEmpty ? value : '—',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                ),
+              ),
+              if (status.isNotEmpty)
+                Text(
+                  status,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    color: abnormal ? AppColors.red : AppColors.green,
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

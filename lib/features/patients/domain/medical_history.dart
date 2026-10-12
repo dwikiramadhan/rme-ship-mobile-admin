@@ -1,5 +1,6 @@
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/utils/diagnosis_helper.dart';
+import 'dispensed_medicine.dart';
 import 'lab_order.dart';
 import 'patient.dart';
 import 'prescription_item.dart';
@@ -316,6 +317,8 @@ class MedicalHistory {
 
   /// Converts or falls back to a [Patient] object for patient detail navigation.
   Patient toPatient() {
+    final keluhan = _splitComplaint(complaint);
+
     String? effectiveDiagnosa;
     if (rawJson['diagnoses'] is List &&
         (rawJson['diagnoses'] as List).isNotEmpty) {
@@ -564,7 +567,9 @@ class MedicalHistory {
         statusPenanganan: effectiveStatusPenanganan,
         resepStatus: effectiveResepStatus,
         poliName: poliName ?? patient!.poliName,
-        keluhanUtama: complaint ?? patient!.keluhanUtama,
+        keluhanUtama: keluhan?.utama ?? patient!.keluhanUtama,
+        durasiKeluhan: keluhan?.durasi ?? patient!.durasiKeluhan,
+        lokasiKeluhan: keluhan?.lokasi ?? patient!.lokasiKeluhan,
         diagnosa: effectiveDiagnosa,
         tindakan: effectiveTindakan,
         vitals: !vitals.isEmpty ? vitals : patient!.vitals,
@@ -585,9 +590,9 @@ class MedicalHistory {
       jk: Gender.l,
       umur: 0,
       alamat: '',
-      keluhanUtama: complaint ?? '',
-      durasiKeluhan: '',
-      lokasiKeluhan: '',
+      keluhanUtama: keluhan?.utama ?? '',
+      durasiKeluhan: keluhan?.durasi ?? '',
+      lokasiKeluhan: keluhan?.lokasi ?? '',
       vitals: vitals,
       assignedDokterId: doctorId ?? '',
       doctorName: doctorName,
@@ -607,6 +612,24 @@ class MedicalHistory {
       medicalRecordId: id,
       labOrder: effectiveLabOrder,
     );
+  }
+
+  /// Triage saves the complaint as "Demam • Durasi: 2 hari • Lokasi: Kepala".
+  static ({String utama, String? durasi, String? lokasi})? _splitComplaint(
+    String? raw,
+  ) {
+    if (raw == null) return null;
+    final parts = raw.split('•').map((p) => p.trim()).toList();
+    String? durasi;
+    String? lokasi;
+    for (final part in parts.skip(1)) {
+      if (part.startsWith('Durasi:')) {
+        durasi = part.substring('Durasi:'.length).trim();
+      } else if (part.startsWith('Lokasi:')) {
+        lokasi = part.substring('Lokasi:'.length).trim();
+      }
+    }
+    return (utama: parts.first, durasi: durasi, lokasi: lokasi);
   }
 
   /// Returns the lab_examination object from rawJson
@@ -636,18 +659,36 @@ class MedicalHistory {
     final exam = labExamination;
     final test = exam?['requested_test']?.toString().trim() ?? '';
     if (exam == null || test.isEmpty) return null;
-    // Only this order's own results count: the generic getters fall back to
-    // the patient's latest lab, which may belong to another visit.
-    final items = exam['items'];
-    final attachment = exam['attachment_url']?.toString().trim() ?? '';
-    final hasResults = (items is List && items.isNotEmpty) || attachment.isNotEmpty;
     return LabOrder(
       id: exam['id']?.toString() ?? id,
       jenis: test,
       catatan: exam['doctor_notes']?.toString().trim() ?? '',
-      status: hasResults ? LabOrderStatus.selesai : LabOrderStatus.baru,
+      status: hasOwnLabResults ? LabOrderStatus.selesai : LabOrderStatus.baru,
     );
   }
+
+  /// Whether this visit's own lab examination has results (items or a
+  /// document). Unlike [labExaminationItems] / [labAttachmentUrl] this never
+  /// falls back to the patient's latest lab, which may be another visit's.
+  /// Medicines handed to the patient (the pharmacy's dispenses, including
+  /// substitutions; the prescription itself before anything is dispensed).
+  List<DispensedMedicine> get dispensedMedicines =>
+      DispensedMedicine.listFromPrescriptions(
+        rawJson['prescriptions'] ?? rawJson['prescription'],
+      );
+
+  bool get hasOwnLabResults {
+    final exam = labExamination;
+    if (exam == null) return false;
+    final items = exam['items'];
+    final attachment = exam['attachment_url']?.toString().trim() ?? '';
+    return (items is List && items.isNotEmpty) || attachment.isNotEmpty;
+  }
+
+  /// Back with the doctor after the lab: the doctor continues the exam
+  /// (reviews results, adds the prescription) instead of starting over.
+  bool get isLabFollowUp =>
+      (statusPenanganan ?? '').trim() == 'Menunggu Dokter' && hasOwnLabResults;
 
   Map<String, dynamic>? get labExamination {
     final raw = rawJson['lab_examination'] ??

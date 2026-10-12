@@ -34,7 +34,7 @@ void main() {
       ),
     );
 
-    expect(find.text('DIAGNOSA KLINIS'), findsOneWidget);
+    expect(find.text('Diagnosa Klinis'), findsOneWidget);
     expect(find.text('J02.9'), findsOneWidget);
     expect(find.text('Utama'), findsOneWidget);
     expect(find.text('Sekunder'), findsOneWidget);

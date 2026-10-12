@@ -191,7 +191,11 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                     padding: EdgeInsets.all(24),
                     child: Text(
                       'Belum ada data',
-                      style: TextStyle(color: AppColors.sub, fontSize: 13),
+                      style: TextStyle(
+                        color: AppColors.sub,
+                        fontSize: 12,
+                        letterSpacing: 0,
+                      ),
                     ),
                   ),
                 ),
@@ -342,7 +346,7 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                                   widget.searchPlaceholder ??
                                   'Cari nama atau NIK pasien...',
                               hintStyle: const TextStyle(
-                                fontSize: 13,
+                                fontSize: 11,
                                 color: AppColors.sub,
                                 letterSpacing: 0,
                               ),

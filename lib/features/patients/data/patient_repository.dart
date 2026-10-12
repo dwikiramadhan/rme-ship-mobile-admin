@@ -1852,11 +1852,21 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     bool autoFetch = true,
     this.statusPenanganan,
     this.userId,
+    this.oldestFirst = false,
   }) : _api = api ?? PatientApi(),
        super([]) {
     if (autoFetch) {
       Future.microtask(() => fetchHistory());
     }
+  }
+
+  /// Queue order (oldest first) instead of newest first.
+  final bool oldestFirst;
+
+  int _byTime(MedicalHistory a, MedicalHistory b) {
+    final timeA = a.createdAt ?? a.date ?? '';
+    final timeB = b.createdAt ?? b.date ?? '';
+    return oldestFirst ? timeA.compareTo(timeB) : timeB.compareTo(timeA);
   }
 
   final PatientApi _api;
@@ -1910,6 +1920,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
         userId: userId,
+        order: oldestFirst ? 'asc' : 'desc',
       );
       if (seq != _requestSeq) return;
       _currentPage = res.page;
@@ -1918,11 +1929,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
       if (mounted) {
         final list = List<MedicalHistory>.from(res.data);
-        list.sort((a, b) {
-          final timeA = a.createdAt ?? a.date ?? '';
-          final timeB = b.createdAt ?? b.date ?? '';
-          return timeB.compareTo(timeA);
-        });
+        list.sort(_byTime);
         state = list;
       }
     } catch (e) {
@@ -1949,6 +1956,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
         userId: userId,
+        order: oldestFirst ? 'asc' : 'desc',
       );
       // The list was reset (search/filter/refresh) while this page loaded.
       if (seq != _requestSeq) return;
@@ -1961,11 +1969,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
           .where((m) => !existingIds.contains(m.id))
           .toList();
       final combined = [...state, ...newItems];
-      combined.sort((a, b) {
-        final timeA = a.createdAt ?? a.date ?? '';
-        final timeB = b.createdAt ?? b.date ?? '';
-        return timeB.compareTo(timeA);
-      });
+      combined.sort(_byTime);
       if (mounted) state = combined;
     } catch (e) {
       debugPrint('MedicalHistoryNotifier.loadMore error: $e');
@@ -2002,11 +2006,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       updated = [history, ...state];
       _total++;
     }
-    updated.sort((a, b) {
-      final timeA = a.createdAt ?? a.date ?? '';
-      final timeB = b.createdAt ?? b.date ?? '';
-      return timeB.compareTo(timeA);
-    });
+    updated.sort(_byTime);
     state = updated;
   }
 
@@ -2105,6 +2105,7 @@ final pharmacyPrescriptionHistoryProvider =
         api: api,
         autoFetch: hasSession,
         statusPenanganan: 'Menunggu Obat',
+        oldestFirst: true,
       );
     });
 

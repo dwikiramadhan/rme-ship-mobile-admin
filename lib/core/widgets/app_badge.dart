@@ -8,6 +8,7 @@ class AppBadge extends StatelessWidget {
     required this.background,
     this.fontSize = 11.5,
     this.padding = const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+    this.fontWeight = FontWeight.w700,
   });
 
   final String label;
@@ -15,6 +16,7 @@ class AppBadge extends StatelessWidget {
   final Color background;
   final double fontSize;
   final EdgeInsetsGeometry padding;
+  final FontWeight fontWeight;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +36,7 @@ class AppBadge extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: fontSize,
-          fontWeight: FontWeight.w700,
+          fontWeight: fontWeight,
           color: color,
         ),
       ),

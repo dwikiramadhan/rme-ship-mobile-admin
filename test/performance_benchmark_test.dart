@@ -271,6 +271,9 @@ class _BenchmarkMedicalHistoryNotifier extends StateNotifier<List<MedicalHistory
   int get currentPage => 1;
 
   @override
+  bool get oldestFirst => false;
+
+  @override
   String? get statusPenanganan => null;
 
   @override

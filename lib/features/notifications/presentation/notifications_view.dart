@@ -405,8 +405,8 @@ class _NotificationCard extends StatelessWidget {
                               Text(
                                 statusLabel,
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
                                   color: themeColor,
                                 ),
                               ),

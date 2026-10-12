@@ -221,9 +221,7 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
       unawaited(
         ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true),
       );
-      unawaited(
-        ref.read(patientsProvider.notifier).fetchPatients(),
-      );
+      unawaited(ref.read(patientsProvider.notifier).fetchPatients());
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Diagnosa & resep berhasil disimpan ke rekam medis!'),
@@ -250,8 +248,9 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
         if (trimmed.isNotEmpty) {
           final parts = trimmed.split(' - ');
           final code = parts[0].trim();
-          final desc =
-              parts.length > 1 ? parts.sublist(1).join(' - ').trim() : code;
+          final desc = parts.length > 1
+              ? parts.sublist(1).join(' - ').trim()
+              : code;
           _diagnosaList.add(Icd10Item(code: code, display: desc));
         }
       }
@@ -282,14 +281,15 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
     final patients = ref.watch(patientsProvider);
     final patient =
         patients.where((p) => p.id == widget.patientId).firstOrNull ??
-            widget.initialPatient;
+        widget.initialPatient;
     if (_loading && patient == null) {
       return const SkeletonPatientDetail();
     }
     if (patient == null) {
       return const SkeletonPatientDetail();
     }
-    final alreadyDiagnosed = !_isEditing &&
+    final alreadyDiagnosed =
+        !_isEditing &&
         (patient.diagnosa != null && patient.diagnosa!.trim().isNotEmpty);
 
     return Column(
@@ -317,22 +317,14 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
         icon: const Icon(LucideIcons.pencil, size: 12),
         label: const Text(
           'Ubah',
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
         ),
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 10,
-            vertical: 4,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           visualDensity: VisualDensity.compact,
           foregroundColor: AppColors.blue,
           side: const BorderSide(color: AppColors.blue),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
       ),
       onViewLabDocument: (url) =>
@@ -370,7 +362,11 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
               ),
               child: Row(
                 children: [
-                  const Icon(LucideIcons.pencil, size: 14, color: AppColors.blue),
+                  const Icon(
+                    LucideIcons.pencil,
+                    size: 14,
+                    color: AppColors.blue,
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -556,20 +552,10 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 Row(
                   children: [
                     Expanded(
-                      child: _labToggleButton(
-                        'Ya, Perlu Rujukan Lab',
-                        true,
-                        LucideIcons.flaskConical,
-                      ),
+                      child: _labToggleButton('Ya, Perlu Rujukan Lab', true),
                     ),
                     const SizedBox(width: 10),
-                    Expanded(
-                      child: _labToggleButton(
-                        'Tidak Perlu Lab',
-                        false,
-                        LucideIcons.xCircle,
-                      ),
-                    ),
+                    Expanded(child: _labToggleButton('Tidak Perlu Lab', false)),
                   ],
                 ),
 
@@ -617,11 +603,7 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                   children: [
                     const Row(
                       children: [
-                        Icon(
-                          LucideIcons.pill,
-                          size: 15,
-                          color: AppColors.blue,
-                        ),
+                        Icon(LucideIcons.pill, size: 15, color: AppColors.blue),
                         SizedBox(width: 6),
                         Text(
                           'Resep Obat Pasien',
@@ -717,12 +699,11 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
     );
   }
 
-  Widget _labToggleButton(String label, bool value, IconData icon) {
+  Widget _labToggleButton(String label, bool value) {
     final active = _needLab == value;
-    final color = value ? AppColors.purple : AppColors.sub;
-    final activeBg = value
-        ? AppColors.purpleLt
-        : AppColors.border.withValues(alpha: 0.3);
+    // Both choices use the same blue when selected (as in the exam modal).
+    const color = Color(0xFF0284C7);
+    const activeBg = Color(0xFFF0F9FF);
 
     return InkWell(
       borderRadius: BorderRadius.circular(10),
@@ -740,8 +721,6 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 15, color: active ? color : AppColors.sub),
-            const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
@@ -818,10 +797,7 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                     removed.dispose();
                   }),
                   child: const Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 2,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1006,10 +982,18 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 controller: row.customInstruksiCtrl,
                 textCapitalization: freeTextCapitalization,
                 inputFormatters: freeTextFormatters,
-                style: const TextStyle(fontSize: 12, color: AppColors.text, letterSpacing: 0),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.text,
+                  letterSpacing: 0,
+                ),
                 decoration: const InputDecoration(
                   hintText: 'cth: 2 sendok takar sebelum tidur malam',
-                  hintStyle: TextStyle(fontSize: 11.5, color: AppColors.sub, letterSpacing: 0),
+                  hintStyle: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.sub,
+                    letterSpacing: 0,
+                  ),
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: EdgeInsets.symmetric(vertical: 7),
@@ -1051,7 +1035,9 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
       builder: (ctx) {
         return Dialog(
           insetPadding: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: 520,
@@ -1113,7 +1099,10 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 Flexible(
                   child: isPdf
                       ? Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 32,
+                          ),
                           color: const Color(0xFFF8FAFC),
                           child: Center(
                             child: Column(
@@ -1153,7 +1142,10 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                                 ),
                                 const SizedBox(height: 14),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(6),
@@ -1181,32 +1173,46 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                               child: Image.network(
                                 url,
                                 fit: BoxFit.contain,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return const Center(
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  );
-                                },
-                                errorBuilder: (context, error, stackTrace) => Padding(
-                                  padding: const EdgeInsets.all(24),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(LucideIcons.imageOff, size: 40, color: Colors.white70),
-                                      const SizedBox(height: 8),
-                                      const Text(
-                                        'Gagal memuat gambar',
-                                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return const Center(
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      );
+                                    },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            LucideIcons.imageOff,
+                                            size: 40,
+                                            color: Colors.white70,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                            'Gagal memuat gambar',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            url,
+                                            style: const TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 10,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ],
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        url,
-                                        style: const TextStyle(color: Colors.white38, fontSize: 10),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                    ),
                               ),
                             ),
                           ),
@@ -1214,25 +1220,32 @@ class _DoctorPatientDetailState extends ConsumerState<DoctorPatientDetail> {
                 ),
                 const Divider(height: 1, color: AppColors.border),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       OutlinedButton.icon(
                         icon: const Icon(LucideIcons.externalLink, size: 14),
-                        label: const Text('Buka URL Asli', style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Buka URL Asli',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Tautan dokumen: $url'),
-                            ),
+                            SnackBar(content: Text('Tautan dokumen: $url')),
                           );
                         },
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton(
                         onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('Tutup', style: TextStyle(fontSize: 12)),
+                        child: const Text(
+                          'Tutup',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ),
                     ],
                   ),
@@ -1293,7 +1306,9 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
         } else {
           void onAnimationStatusChanged(AnimationStatus status) {
             if (status == AnimationStatus.completed) {
-              modalRoute.animation?.removeStatusListener(onAnimationStatusChanged);
+              modalRoute.animation?.removeStatusListener(
+                onAnimationStatusChanged,
+              );
               _triggerInitialFetch();
             }
           }
@@ -1323,8 +1338,11 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
     }
   }
 
-  Future<void> _fetchPage(int page,
-      {String query = '', bool reset = false}) async {
+  Future<void> _fetchPage(
+    int page, {
+    String query = '',
+    bool reset = false,
+  }) async {
     if (reset) {
       setState(() {
         _isLoading = true;
@@ -1339,10 +1357,7 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
 
     try {
       final api = ref.read(medicinesApiProvider);
-      final res = await api.fetchMedicines(
-        query: query,
-        page: page,
-      );
+      final res = await api.fetchMedicines(query: query, page: page);
 
       if (!mounted) return;
       setState(() {
@@ -1350,8 +1365,9 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
           _medicines = res.data;
         } else {
           final existingIds = _medicines.map((m) => m.id).toSet();
-          final newItems =
-              res.data.where((m) => !existingIds.contains(m.id)).toList();
+          final newItems = res.data
+              .where((m) => !existingIds.contains(m.id))
+              .toList();
           _medicines = [..._medicines, ...newItems];
         }
         _currentPage = res.page;
@@ -1443,7 +1459,9 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 2),
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.blueLt,
                           borderRadius: BorderRadius.circular(6),
@@ -1543,135 +1561,135 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
             child: _isLoading
                 ? _buildLoadingState()
                 : _medicines.isEmpty
-                    ? _buildEmptyState(query)
-                    : ListView.separated(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        itemCount: _medicines.length + (_hasMore ? 1 : 0),
-                        separatorBuilder: (_, _) => const SizedBox(height: 6),
-                        itemBuilder: (context, i) {
-                          if (i >= _medicines.length) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 14),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.blue,
-                                  ),
-                                ),
-                              ),
-                            );
-                          }
-
-                          final med = _medicines[i];
-                          final isSelected = med.name == widget.selectedName;
-
-                          return InkWell(
-                            onTap: () => widget.onSelect(med.name),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 11,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.blueLt
-                                    : AppColors.card2,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.blue.withValues(alpha: 0.5)
-                                      : AppColors.border,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  if (med.sku.isNotEmpty) ...[
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 5.5,
-                                        vertical: 1.5,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? AppColors.card
-                                            : AppColors.inputBg,
-                                        borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(
-                                          color: isSelected
-                                              ? AppColors.blue
-                                                  .withValues(alpha: 0.3)
-                                              : AppColors.border,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        med.sku,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                          color: isSelected
-                                              ? AppColors.blue
-                                              : AppColors.sub,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                  ],
-                                  Expanded(
-                                    child: Text(
-                                      med.name,
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w800
-                                            : FontWeight.w600,
-                                        color: isSelected
-                                            ? AppColors.blue
-                                            : AppColors.text,
-                                      ),
-                                    ),
-                                  ),
-                                  if (med.unitOfMeasurement.isNotEmpty ||
-                                      med.category.isNotEmpty) ...[
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      med.unitOfMeasurement.isNotEmpty &&
-                                              med.category.isNotEmpty
-                                          ? '${med.unitOfMeasurement} • ${med.category}'
-                                          : (med.unitOfMeasurement.isNotEmpty
-                                              ? med.unitOfMeasurement
-                                              : med.category),
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isSelected
-                                            ? AppColors.blue
-                                                .withValues(alpha: 0.8)
-                                            : AppColors.sub,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                  if (isSelected) ...[
-                                    const SizedBox(width: 8),
-                                    const Icon(
-                                      LucideIcons.check,
-                                      size: 16,
-                                      color: AppColors.blue,
-                                    ),
-                                  ],
-                                ],
+                ? _buildEmptyState(query)
+                : ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    itemCount: _medicines.length + (_hasMore ? 1 : 0),
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (context, i) {
+                      if (i >= _medicines.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.blue,
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      }
+
+                      final med = _medicines[i];
+                      final isSelected = med.name == widget.selectedName;
+
+                      return InkWell(
+                        onTap: () => widget.onSelect(med.name),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 11,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.blueLt
+                                : AppColors.card2,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.blue.withValues(alpha: 0.5)
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              if (med.sku.isNotEmpty) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5.5,
+                                    vertical: 1.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? AppColors.card
+                                        : AppColors.inputBg,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? AppColors.blue.withValues(
+                                              alpha: 0.3,
+                                            )
+                                          : AppColors.border,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    med.sku,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: isSelected
+                                          ? AppColors.blue
+                                          : AppColors.sub,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  med.name,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w800
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? AppColors.blue
+                                        : AppColors.text,
+                                  ),
+                                ),
+                              ),
+                              if (med.unitOfMeasurement.isNotEmpty ||
+                                  med.category.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  med.unitOfMeasurement.isNotEmpty &&
+                                          med.category.isNotEmpty
+                                      ? '${med.unitOfMeasurement} • ${med.category}'
+                                      : (med.unitOfMeasurement.isNotEmpty
+                                            ? med.unitOfMeasurement
+                                            : med.category),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: isSelected
+                                        ? AppColors.blue.withValues(alpha: 0.8)
+                                        : AppColors.sub,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                              if (isSelected) ...[
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  LucideIcons.check,
+                                  size: 16,
+                                  color: AppColors.blue,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
           const SizedBox(height: 12),
         ],
@@ -1739,8 +1757,10 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
                 onTap: () => widget.onSelect(query),
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.blueLt,
                     borderRadius: BorderRadius.circular(8),
@@ -1751,8 +1771,11 @@ class _MedicineSearchModalState extends ConsumerState<_MedicineSearchModal> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(LucideIcons.plus,
-                          size: 14, color: AppColors.blue),
+                      const Icon(
+                        LucideIcons.plus,
+                        size: 14,
+                        color: AppColors.blue,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Gunakan "$query"',

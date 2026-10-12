@@ -121,6 +121,8 @@ class ApiConfig {
   static const String environmentsPath = '/api/v1/environments';
   static String medicalRecordDispensePath(String medRecId) =>
       '/api/v1/medical-records/$medRecId/dispense';
+  static String medicalRecordPrescriptionPdfPath(String medRecId) =>
+      '/api/v1/medical-records/$medRecId/prescription/pdf';
   static String medicalRecordLabExaminationsPath(String medRecId) =>
       '/api/v1/medical-records/$medRecId/lab-examinations';
   static String labExaminationViewDocumentPath(String fileName) =>

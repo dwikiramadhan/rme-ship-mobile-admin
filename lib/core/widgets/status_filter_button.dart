@@ -67,11 +67,7 @@ const List<StatusFilterOption> stockStatusFilterOptions = [
     label: 'Tersedia',
     color: AppColors.green,
   ),
-  StatusFilterOption(
-    value: 'HABIS',
-    label: 'Habis',
-    color: AppColors.red,
-  ),
+  StatusFilterOption(value: 'HABIS', label: 'Habis', color: AppColors.red),
   StatusFilterOption(
     value: 'SEMUA',
     label: 'Semua Stok',
@@ -164,10 +160,14 @@ class StatusFilterButton extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isFiltered ? activeBg : (isDark ? const Color(0xFF0F172A) : AppColors.card2),
+                color: isFiltered
+                    ? activeBg
+                    : (isDark ? const Color(0xFF0F172A) : AppColors.card2),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isFiltered ? activeColor : (isDark ? const Color(0xFF1E293B) : AppColors.border),
+                  color: isFiltered
+                      ? activeColor
+                      : (isDark ? const Color(0xFF1E293B) : AppColors.border),
                   width: isFiltered ? 1.5 : 1,
                 ),
               ),
@@ -183,9 +183,11 @@ class StatusFilterButton extends StatelessWidget {
                   Text(
                     selectedOption?.label ?? 'Filter',
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: isFiltered ? activeColor : theme.colorScheme.onSurface,
+                      color: isFiltered
+                          ? activeColor
+                          : theme.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -202,10 +204,14 @@ class StatusFilterButton extends StatelessWidget {
               height: 42,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isFiltered ? activeBg : (isDark ? const Color(0xFF0F172A) : AppColors.card2),
+                color: isFiltered
+                    ? activeBg
+                    : (isDark ? const Color(0xFF0F172A) : AppColors.card2),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isFiltered ? activeColor : (isDark ? const Color(0xFF1E293B) : AppColors.border),
+                  color: isFiltered
+                      ? activeColor
+                      : (isDark ? const Color(0xFF1E293B) : AppColors.border),
                   width: isFiltered ? 1.5 : 1,
                 ),
               ),

@@ -281,6 +281,12 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
       'sedang diproses' => ('Diproses', AppColors.blue, AppColors.blueLt),
       _ => ('Menunggu Lab', AppColors.yellow, AppColors.yellowLt),
     };
-    return AppBadge(label: label, color: color, background: bg);
+    return AppBadge(
+      label: label,
+      color: color,
+      background: bg,
+      fontSize: 10.5,
+      fontWeight: FontWeight.w500,
+    );
   }
 }

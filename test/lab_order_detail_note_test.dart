@@ -123,7 +123,7 @@ void main() {
     await _pumpDetail(tester, '', history: history);
 
     expect(find.text('Hasil Pemeriksaan Dokter'), findsOneWidget);
-    expect(find.text('DIAGNOSA KLINIS'), findsOneWidget);
+    expect(find.text('Diagnosa Klinis'), findsOneWidget);
     expect(find.text('Acute upper respiratory infection'), findsOneWidget);
     expect(find.text('J06.9'), findsOneWidget);
     expect(find.text('General physical examination'), findsOneWidget);
@@ -132,7 +132,7 @@ void main() {
     expect(find.text('120/80'), findsOneWidget);
     expect(
       tester.getTopLeft(find.text('Catatan Khusus Dokter')).dy,
-      lessThan(tester.getTopLeft(find.text('DIAGNOSA KLINIS')).dy),
+      lessThan(tester.getTopLeft(find.text('Diagnosa Klinis')).dy),
     );
   });
 

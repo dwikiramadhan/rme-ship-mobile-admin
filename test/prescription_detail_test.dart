@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:bayan_rme/features/doctor/data/icd10_api.dart';
 import 'package:bayan_rme/features/doctor/domain/icd10_item.dart';
 import 'package:bayan_rme/features/patients/data/patient_repository.dart';
+import 'package:bayan_rme/features/patients/domain/medical_history.dart';
 import 'package:bayan_rme/features/patients/domain/patient.dart';
 import 'package:bayan_rme/features/patients/domain/prescription_item.dart';
 import 'package:bayan_rme/features/patients/domain/vitals.dart';
@@ -22,8 +23,10 @@ class _FakePatientsNotifier extends PatientsNotifier {
   String? lastDispensedById;
   List<ResepItem>? lastDispensedItems;
 
+  final fetchedDetails = <String>[];
+
   @override
-  Future<void> fetchPatientDetail(String id) async {}
+  Future<void> fetchPatientDetail(String id) async => fetchedDetails.add(id);
 
   @override
   Future<void> dispensePrescription({
@@ -219,6 +222,7 @@ void main() {
       waktuMasuk: '2026-09-06T10:00:00Z',
       updatedAt: DateTime(2026, 9, 6),
       diagnosa: 'Gastroenteritis (A09)',
+      tindakan: 'Injeksi antibiotik (99.21)',
       resep: const [
         ResepItem(
           obat: 'Cairan D 40% 25 Ml (GT-C009)',
@@ -262,9 +266,11 @@ void main() {
       findsOneWidget,
     );
 
-    // Verify Diagnosa Klinis display
-    expect(find.text('DIAGNOSA KLINIS'), findsOneWidget);
+    // Diagnosis and procedure each as one plain sentence.
+    expect(find.text('Diagnosa Klinis'), findsOneWidget);
     expect(find.text('Gastroenteritis (A09)'), findsOneWidget);
+    expect(find.text('Tindakan / Prosedur (ICD-9-CM)'), findsOneWidget);
+    expect(find.text('Injeksi antibiotik (99.21)'), findsOneWidget);
   });
 
   testWidgets(
@@ -322,7 +328,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
 
-      expect(find.text('DIAGNOSA KLINIS'), findsOneWidget);
+      expect(find.text('Diagnosa Klinis'), findsOneWidget);
       expect(find.text('Gastroenteritis (A09)'), findsOneWidget);
     },
   );
@@ -391,6 +397,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Konfirmasi Penyerahan Obat'), findsOneWidget);
+      // Compact dialog, not stretched by the long question (720 before;
+      // the wide test font makes the title look wider than on a device).
+      final dialogBox = find
+          .descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(Material),
+          )
+          .first;
+      expect(tester.getSize(dialogBox).width, lessThan(500));
       final confirmBtn = find.text('Ya, Serahkan');
       expect(confirmBtn, findsOneWidget);
       await tester.tap(confirmBtn);
@@ -463,6 +478,124 @@ void main() {
         find.text('Obat telah selesai diserahkan ke pasien'),
         findsOneWidget,
       );
+    },
+  );
+  testWidgets(
+    'PrescriptionDetail shows the drugs from the queue item without a tap',
+    (tester) async {
+      // As on a tablet: the first queue entry is opened automatically, the
+      // patient store only has the patient (no drugs) and the detail fetch
+      // doesn't bring them either.
+      final patient = Patient(
+        id: 'p-5',
+        nama: 'Rudi Hartono',
+        nik: '1234567890123460',
+        jk: Gender.l,
+        umur: 45,
+        alamat: 'Balikpapan',
+        keluhanUtama: 'Pusing',
+        durasiKeluhan: '1 hari',
+        lokasiKeluhan: 'Kepala',
+        vitals: const Vitals(),
+        assignedDokterId: 'd-1',
+        waktuMasuk: '2026-10-12T08:00:00Z',
+        updatedAt: DateTime(2026, 10, 12),
+      );
+      final queue = _FakeMedicalHistoryNotifier()
+        ..upsertHistory(
+          MedicalHistory.fromApiJson({
+            'id': 'mr-5',
+            'code': 'RJ12102026-00005',
+            'patient_id': 'p-5',
+            'patient': {'id': 'p-5', 'name': 'Rudi Hartono'},
+            'status_penanganan': 'Menunggu Obat',
+            'doctor_id': 'd-1',
+            'doctor': {'id': 'd-1', 'name': 'dr. Putri', 'sip': 'SIP-123'},
+            'created_by_user': {
+              'id': 'u-1',
+              'full_name': 'Andini Putri',
+              'role': 'Perawat',
+            },
+            'prescriptions': [
+              {
+                'name': 'Paracetamol 500mg',
+                'dosis': '3x1',
+                'instruksi': 'Sesudah makan',
+                'qty': '10',
+                'unit_of_measurement': 'Tablet',
+              },
+            ],
+          }),
+        );
+
+      final patients = _FakePatientsNotifier([patient]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            patientsProvider.overrideWith((ref) => patients),
+            pharmacyPrescriptionHistoryProvider.overrideWith((ref) => queue),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: PrescriptionDetail(patientId: 'p-5', medRecId: 'mr-5'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('1 Item Obat'), findsOneWidget);
+      expect(find.textContaining('Paracetamol 500mg'), findsOneWidget);
+      // Doctor and nurse of the visit.
+      expect(find.text('Dokter Pemeriksa'), findsOneWidget);
+      expect(find.text('dr. Putri'), findsOneWidget);
+      expect(find.text('SIP: SIP-123'), findsOneWidget);
+      expect(find.text('Perawat'), findsOneWidget);
+      expect(find.text('Andini Putri'), findsOneWidget);
+      // No letter spacing on this page, also for text using theme defaults.
+      for (final text in ['Dokter Pemeriksa', 'Andini Putri', '1 Item Obat']) {
+        final rendered = tester.widget<RichText>(
+          find.descendant(of: find.text(text), matching: find.byType(RichText)),
+        );
+        expect(rendered.text.style?.letterSpacing, 0, reason: text);
+      }
+      // Everything came with the queue item: no patient/records requests.
+      expect(patients.fetchedDetails, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'PrescriptionDetail fetches the patient when the visit is not in the queue',
+    (tester) async {
+      final patients = _FakePatientsNotifier([]);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            patientsProvider.overrideWith((ref) => patients),
+            pharmacyPrescriptionHistoryProvider.overrideWith(
+              (ref) => _FakeMedicalHistoryNotifier(),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: PrescriptionDetail(patientId: 'p-6', medRecId: 'mr-6'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(patients.fetchedDetails, ['p-6']);
     },
   );
 }

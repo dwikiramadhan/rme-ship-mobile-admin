@@ -83,8 +83,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Text(
               'Konfirmasi Keluar',
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
                 color: AppColors.text,
               ),
             ),
@@ -92,7 +92,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
         content: const Text(
           'Apakah Anda yakin ingin keluar dari akun ini?',
-          style: TextStyle(fontSize: 13.5, color: AppColors.sub, height: 1.4),
+          style: TextStyle(fontSize: 12.5, color: AppColors.sub, height: 1.4),
         ),
         actionsPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -106,7 +106,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               style: TextStyle(
                 color: AppColors.sub,
                 fontWeight: FontWeight.w600,
-                fontSize: 13,
+                fontSize: 12,
               ),
             ),
           ),
@@ -126,7 +126,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             child: const Text(
               'Keluar',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
             ),
           ),
         ],
@@ -254,8 +254,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Text(
                           'Ubah Kata Sandi',
                           style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.text,
                           ),
                         ),
@@ -263,7 +263,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Text(
                           'Perbarui kata sandi login Anda secara berkala',
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 10.5,
                             color: AppColors.sub,
                           ),
                         ),
@@ -328,10 +328,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Pengaturan Server Backend',
+                          'Pengaturan Server',
                           style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.text,
                           ),
                         ),
@@ -339,7 +339,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         Text(
                           'Host: ${ApiConfig.baseUrl}',
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 10.5,
                             color: AppColors.sub,
                           ),
                           maxLines: 1,
@@ -408,8 +408,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const Text(
                     'Aktif (Online)',
                     style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
                       color: Color(0xFF059669),
                     ),
                   ),
@@ -442,8 +442,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   'Logout',
                   style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.red,
                   ),
                 ),
@@ -469,8 +469,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const Text(
                     'Profil Pengguna',
                     style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.text,
                       letterSpacing: -0.4,
                     ),
@@ -478,7 +478,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 3),
                   const Text(
                     'Kelola identitas akun dan pengaturan keamanan RME Kapal',
-                    style: TextStyle(fontSize: 12.5, color: AppColors.sub),
+                    style: TextStyle(fontSize: 11.5, color: AppColors.sub),
                   ),
                   const SizedBox(height: 22),
 
@@ -588,8 +588,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       _initials,
                       style: const TextStyle(
                         color: AppColors.orange,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 34,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 30,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -602,8 +602,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     displayName,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 17.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.text,
                     ),
                   ),
@@ -614,7 +614,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Text(
                     displayEmail,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12, color: AppColors.sub),
+                    style: const TextStyle(fontSize: 11, color: AppColors.sub),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -647,8 +647,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           Text(
                             widget.role,
                             style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.orange,
                             ),
                           ),
@@ -677,8 +677,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           Text(
                             shipCode,
                             style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
                               color: Color(0xFF475569),
                             ),
                           ),
@@ -707,8 +707,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       const Text(
                         'Akun Aktif & Terverifikasi',
                         style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w500,
                           color: Color(0xFF059669),
                         ),
                       ),
@@ -729,8 +729,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
           letterSpacing: 0.6,
           color: Color(0xFF64748B),
         ),
@@ -767,9 +767,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 Text(
                   label,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     color: Color(0xFF64748B),
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -777,8 +777,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Text(
                       value,
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                         color: AppColors.text,
                       ),
                     ),
@@ -889,15 +889,15 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                         Text(
                           'Ubah Kata Sandi',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.text,
                           ),
                         ),
                         SizedBox(height: 2),
                         Text(
                           'Masukkan kata sandi lama dan kata sandi baru',
-                          style: TextStyle(fontSize: 12, color: AppColors.sub),
+                          style: TextStyle(fontSize: 11, color: AppColors.sub),
                         ),
                       ],
                     ),
@@ -967,8 +967,8 @@ class _ChangePasswordSheetState extends ConsumerState<_ChangePasswordSheet> {
                             Text(
                               'Simpan Kata Sandi',
                               style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
                               ),
                             ),
                           ],
@@ -1006,8 +1006,8 @@ class _PasswordField extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
             color: Color(0xFF334155),
           ),
         ),
@@ -1017,8 +1017,8 @@ class _PasswordField extends StatelessWidget {
           obscureText: obscure,
           validator: validator ?? _defaultRequired,
           style: const TextStyle(
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w400,
             color: AppColors.text,
           ),
           decoration: InputDecoration(

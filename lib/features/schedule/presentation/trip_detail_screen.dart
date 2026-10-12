@@ -1341,7 +1341,11 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           if (items.isEmpty)
             const Text(
               'Belum ada data crew kapal',
-              style: TextStyle(fontSize: 12, color: AppColors.sub),
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.sub,
+                letterSpacing: 0,
+              ),
             )
           else
             ListView.separated(

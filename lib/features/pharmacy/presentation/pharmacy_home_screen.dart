@@ -215,19 +215,8 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
       onSearchChanged: (q) => notifier.searchHistory(q),
       searchPlaceholder: 'Cari nama atau NIK pasien...',
       searchTrailing: _buildStatusFilterButton(notifier),
-      onEntrySelected: (id) {
-        setState(() => _selectedResepId = id);
-        final item = displayHistories.where((h) => h.id == id).firstOrNull ??
-            histories.where((h) => h.id == id).firstOrNull;
-        final effectivePatientId =
-            (item != null && item.patientId.isNotEmpty) ? item.patientId : id;
-        if (item != null) {
-          ref.read(patientsProvider.notifier).upsertPatient(item.toPatient());
-        }
-        ref
-            .read(patientsProvider.notifier)
-            .fetchPatientDetail(effectivePatientId);
-      },
+      // The detail pane loads its own data (from the queue item).
+      onEntrySelected: (id) => setState(() => _selectedResepId = id),
       entries: [
         for (final m in displayHistories) () {
           final cleanTitle = CleanTextHelper.cleanName(
@@ -395,6 +384,8 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
       label: meta.label,
       color: meta.color,
       background: meta.background,
+      fontSize: 10.5,
+      fontWeight: FontWeight.w500,
     );
   }
 }

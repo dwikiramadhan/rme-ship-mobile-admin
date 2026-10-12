@@ -36,6 +36,19 @@ void main() {
     expect(history.createdByName, 'Ns. Rina');
   });
 
+  test('toPatient splits the triage complaint into keluhan, durasi, lokasi', () {
+    final patient = MedicalHistory.fromApiJson({
+      'id': 'mr-2',
+      'patient_id': 'p-2',
+      'patient': {'id': 'p-2', 'name': 'Komarudin'},
+      'complaint': 'Demam dan sakit kepala • Durasi: 2 hari • Lokasi: Kepala',
+    }).toPatient();
+
+    expect(patient.keluhanUtama, 'Demam dan sakit kepala');
+    expect(patient.durasiKeluhan, '2 hari');
+    expect(patient.lokasiKeluhan, 'Kepala');
+  });
+
   group('MedicalHistory Domain & Serialization', () {
     final sampleJson = {
       "id": "e15f4a0c-8082-45f3-ae25-fdc822554636",

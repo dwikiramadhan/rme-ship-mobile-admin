@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/utils/diagnosis_helper.dart';
@@ -19,6 +18,7 @@ import '../../doctor/data/icd10_api.dart';
 import '../../doctor/data/icd9_api.dart';
 import '../../doctor/presentation/widgets/examination_input_modal.dart';
 import '../data/patient_repository.dart';
+import '../domain/dispensed_medicine.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
 import '../domain/vitals.dart';
@@ -26,6 +26,7 @@ import 'patient_detail_screen.dart';
 import 'patient_info_card.dart';
 import 'status_meta.dart';
 import 'widgets/lab_document_viewer.dart';
+import 'widgets/prescription_pdf_dialog.dart';
 
 /// Detail pane for a selected [MedicalHistory] item shown on the right side of
 /// the screen on tablet, and pushed as a full page on mobile.
@@ -63,16 +64,21 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     final isDoctor = canExamine ?? (userRole == UserRole.dokter);
     final statusPenanganan = (history.statusPenanganan ?? '').trim();
     final isMenungguDokter = statusPenanganan == 'Menunggu Dokter';
-    final hasDiagnosis = (history.diagnosis?.trim().isNotEmpty ?? false) ||
+    final hasDiagnosis =
+        (history.diagnosis?.trim().isNotEmpty ?? false) ||
         (history.diagnosisDetail?.trim().isNotEmpty ?? false);
     final isDiagnosed = !isMenungguDokter && hasDiagnosis;
 
-    final hasTreatment = (history.treatment?.trim().isNotEmpty ?? false) ||
+    final hasTreatment =
+        (history.treatment?.trim().isNotEmpty ?? false) ||
         (history.tindakanDetail?.trim().isNotEmpty ?? false);
 
     final isMenungguLab = statusPenanganan == 'Menunggu Lab';
     final isSelesai = statusPenanganan == 'Selesai';
     final isMenungguObat = statusPenanganan == 'Menunggu Obat';
+    final dispensed = isSelesai
+        ? history.dispensedMedicines
+        : const <DispensedMedicine>[];
 
     // Operation info
     final opVal = (history.operation ?? '').trim().toLowerCase();
@@ -85,8 +91,12 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
     // Debug dump only — pretty-printing rawJson on every rebuild is costly.
     if (kDebugMode) {
-      debugPrint('══════════════════════════════════════════════════════════════');
-      debugPrint('📋 [MedicalHistoryDetailView] Data History (ID: ${history.id}, Code: ${history.code}):');
+      debugPrint(
+        '══════════════════════════════════════════════════════════════',
+      );
+      debugPrint(
+        '📋 [MedicalHistoryDetailView] Data History (ID: ${history.id}, Code: ${history.code}):',
+      );
       debugPrint('   Patient: ${history.patientName} (${history.patientId})');
       debugPrint('   Status: ${history.statusPenanganan}');
       debugPrint('   Lab Attachment URL: $labAttachmentUrl');
@@ -96,7 +106,9 @@ class MedicalHistoryDetailView extends ConsumerWidget {
       } catch (_) {
         debugPrint('${history.rawJson}');
       }
-      debugPrint('══════════════════════════════════════════════════════════════');
+      debugPrint(
+        '══════════════════════════════════════════════════════════════',
+      );
     }
     final labExam = history.labExamination;
     final labItems = history.labExaminationItems;
@@ -105,17 +117,19 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     final String labJenisText = labCode != null && labCode.isNotEmpty
         ? 'Pemeriksaan Lab ($labCode)'
         : (labItems.isNotEmpty
-            ? 'Pemeriksaan Laboratorium'
-            : (isMenungguLab ? 'Rujukan Lab' : ''));
+              ? 'Pemeriksaan Laboratorium'
+              : (isMenungguLab ? 'Rujukan Lab' : ''));
 
-    final hasLab = labExam != null ||
+    final hasLab =
+        labExam != null ||
         labItems.isNotEmpty ||
         (labAttachmentUrl != null && labAttachmentUrl.isNotEmpty) ||
         isMenungguLab;
 
     Widget? labStatusBadge;
     if (hasLab) {
-      final isLabSelesai = labItems.isNotEmpty ||
+      final isLabSelesai =
+          labItems.isNotEmpty ||
           (labAttachmentUrl != null && labAttachmentUrl.isNotEmpty) ||
           isSelesai;
       final statusLabel = isLabSelesai
@@ -172,7 +186,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                           : 'Pasien dalam status Menunggu Dokter untuk pemeriksaan klinis.',
                       style: const TextStyle(
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                         letterSpacing: 0,
                         color: Color(0xFF92400E),
                       ),
@@ -204,7 +218,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       'Pasien dalam status Menunggu Lab. Menunggu pemeriksaan atau hasil laboratorium selesai diproses.',
                       style: TextStyle(
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                         letterSpacing: 0,
                         color: Color(0xFF0369A1),
                       ),
@@ -232,7 +246,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       'Pasien dalam status Menunggu Obat. Resep obat sedang diproses oleh bagian farmasi.',
                       style: TextStyle(
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                         letterSpacing: 0,
                         color: Color(0xFF854D0E),
                       ),
@@ -264,7 +278,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                       'Status Pelayanan Selesai. Seluruh tahapan pemeriksaan dan pelayanan pasien telah selesai.',
                       style: TextStyle(
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w400,
                         letterSpacing: 0,
                         color: Color(0xFF166534),
                       ),
@@ -313,7 +327,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                             'DETAIL',
                             style: TextStyle(
                               fontSize: 12,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: 0,
                               color: AppColors.blue,
                             ),
@@ -324,7 +338,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                               history.code,
                               style: const TextStyle(
                                 fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 letterSpacing: 0,
                                 color: AppColors.text,
                               ),
@@ -509,7 +523,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                               labJenisText,
                                               style: const TextStyle(
                                                 fontSize: 12,
-                                                fontWeight: FontWeight.w600,
+                                                fontWeight: FontWeight.w500,
                                                 color: Color(0xFF0369A1),
                                                 letterSpacing: 0,
                                               ),
@@ -556,7 +570,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                                     style: const TextStyle(
                                                       fontSize: 12,
                                                       fontWeight:
-                                                          FontWeight.w600,
+                                                          FontWeight.w500,
                                                       color: AppColors.text,
                                                       letterSpacing: 0,
                                                     ),
@@ -590,7 +604,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                                             : '—'),
                                                   style: const TextStyle(
                                                     fontSize: 12,
-                                                    fontWeight: FontWeight.w700,
+                                                    fontWeight: FontWeight.w600,
                                                     color: Color(0xFF0284C7),
                                                     letterSpacing: 0,
                                                   ),
@@ -616,9 +630,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                   ],
 
                                   if (labAttachmentUrl != null &&
-                                      labAttachmentUrl
-                                          .trim()
-                                          .isNotEmpty) ...[
+                                      labAttachmentUrl.trim().isNotEmpty) ...[
                                     const SizedBox(height: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
@@ -658,7 +670,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                                   'Lampiran Hasil Lab',
                                                   style: TextStyle(
                                                     fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
+                                                    fontWeight: FontWeight.w500,
                                                     color: AppColors.text,
                                                     letterSpacing: 0,
                                                   ),
@@ -679,21 +691,11 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                           ),
                                           const SizedBox(width: 8),
                                           OutlinedButton.icon(
-                                            onPressed: () {
-                                              final rawUrl =
-                                                  labAttachmentUrl.trim();
-                                              final fileName =
-                                                  rawUrl.split('/').last.split('?').first;
-                                              final fullUrl = (rawUrl.startsWith('http') &&
-                                                      rawUrl.contains('/api/v1/lab-examinations/view-document/'))
-                                                  ? rawUrl
-                                                  : ApiConfig.labExaminationViewDocumentUrl(fileName);
-                                              _showLabDocument(
-                                                context,
-                                                fullUrl,
-                                                'Dokumen Hasil Lab',
-                                              );
-                                            },
+                                            onPressed: () =>
+                                                showLabDocumentDialog(
+                                                  context,
+                                                  labAttachmentUrl,
+                                                ),
                                             icon: const Icon(
                                               LucideIcons.eye,
                                               size: 13,
@@ -702,7 +704,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                               'Lihat Dokumen',
                                               style: TextStyle(
                                                 fontSize: 11,
-                                                fontWeight: FontWeight.w700,
+                                                fontWeight: FontWeight.w600,
                                                 letterSpacing: 0,
                                               ),
                                             ),
@@ -750,83 +752,130 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                   ),
                 ),
 
-                if (!embedded) ...[
-                const SizedBox(height: 16),
-
-                // Button 1: Doctor Examination / Medical Record Form (Hanya jika belum didiagnosa)
-                if (isDoctor && !isDiagnosed) ...[
+                if (dispensed.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  _buildSectionTitle('Obat yang Diberikan'),
+                  const SizedBox(height: 10),
+                  _DispensedMedicineList(items: dispensed),
+                  const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _openDoctorExamination(
+                    child: OutlinedButton.icon(
+                      onPressed: () => showPrescriptionPdfDialog(
                         context,
-                        ref,
-                        history,
-                        patientObj,
+                        medicalRecordId: history.id,
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0284C7),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        foregroundColor: AppColors.green,
+                        side: const BorderSide(
+                          color: AppColors.green,
+                          width: 1.2,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        elevation: 1,
                       ),
-                      icon: const Icon(
-                        LucideIcons.stethoscope,
-                        size: 15,
-                        color: Colors.white,
-                      ),
+                      icon: const Icon(LucideIcons.download, size: 15),
                       label: const Text(
-                        'Periksa Pasien / Input Rekam Medis',
+                        'Download Resep',
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: 0,
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
                 ],
 
-                // Button 2: View full patient medical history
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      final targetId = history.patientId.isNotEmpty
-                          ? history.patientId
-                          : history.id;
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PatientDetailScreen(
-                            patientId: targetId,
-                            initialPatient: patientObj,
+                if (!embedded) ...[
+                  const SizedBox(height: 16),
+
+                  // Button 1: Doctor Examination / Medical Record Form (Hanya jika belum didiagnosa)
+                  if (isDoctor && !isDiagnosed) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openDoctorExamination(
+                          context,
+                          ref,
+                          history,
+                          patientObj,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          // Back from the lab: continue the exam, not a new one.
+                          backgroundColor: history.isLabFollowUp
+                              ? AppColors.purple
+                              : const Color(0xFF0284C7),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 1,
+                        ),
+                        icon: Icon(
+                          history.isLabFollowUp
+                              ? LucideIcons.flaskConical
+                              : LucideIcons.stethoscope,
+                          size: 15,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          history.isLabFollowUp
+                              ? 'Tinjau Hasil Lab & Lanjutkan Pemeriksaan'
+                              : 'Periksa Pasien / Input Rekam Medis',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0,
                           ),
                         ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      foregroundColor: AppColors.blue,
-                      side: const BorderSide(color: AppColors.blue, width: 1.2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    icon: const Icon(LucideIcons.fileText, size: 15),
-                    label: const Text(
-                      'Buka Rekam Medis Lengkap Pasien',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0,
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Button 2: View full patient medical history
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final targetId = history.patientId.isNotEmpty
+                            ? history.patientId
+                            : history.id;
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PatientDetailScreen(
+                              patientId: targetId,
+                              initialPatient: patientObj,
+                            ),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        foregroundColor: AppColors.blue,
+                        side: const BorderSide(
+                          color: AppColors.blue,
+                          width: 1.2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      icon: const Icon(LucideIcons.fileText, size: 15),
+                      label: const Text(
+                        'Buka Rekam Medis Lengkap Pasien',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0,
+                        ),
                       ),
                     ),
                   ),
-                ),
                 ],
               ],
             ),
@@ -848,118 +897,6 @@ class MedicalHistoryDetailView extends ConsumerWidget {
       context,
       patient: patientObj,
       history: history,
-    );
-  }
-
-  void _showLabDocument(BuildContext context, String url, String title) {
-    final fileName = url.split('/').last.split('?').first;
-    final lower = fileName.toLowerCase();
-    final isPdf = lower.endsWith('.pdf');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 720),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black26,
-                blurRadius: 20,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF8FAFC),
-                  border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: isPdf
-                            ? const Color(0xFFFEE2E2)
-                            : const Color(0xFFE0F2FE),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        isPdf ? LucideIcons.fileText : LucideIcons.image,
-                        size: 16,
-                        color: isPdf
-                            ? const Color(0xFFDC2626)
-                            : const Color(0xFF0284C7),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.text,
-                              letterSpacing: 0,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            fileName,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: AppColors.sub,
-                              letterSpacing: 0,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(
-                        LucideIcons.x,
-                        size: 18,
-                        color: AppColors.sub,
-                      ),
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Body: downloads with the login token, then shows the PDF
-              // pages or the image.
-              SizedBox(
-                height: MediaQuery.sizeOf(ctx).height * 0.72,
-                child: LabDocumentViewer(url: url, fileName: fileName),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -993,7 +930,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.sub,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w400,
               letterSpacing: 0,
             ),
           ),
@@ -1007,7 +944,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                 value,
                 style: const TextStyle(
                   fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.text,
                   letterSpacing: 0,
                 ),
@@ -1050,7 +987,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                 style: TextStyle(
                   fontSize: 11,
                   letterSpacing: 0,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w500,
                   color: effectiveColor,
                 ),
               ),
@@ -1063,7 +1000,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
               value ?? '-',
               style: TextStyle(
                 fontSize: 12,
-                fontWeight: isMuted ? FontWeight.w400 : FontWeight.w500,
+                fontWeight: FontWeight.w400,
                 fontStyle: isMuted ? FontStyle.italic : FontStyle.normal,
                 color: isMuted ? AppColors.sub : AppColors.text,
                 height: 1.35,
@@ -1187,7 +1124,7 @@ class _DiagnosaDetailValue extends ConsumerWidget {
           formatted,
           style: const TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w400,
             color: AppColors.text,
             height: 1.35,
             letterSpacing: 0,
@@ -1204,7 +1141,7 @@ class _DiagnosaDetailValue extends ConsumerWidget {
           detail,
           style: const TextStyle(
             fontSize: 13,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w400,
             color: AppColors.text,
             height: 1.35,
             letterSpacing: 0,
@@ -1240,7 +1177,7 @@ class _DiagnosaDetailValue extends ConsumerWidget {
         rawCodes,
         style: const TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
           color: AppColors.text,
           height: 1.35,
           letterSpacing: 0,
@@ -1260,7 +1197,7 @@ class _DiagnosaDetailValue extends ConsumerWidget {
         rawCodes,
         style: const TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
           color: AppColors.text,
           height: 1.35,
           letterSpacing: 0,
@@ -1312,7 +1249,7 @@ class _Icd10CodesResolver extends ConsumerWidget {
         anyLoading ? 'Memuat diagnosa ($fallback)...' : fallback,
         style: const TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
           color: AppColors.text,
           height: 1.35,
           letterSpacing: 0,
@@ -1324,7 +1261,7 @@ class _Icd10CodesResolver extends ConsumerWidget {
       results.join(', '),
       style: const TextStyle(
         fontSize: 13,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w400,
         color: AppColors.text,
         height: 1.35,
         letterSpacing: 0,
@@ -1349,7 +1286,7 @@ class _TindakanDetailValue extends ConsumerWidget {
           formatted,
           style: const TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
             color: AppColors.text,
             height: 1.35,
             letterSpacing: 0,
@@ -1366,7 +1303,7 @@ class _TindakanDetailValue extends ConsumerWidget {
           detail,
           style: const TextStyle(
             fontSize: 13,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w400,
             color: AppColors.text,
             height: 1.35,
             letterSpacing: 0,
@@ -1402,7 +1339,7 @@ class _TindakanDetailValue extends ConsumerWidget {
         rawCodes,
         style: const TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           color: AppColors.text,
           height: 1.35,
           letterSpacing: 0,
@@ -1422,7 +1359,7 @@ class _TindakanDetailValue extends ConsumerWidget {
         rawCodes,
         style: const TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           color: AppColors.text,
           height: 1.35,
           letterSpacing: 0,
@@ -1474,7 +1411,7 @@ class _Icd9CodesResolver extends ConsumerWidget {
         anyLoading ? 'Memuat tindakan ($fallback)...' : fallback,
         style: const TextStyle(
           fontSize: 13,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           color: AppColors.text,
           height: 1.35,
           letterSpacing: 0,
@@ -1486,10 +1423,151 @@ class _Icd9CodesResolver extends ConsumerWidget {
       results.join(', '),
       style: const TextStyle(
         fontSize: 13,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w400,
         color: AppColors.text,
         height: 1.35,
         letterSpacing: 0,
+      ),
+    );
+  }
+}
+
+/// The medicines handed over on a finished visit, one row per medicine, with
+/// substitutions marked and who dispensed them.
+class _DispensedMedicineList extends StatelessWidget {
+  const _DispensedMedicineList({required this.items});
+
+  final List<DispensedMedicine> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final handover = items.where((m) => m.dispensedBy != null).firstOrNull;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            _DispensedMedicineRow(index: i + 1, item: items[i]),
+          ],
+          if (handover != null) ...[
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 9),
+              child: Text(
+                [
+                  'Diserahkan oleh ${handover.dispensedBy}',
+                  if (handover.dispensedAt != null)
+                    DateHelper.formatDateTime(handover.dispensedAt),
+                ].join(' · '),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.sub,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DispensedMedicineRow extends StatelessWidget {
+  const _DispensedMedicineRow({required this.index, required this.item});
+
+  final int index;
+  final DispensedMedicine item;
+
+  @override
+  Widget build(BuildContext context) {
+    final usage = [
+      item.dosage,
+      item.instructions,
+    ].where((s) => s.isNotEmpty).join(' · ');
+    final quantity = [
+      '${item.quantity}',
+      item.unit,
+    ].where((s) => s.isNotEmpty).join(' ');
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 9),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 20,
+            child: Text(
+              '$index.',
+              style: const TextStyle(
+                fontSize: 12,
+                color: AppColors.sub,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.text,
+                    letterSpacing: 0,
+                  ),
+                ),
+                if (usage.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    usage,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.sub,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+                if (item.isSubstituted) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    [
+                      'Pengganti ${item.substitutedFor}',
+                      if (item.substitutionReason.isNotEmpty)
+                        item.substitutionReason,
+                    ].join(' · '),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.orange,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            quantity,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: AppColors.text,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:bayan_rme/core/widgets/app_badge.dart';
 
 import 'package:bayan_rme/core/widgets/status_filter_button.dart';
 import 'package:bayan_rme/features/auth/domain/app_user.dart';
@@ -237,6 +238,9 @@ void main() {
       expect(find.text('Paracetamol 500mg'), findsOneWidget);
       expect(find.text('Amoxicillin 500mg'), findsOneWidget);
       expect(find.text('Habis'), findsOneWidget);
+      // Only warnings get a badge: "Habis" yes, "Tersedia" no.
+      expect(find.widgetWithText(AppBadge, 'Habis'), findsOneWidget);
+      expect(find.widgetWithText(AppBadge, 'Tersedia'), findsNothing);
       // Verify date is hidden for out-of-stock item ('Habis') and '-' is not rendered
       expect(find.text('-'), findsNothing);
 

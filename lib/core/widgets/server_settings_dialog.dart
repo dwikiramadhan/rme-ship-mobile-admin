@@ -135,8 +135,8 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                         Text(
                           'Pengaturan Server Backend',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.text,
                           ),
                         ),
@@ -144,7 +144,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                         Text(
                           'Koneksi lokal jaringan Wi-Fi kapal',
                           style: TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 11,
                             color: AppColors.sub,
                           ),
                         ),
@@ -165,7 +165,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
               const Text(
                 'Masukkan alamat IP backend server yang terhubung di jaringan Wi-Fi yang sama.',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: AppColors.sub,
                   height: 1.4,
                 ),
@@ -178,6 +178,9 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                 controller: _urlCtrl,
                 placeholder: 'cth: 192.168.1.26:8080',
                 capitalizeFirst: false,
+                // Same sizes as the password form on the profile page.
+                labelFontSize: 11.5,
+                fontSize: 12.5,
                 onChanged: (_) {
                   if (_testSuccess != null) {
                     setState(() {
@@ -218,8 +221,8 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                     label: Text(
                       _isTesting ? 'Menguji...' : 'Tes Koneksi',
                       style: const TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -242,8 +245,8 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                             child: Text(
                               _testMessage!,
                               style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w500,
                                 color: _testSuccess == true
                                     ? AppColors.green
                                     : AppColors.red,

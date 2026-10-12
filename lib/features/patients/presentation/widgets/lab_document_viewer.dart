@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:pdfx/pdfx.dart';
 
+import '../../../../core/network/api_config.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 
@@ -25,6 +26,105 @@ Future<({Uint8List bytes, String? contentType})> _loadWithAuth(
   return (
     bytes: Uint8List.fromList(res.data ?? const []),
     contentType: res.headers.value(Headers.contentTypeHeader),
+  );
+}
+
+/// Full URL of a lab document from the stored `attachment_url`
+/// (e.g. `/uploads/lab-eximination/x.pdf` -> `.../view-document/x.pdf`).
+String labDocumentUrl(String attachmentUrl) {
+  final raw = attachmentUrl.trim();
+  if (raw.startsWith('http') &&
+      raw.contains('/api/v1/lab-examinations/view-document/')) {
+    return raw;
+  }
+  final fileName = raw.split('/').last.split('?').first;
+  return ApiConfig.labExaminationViewDocumentUrl(fileName);
+}
+
+/// Opens a lab result document in a dialog (PDF pages or image).
+Future<void> showLabDocumentDialog(
+  BuildContext context,
+  String attachmentUrl, {
+  String title = 'Dokumen Hasil Lab',
+}) {
+  final url = labDocumentUrl(attachmentUrl);
+  final fileName = url.split('/').last.split('?').first;
+  final isPdf = fileName.toLowerCase().endsWith('.pdf');
+
+  return showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 720),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              decoration: const BoxDecoration(
+                color: AppColors.card2,
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: isPdf ? AppColors.redLt : AppColors.skyLt,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      isPdf ? LucideIcons.fileText : LucideIcons.image,
+                      size: 16,
+                      color: isPdf ? AppColors.red : AppColors.sky,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          fileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11, color: AppColors.sub),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 18, color: AppColors.sub),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+            ),
+            // Downloads with the login token, then shows the PDF or image.
+            SizedBox(
+              height: MediaQuery.sizeOf(ctx).height * 0.72,
+              child: LabDocumentViewer(url: url, fileName: fileName),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
 

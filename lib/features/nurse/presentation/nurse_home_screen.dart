@@ -223,6 +223,8 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
       label: meta.label,
       color: meta.color,
       background: meta.background,
+      fontSize: 10.5,
+      fontWeight: FontWeight.w500,
     );
   }
 }

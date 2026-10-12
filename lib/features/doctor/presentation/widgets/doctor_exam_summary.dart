@@ -90,17 +90,111 @@ class DoctorExamSummary extends StatelessWidget {
           beforeDiagnosis!,
           const SizedBox(height: 10),
         ],
-        _ExamSection(
-          label: 'DIAGNOSA KLINIS',
-          child: _DiagnosaDisplay(diagnosa: p.diagnosa),
-        ),
-        const SizedBox(height: 10),
-        _ExamSection(
-          label: 'TINDAKAN / PROSEDUR (ICD-9-CM)',
-          child: _TindakanDisplay(tindakan: p.tindakan),
-        ),
+        ExamDiagnosisDetail(diagnosa: p.diagnosa, tindakan: p.tindakan),
         const SizedBox(height: 14),
       ],
+    );
+  }
+}
+
+/// The diagnosis (ICD-10) and procedure (ICD-9-CM) blocks of an examination.
+/// Part of [DoctorExamSummary]; also shown on the pharmacy prescription card.
+class ExamDiagnosisDetail extends StatelessWidget {
+  const ExamDiagnosisDetail({
+    super.key,
+    this.diagnosa,
+    this.tindakan,
+    this.inline = false,
+    this.labelLetterSpacing = 0.4,
+  });
+
+  final String? diagnosa;
+  final String? tindakan;
+
+  /// Letter spacing of the small caps block labels.
+  final double labelLetterSpacing;
+
+  /// One sentence per block ("Name (CODE), Name (CODE)") instead of a list.
+  final bool inline;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ExamSection(
+          label: 'Diagnosa Klinis',
+          labelLetterSpacing: labelLetterSpacing,
+          child: inline
+              ? _InlineIcdText(text: diagnosa, procedure: false)
+              : _DiagnosaDisplay(diagnosa: diagnosa),
+        ),
+        const SizedBox(height: 10),
+        ExamSection(
+          label: 'Tindakan / Prosedur (ICD-9-CM)',
+          labelLetterSpacing: labelLetterSpacing,
+          child: inline
+              ? _InlineIcdText(text: tindakan, procedure: true)
+              : _TindakanDisplay(tindakan: tindakan),
+        ),
+      ],
+    );
+  }
+}
+
+/// Splits a stored diagnosis/procedure text into entries (one per line,
+/// or separated by ";" or ",").
+List<String> _splitIcdItems(String text) {
+  if (text.isEmpty || text == '—' || text == '-') return [];
+  for (final separator in ['\n', ';', ',']) {
+    if (text.contains(separator)) {
+      return text
+          .split(separator)
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+  }
+  return [text.trim()];
+}
+
+/// All entries in one sentence: "Name (CODE), Name (CODE)". Bare codes are
+/// looked up to get their names.
+class _InlineIcdText extends ConsumerWidget {
+  const _InlineIcdText({required this.text, required this.procedure});
+
+  final String? text;
+
+  /// ICD-9-CM procedures instead of ICD-10 diagnoses.
+  final bool procedure;
+
+  String _label(WidgetRef ref, String raw) {
+    if (raw.contains(' - ')) {
+      final parts = raw.split(' - ');
+      return '${parts.sublist(1).join(' - ').trim()} (${parts.first.trim()})';
+    }
+    if (_parseNameWithCode(raw) != null) return raw;
+    final ({String display, String code})? item;
+    if (procedure) {
+      final found = ref.watch(icd9LookupProvider(raw)).valueOrNull;
+      item = found == null ? null : (display: found.display, code: found.code);
+    } else {
+      final found = ref.watch(icd10LookupProvider(raw)).valueOrNull;
+      item = found == null ? null : (display: found.display, code: found.code);
+    }
+    if (item == null || item.display.isEmpty) return raw;
+    return item.display.contains(item.code)
+        ? item.display
+        : '${item.display} (${item.code})';
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final items = _splitIcdItems(text?.trim() ?? '');
+    if (items.isEmpty) return const Text('—', style: _emptyStyle);
+    return Text(
+      items.map((raw) => _label(ref, raw)).join(', '),
+      style: const TextStyle(fontSize: 12, height: 1.4, color: AppColors.text),
     );
   }
 }
@@ -120,36 +214,10 @@ class _DiagnosaDisplay extends ConsumerWidget {
 
   final String? diagnosa;
 
-  List<String> _parseItems(String text) {
-    if (text.isEmpty || text == '—' || text == '-') return [];
-    if (text.contains('\n')) {
-      return text
-          .split('\n')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    if (text.contains(';')) {
-      return text
-          .split(';')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    if (text.contains(',')) {
-      return text
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    return [text.trim()];
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final text = diagnosa?.trim() ?? '';
-    final items = _parseItems(text);
+    final items = _splitIcdItems(text);
 
     if (items.isEmpty) {
       return const Text('—', style: _emptyStyle);
@@ -230,36 +298,10 @@ class _TindakanDisplay extends ConsumerWidget {
 
   final String? tindakan;
 
-  List<String> _parseItems(String text) {
-    if (text.isEmpty || text == '—' || text == '-') return [];
-    if (text.contains('\n')) {
-      return text
-          .split('\n')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    if (text.contains(';')) {
-      return text
-          .split(';')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    if (text.contains(',')) {
-      return text
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-    }
-    return [text.trim()];
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final text = tindakan?.trim() ?? '';
-    final items = _parseItems(text);
+    final items = _splitIcdItems(text);
 
     if (items.isEmpty) {
       return const Text('—', style: _emptyStyle);
@@ -335,12 +377,18 @@ class _TindakanSingleItem extends ConsumerWidget {
 const _emptyStyle = TextStyle(fontSize: 12.5, color: AppColors.sub);
 
 /// A plain bordered block with a small caps label, used for the diagnosis
-/// and procedure lists.
-class _ExamSection extends StatelessWidget {
-  const _ExamSection({required this.label, required this.child});
+/// and procedure lists (and the people on the pharmacy prescription card).
+class ExamSection extends StatelessWidget {
+  const ExamSection({
+    super.key,
+    required this.label,
+    required this.child,
+    this.labelLetterSpacing = 0.4,
+  });
 
   final String label;
   final Widget child;
+  final double labelLetterSpacing;
 
   @override
   Widget build(BuildContext context) {
@@ -357,11 +405,11 @@ class _ExamSection extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,
               color: AppColors.sub,
-              letterSpacing: 0.4,
+              letterSpacing: labelLetterSpacing,
             ),
           ),
           const SizedBox(height: 8),
@@ -415,8 +463,8 @@ class _IcdRow extends StatelessWidget {
             child: Text(
               name,
               style: const TextStyle(
-                fontSize: 12.5,
-                height: 1.3,
+                fontSize: 12,
+                height: 1,
                 color: AppColors.text,
               ),
             ),
