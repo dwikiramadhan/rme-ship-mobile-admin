@@ -102,7 +102,7 @@ class ApiConfig {
 
   static const String healthPath = '/health';
   static const String loginPath = '/api/v1/auth/login';
-  static const String changePasswordPath = '/api/v1/auth/change-password';
+  static const String changePasswordPath = '/api/v1/auth/me/password';
   static const String patientsPath = '/api/v1/patients';
   static const String medicalPersonnelPath = '/api/v1/medical-personnel';
   static const String doctorsPath = medicalPersonnelPath;
