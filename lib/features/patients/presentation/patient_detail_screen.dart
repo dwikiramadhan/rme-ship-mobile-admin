@@ -1266,7 +1266,9 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
     final postalCode = (data['kode_pos'] ?? '-').toString();
     final namaWali = (data['nama_wali'] ?? '-').toString();
     final hubunganWali = (data['hubungan_wali'] ?? '-').toString();
-    final keterangan = (data['keterangan'] ?? '-').toString();
+    final keterangan = (data['keterangan'] ?? data['notes'] ?? '-').toString();
+    // Allergies are a dedicated field (GET /patients/:id calls it `allergies`).
+    final alergi = (data['alergi'] ?? data['allergies'] ?? '').toString().trim();
 
     final shipName = data['service_ship'] is Map
         ? data['service_ship']['name']?.toString() ?? '-'
@@ -1275,7 +1277,7 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
         ? data['poliklinik']['name']?.toString() ?? '-'
         : (data['poli_code']?.toString() ?? '-');
 
-    final hasMedicalNote = keterangan.trim().isNotEmpty && keterangan != '-';
+    final hasKeterangan = keterangan.trim().isNotEmpty && keterangan != '-';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1418,14 +1420,14 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
             _ProfileFieldGrid([
               _ProfileField('Kapal Layanan Terdaftar', shipName),
               _ProfileField('Poliklinik Terdaftar', poliName),
-              if (!hasMedicalNote)
-                const _ProfileField('Catatan Medis / Riwayat Alergi', '-'),
+              if (alergi.isEmpty)
+                const _ProfileField('Riwayat Alergi', 'Tidak ada data alergi'),
+              _ProfileField('Keterangan Tambahan', hasKeterangan ? keterangan : '-'),
             ]),
-            // Allergies / medical notes matter clinically: give them their own
-            // highlighted box instead of a plain field.
-            if (hasMedicalNote) ...[
+            // Allergies matter clinically: give them their own highlighted box.
+            if (alergi.isNotEmpty) ...[
               const SizedBox(height: 12),
-              _MedicalNoteCallout(note: keterangan),
+              _MedicalNoteCallout(note: alergi),
             ],
           ],
         ),
@@ -2072,7 +2074,7 @@ class _ProfileFieldTile extends StatelessWidget {
   }
 }
 
-/// Highlighted box for allergies / special medical notes.
+/// Highlighted box for the patient's allergies.
 class _MedicalNoteCallout extends StatelessWidget {
   const _MedicalNoteCallout({required this.note});
 
@@ -2097,7 +2099,7 @@ class _MedicalNoteCallout extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'CATATAN MEDIS / RIWAYAT ALERGI',
+                  'RIWAYAT ALERGI',
                   style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w600,

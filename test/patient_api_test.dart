@@ -4,6 +4,42 @@ import 'package:bayan_rme/features/patients/domain/patient.dart';
 
 void main() {
   group('Patient.fromApiJson', () {
+    test('reads alergi separately from keterangan (list or detail naming)', () {
+      final base = {
+        'id': 'p-1',
+        'name': 'Budi',
+        'gender': 'Laki-laki',
+        'keterangan': 'Pemeriksaan posko',
+      };
+      expect(
+        Patient.fromApiJson({...base, 'alergi': 'Amoksisilin'}).alergi,
+        'Amoksisilin',
+      );
+      expect(
+        Patient.fromApiJson({...base, 'allergies': 'Seafood'}).alergi,
+        'Seafood',
+      );
+      final p = Patient.fromApiJson(base);
+      expect(p.alergi, isNull);
+      expect(p.keterangan, 'Pemeriksaan posko');
+    });
+
+    test('sends alergi on save, including an empty value to clear it', () {
+      final p = Patient.fromApiJson(const {
+        'id': 'p-1',
+        'name': 'Budi',
+        'gender': 'Laki-laki',
+      });
+      expect(
+        p
+            .copyWith(alergi: ' Amoksisilin ')
+            .toCreatePatientJson(alergi: ' Amoksisilin ')['alergi'],
+        'Amoksisilin',
+      );
+      expect(p.toCreatePatientJson(alergi: '')['alergi'], '');
+      expect(p.toCreatePatientJson().containsKey('alergi'), isFalse);
+    });
+
     test('parses complete patient JSON from backend', () {
       final json = {
         'id': 'p-123',

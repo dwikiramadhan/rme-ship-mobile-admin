@@ -56,6 +56,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   final _alamat = TextEditingController();
   final _namaWali = TextEditingController();
   final _keterangan = TextEditingController();
+  final _alergi = TextEditingController();
 
   final _keluhanUtama = TextEditingController();
   final _durasiKeluhan = TextEditingController();
@@ -146,6 +147,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _namaWali.text = p.namaWali ?? '';
       _hubunganWali = p.hubunganWali;
       _keterangan.text = p.keterangan ?? '';
+      _alergi.text = p.alergi ?? '';
 
       _keluhanUtama.text = p.keluhanUtama == 'Pemeriksaan umum'
           ? ''
@@ -377,6 +379,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _alamat,
       _namaWali,
       _keterangan,
+      _alergi,
       _keluhanUtama,
       _durasiKeluhan,
       _lokasiKeluhan,
@@ -514,6 +517,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               : null,
           hubunganWali: _hubunganWali,
           keterangan: effectiveKeterangan,
+          alergi: _alergi.text.trim(),
           kodeKelurahan: kodeKel,
           kodePos: kodePosVal,
           updatedAt: DateTime.now(),
@@ -544,6 +548,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                     : null,
                 hubunganWali: _hubunganWali,
                 keterangan: effectiveKeterangan,
+                alergi: _alergi.text.trim(),
                 kodeKelurahan: kodeKel,
                 kodePos: kodePosVal,
                 keluhanUtama: _keluhanUtama.text.trim().isNotEmpty
@@ -1575,6 +1580,17 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+
+          // Riwayat Alergi (terpisah dari keterangan; dipakai di resep)
+          AppTextField(
+            label: 'Riwayat Alergi',
+            controller: _alergi,
+            fontSize: 11.0,
+            labelFontSize: 10.5,
+            placeholder: 'Mis. Amoksisilin, seafood. Kosongkan jika tidak ada.',
+            maxLines: 2,
           ),
           const SizedBox(height: 12),
 

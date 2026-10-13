@@ -40,6 +40,7 @@ class Patient extends Equatable {
     this.namaWali,
     this.hubunganWali,
     this.keterangan,
+    this.alergi,
     this.kodeKelurahan,
     this.kodePos,
     this.diagnosa,
@@ -99,6 +100,9 @@ class Patient extends Equatable {
   final String? namaWali;
   final String? hubunganWali;
   final String? keterangan;
+
+  /// Riwayat alergi pasien; terpisah dari [keterangan] (catatan umum).
+  final String? alergi;
   final String? kodeKelurahan;
   final int? kodePos;
   final String? photoUrl;
@@ -137,6 +141,7 @@ class Patient extends Equatable {
     String? namaWali,
     String? hubunganWali,
     String? keterangan,
+    String? alergi,
     String? kodeKelurahan,
     int? kodePos,
     Object? photoUrl = _unset,
@@ -182,6 +187,7 @@ class Patient extends Equatable {
       namaWali: namaWali ?? this.namaWali,
       hubunganWali: hubunganWali ?? this.hubunganWali,
       keterangan: keterangan ?? this.keterangan,
+      alergi: alergi ?? this.alergi,
       kodeKelurahan: kodeKelurahan ?? this.kodeKelurahan,
       kodePos: kodePos ?? this.kodePos,
       diagnosa: identical(diagnosa, _unset)
@@ -238,6 +244,9 @@ class Patient extends Equatable {
     final String? namaWali = json['nama_wali']?.toString();
     final String? hubunganWali = json['hubungan_wali']?.toString();
     final String? keterangan = json['keterangan']?.toString();
+    // List/create/update return `alergi`; GET /patients/:id names it `allergies`.
+    final String? alergi =
+        json['alergi']?.toString() ?? json['allergies']?.toString();
     final String? kodeKelurahan = json['kode_kelurahan']?.toString();
     final int? kodePos = (json['kode_pos'] as num?)?.toInt();
 
@@ -682,6 +691,7 @@ class Patient extends Equatable {
       namaWali: namaWali,
       hubunganWali: hubunganWali,
       keterangan: keterangan,
+      alergi: alergi,
       kodeKelurahan: kodeKelurahan,
       kodePos: kodePos,
       diagnosa: diagnosa,
@@ -724,6 +734,7 @@ class Patient extends Equatable {
     String? namaWali,
     String? hubunganWali,
     String? keterangan,
+    String? alergi,
     String? kodeKelurahan,
     String? statusPenanganan,
     String? photoUrl,
@@ -777,6 +788,8 @@ class Patient extends Equatable {
       if (hubunganWali != null && hubunganWali.isNotEmpty)
         'hubungan_wali': hubunganWali,
       if (keterangan != null && keterangan.isNotEmpty) 'keterangan': keterangan,
+      // Sent even when empty so clearing the field on edit removes the allergy.
+      if (alergi != null) 'alergi': alergi.trim(),
       if (kodeKelurahan != null && kodeKelurahan.isNotEmpty)
         'kode_kelurahan': kodeKelurahan,
       if (kodePos != null) 'kode_pos': kodePos,
@@ -811,6 +824,7 @@ class Patient extends Equatable {
     namaWali,
     hubunganWali,
     keterangan,
+    alergi,
     kodeKelurahan,
     kodePos,
     diagnosa,

@@ -156,7 +156,8 @@ void main() {
       'name': 'Pasien Dengan Nama Yang Cukup Panjang Sekali',
       'gender': 'Perempuan',
       'address': 'Jl. Pelabuhan No. 12, RT 03 / RW 05, Kelurahan Koja, Jakarta Utara',
-      'keterangan': 'Alergi penisilin',
+      'keterangan': 'Pemeriksaan kesehatan posko kapal',
+      'allergies': 'Alergi penisilin',
       'medical_records': [
         // No doctor, complaint, ship or diagnosis recorded yet.
         {'id': 'mr-1', 'created_at': '2026-08-30T07:00:00Z', 'status': 'Selesai'},
@@ -199,9 +200,10 @@ void main() {
     await tester.tap(find.text('Profil & Identitas Lengkap'));
     await tester.pumpAndSettle();
 
-    // Allergy note gets its own highlighted box.
-    expect(find.text('CATATAN MEDIS / RIWAYAT ALERGI'), findsOneWidget);
+    // The allergy field gets its own highlighted box; keterangan stays a plain note.
+    expect(find.text('RIWAYAT ALERGI'), findsOneWidget);
     expect(find.text('Alergi penisilin'), findsOneWidget);
+    expect(find.text('Pemeriksaan kesehatan posko kapal'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
