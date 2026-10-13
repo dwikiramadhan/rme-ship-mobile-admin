@@ -23,7 +23,8 @@ class NotificationsView extends ConsumerStatefulWidget {
   });
 
   final NotificationRole role;
-  final void Function(BuildContext context, Patient patient, bool isLab) onTapItem;
+  final void Function(BuildContext context, Patient patient, bool isLab)
+  onTapItem;
   final void Function(Patient patient, bool isLab)? onMarkSeen;
 
   @override
@@ -32,25 +33,26 @@ class NotificationsView extends ConsumerStatefulWidget {
 
 class _NotificationsViewState extends ConsumerState<NotificationsView> {
   List<Patient> _filterRolePatients(List<Patient> all) => switch (widget.role) {
-        NotificationRole.doctor => all.where((p) {
-            final isWaitingDoc = p.status == PatientStatus.menungguDokter &&
-                (p.statusPenanganan == null ||
-                    p.statusPenanganan == '' ||
-                    p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
-                    p.statusPenanganan == 'Pemeriksaan awal');
-            final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
-            return isWaitingDoc || isLabReady;
-          }).toList(),
-        NotificationRole.pharmacy => all.where((p) {
-            return p.statusPenanganan == 'Menunggu Obat' ||
-                p.resepStatus == ResepStatus.baru ||
-                (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai);
-          }).toList(),
-        NotificationRole.lab => all.where((p) {
-            return p.statusPenanganan == 'Menunggu Lab' ||
-                (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru);
-          }).toList(),
-      };
+    NotificationRole.doctor => all.where((p) {
+      final isWaitingDoc =
+          p.status == PatientStatus.menungguDokter &&
+          (p.statusPenanganan == null ||
+              p.statusPenanganan == '' ||
+              p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
+              p.statusPenanganan == 'Pemeriksaan awal');
+      final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
+      return isWaitingDoc || isLabReady;
+    }).toList(),
+    NotificationRole.pharmacy => all.where((p) {
+      return p.statusPenanganan == 'Menunggu Obat' ||
+          p.resepStatus == ResepStatus.baru ||
+          (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai);
+    }).toList(),
+    NotificationRole.lab => all.where((p) {
+      return p.statusPenanganan == 'Menunggu Lab' ||
+          (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru);
+    }).toList(),
+  };
 
   void _markAllRead() {
     switch (widget.role) {
@@ -85,11 +87,11 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> {
   }
 
   bool _isUnread(Patient p, bool isLab) => switch ((widget.role, isLab)) {
-        (NotificationRole.doctor, true) => !p.dilihatDokterLab,
-        (NotificationRole.doctor, false) => !p.dilihatDokter,
-        (NotificationRole.pharmacy, _) => !p.dilihatPharmacy,
-        (NotificationRole.lab, _) => !p.dilihatLab,
-      };
+    (NotificationRole.doctor, true) => !p.dilihatDokterLab,
+    (NotificationRole.doctor, false) => !p.dilihatDokter,
+    (NotificationRole.pharmacy, _) => !p.dilihatPharmacy,
+    (NotificationRole.lab, _) => !p.dilihatLab,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +103,6 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> {
       children: [
         ScreenHeader(
           title: 'Notifikasi',
-          subtitle: '${roleNotifs.length} pemberitahuan masuk',
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -126,10 +127,13 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   textStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -142,11 +146,15 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> {
           child: roleNotifs.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   itemCount: roleNotifs.length,
                   itemBuilder: (context, index) {
                     final patient = roleNotifs[index];
-                    final isLab = patient.labOrder?.status == LabOrderStatus.selesai;
+                    final isLab =
+                        patient.labOrder?.status == LabOrderStatus.selesai;
                     final isUnread = _isUnread(patient, isLab);
 
                     return _NotificationCard(
@@ -197,10 +205,7 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> {
             const Text(
               'Semua antrian pasien dan tindakan telah selesai atau dibaca.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.sub,
-              ),
+              style: TextStyle(fontSize: 13, color: AppColors.sub),
             ),
           ],
         ),
@@ -239,7 +244,9 @@ class _NotificationCard extends StatelessWidget {
         color: isAlert ? AppColors.redLt : AppColors.card,
         borderRadius: BorderRadius.circular(5),
         border: Border.all(
-          color: isAlert ? AppColors.red.withValues(alpha: 0.3) : AppColors.border,
+          color: isAlert
+              ? AppColors.red.withValues(alpha: 0.3)
+              : AppColors.border,
         ),
       ),
       child: Text(
@@ -255,34 +262,40 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cleanName = CleanTextHelper.cleanName(patient.nama, fallback: 'Pasien');
+    final cleanName = CleanTextHelper.cleanName(
+      patient.nama,
+      fallback: 'Pasien',
+    );
     final rm = patient.registerNo.isNotEmpty ? patient.registerNo : patient.nik;
 
-    final (themeColor, themeBg, themeIcon, statusLabel) = switch ((role, isLabResult)) {
+    final (themeColor, themeBg, themeIcon, statusLabel) = switch ((
+      role,
+      isLabResult,
+    )) {
       (NotificationRole.doctor, true) => (
-          AppColors.purple,
-          AppColors.purpleLt,
-          LucideIcons.flaskConical,
-          'Hasil Lab Selesai',
-        ),
+        AppColors.purple,
+        AppColors.purpleLt,
+        LucideIcons.flaskConical,
+        'Hasil Lab Selesai',
+      ),
       (NotificationRole.doctor, false) => (
-          AppColors.blue,
-          AppColors.blueLt,
-          LucideIcons.stethoscope,
-          'Menunggu Dokter',
-        ),
+        AppColors.blue,
+        AppColors.blueLt,
+        LucideIcons.stethoscope,
+        'Menunggu Dokter',
+      ),
       (NotificationRole.pharmacy, _) => (
-          AppColors.orange,
-          AppColors.orangeLt,
-          LucideIcons.pill,
-          'Resep Baru',
-        ),
+        AppColors.orange,
+        AppColors.orangeLt,
+        LucideIcons.pill,
+        'Resep Baru',
+      ),
       (NotificationRole.lab, _) => (
-          AppColors.purple,
-          AppColors.purpleLt,
-          LucideIcons.flaskConical,
-          'Order Lab',
-        ),
+        AppColors.purple,
+        AppColors.purpleLt,
+        LucideIcons.flaskConical,
+        'Order Lab',
+      ),
     };
 
     final hasVitals = !patient.vitals.isEmpty;
@@ -294,7 +307,9 @@ class _NotificationCard extends StatelessWidget {
         color: isUnread ? Colors.white : AppColors.card,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isUnread ? AppColors.blue.withValues(alpha: 0.35) : AppColors.border,
+          color: isUnread
+              ? AppColors.blue.withValues(alpha: 0.35)
+              : AppColors.border,
           width: isUnread ? 1.2 : 1.0,
         ),
         boxShadow: [
@@ -375,10 +390,14 @@ class _NotificationCard extends StatelessWidget {
                             [
                               if (rm.isNotEmpty) rm,
                               '${patient.jk == Gender.l ? 'L' : 'P'} • ${patient.umur} th',
-                              if (patient.poliName != null && patient.poliName!.isNotEmpty)
+                              if (patient.poliName != null &&
+                                  patient.poliName!.isNotEmpty)
                                 patient.poliName!,
                             ].join(' · '),
-                            style: const TextStyle(fontSize: 12, color: AppColors.sub),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.sub,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -392,7 +411,10 @@ class _NotificationCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: themeBg,
                             borderRadius: BorderRadius.circular(6),
@@ -415,22 +437,37 @@ class _NotificationCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          patient.waktuMasuk.isNotEmpty ? DateHelper.formatDateTime(patient.waktuMasuk) : 'Baru saja',
-                          style: const TextStyle(fontSize: 11, color: AppColors.sub),
+                          patient.waktuMasuk.isNotEmpty
+                              ? DateHelper.formatDateTime(patient.waktuMasuk)
+                              : 'Baru saja',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.sub,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(width: 6),
-                    const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.sub),
+                    const Icon(
+                      LucideIcons.chevronRight,
+                      size: 16,
+                      color: AppColors.sub,
+                    ),
                   ],
                 ),
 
                 // Clinical Context (Informative Highlights)
-                if (hasComplaint || hasVitals || isLabResult || patient.resep.isNotEmpty) ...[
+                if (hasComplaint ||
+                    hasVitals ||
+                    isLabResult ||
+                    patient.resep.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.card2.withValues(alpha: 0.8),
                       borderRadius: BorderRadius.circular(8),
@@ -442,7 +479,11 @@ class _NotificationCard extends StatelessWidget {
                         if (isLabResult && patient.labOrder != null) ...[
                           Row(
                             children: [
-                              const Icon(LucideIcons.flaskConical, size: 13, color: AppColors.purple),
+                              const Icon(
+                                LucideIcons.flaskConical,
+                                size: 13,
+                                color: AppColors.purple,
+                              ),
                               const SizedBox(width: 5),
                               Expanded(
                                 child: Text(
@@ -456,10 +497,15 @@ class _NotificationCard extends StatelessWidget {
                               ),
                             ],
                           ),
-                        ] else if (role == NotificationRole.pharmacy && patient.resep.isNotEmpty) ...[
+                        ] else if (role == NotificationRole.pharmacy &&
+                            patient.resep.isNotEmpty) ...[
                           Row(
                             children: [
-                              const Icon(LucideIcons.pill, size: 13, color: AppColors.orange),
+                              const Icon(
+                                LucideIcons.pill,
+                                size: 13,
+                                color: AppColors.orange,
+                              ),
                               const SizedBox(width: 5),
                               Expanded(
                                 child: Text(
@@ -488,7 +534,10 @@ class _NotificationCard extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   patient.keluhanUtama,
-                                  style: const TextStyle(fontSize: 12, color: AppColors.text),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.text,
+                                  ),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -512,13 +561,19 @@ class _NotificationCard extends StatelessWidget {
                                 _vitalChip(
                                   'Suhu',
                                   '${patient.vitals.suhu}°C',
-                                  isAlert: (double.tryParse(patient.vitals.suhu) ?? 0) >= 37.8,
+                                  isAlert:
+                                      (double.tryParse(patient.vitals.suhu) ??
+                                          0) >=
+                                      37.8,
                                 ),
                               if (patient.vitals.spo2.isNotEmpty)
                                 _vitalChip(
                                   'SpO2',
                                   '${patient.vitals.spo2}%',
-                                  isAlert: (int.tryParse(patient.vitals.spo2) ?? 100) <= 94,
+                                  isAlert:
+                                      (int.tryParse(patient.vitals.spo2) ??
+                                          100) <=
+                                      94,
                                 ),
                             ],
                           ),

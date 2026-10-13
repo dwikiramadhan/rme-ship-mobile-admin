@@ -1162,7 +1162,7 @@ class _DiagnosaDetailValue extends ConsumerWidget {
       return const Text(
         'Belum ada diagnosa dokter',
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w400,
           fontStyle: FontStyle.italic,
           color: AppColors.sub,
@@ -1324,7 +1324,7 @@ class _TindakanDetailValue extends ConsumerWidget {
       return const Text(
         'Tidak ada tindakan klinis',
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w400,
           fontStyle: FontStyle.italic,
           color: AppColors.sub,

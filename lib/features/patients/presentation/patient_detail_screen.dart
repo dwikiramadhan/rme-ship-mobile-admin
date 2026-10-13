@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -1480,13 +1481,21 @@ class _PatientDetailScreenState extends ConsumerState<PatientDetailScreen> {
                             child: CircularProgressIndicator(color: Colors.white),
                           );
                         },
-                        errorBuilder: (context, error, stackTrace) => const Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Text(
-                            'Gagal memuat foto',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ),
+                        errorBuilder: (context, error, stackTrace) {
+                          // The cause only shows in debug builds, to find out
+                          // why a downloaded photo can't be displayed.
+                          debugPrint('Gagal memuat foto $imageUrl: $error');
+                          return Padding(
+                            padding: const EdgeInsets.all(32),
+                            child: Text(
+                              kDebugMode
+                                  ? 'Gagal memuat foto\n$error'
+                                  : 'Gagal memuat foto',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.white70),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
