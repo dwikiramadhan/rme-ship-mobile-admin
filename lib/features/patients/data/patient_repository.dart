@@ -38,6 +38,33 @@ class VisitNotCreatedException implements Exception {
       'Tambahkan kunjungan lewat menu Tambah Kunjungan.';
 }
 
+/// [p] with prescription row [index] replaced by [obatBaru]; the row keeps
+/// the originally prescribed medicine and the [alasan] for the change.
+Patient withSubstitutedMedicine(
+  Patient p,
+  int index,
+  String obatBaru,
+  String alasan, {
+  String? newSku,
+  dynamic newJumlah,
+  String? notes,
+}) {
+  final resep = [...p.resep];
+  final row = resep[index];
+  resep[index] = row.copyWith(
+    obat: obatBaru,
+    sku: newSku ?? row.sku,
+    jumlah: newJumlah ?? row.jumlah,
+    penggantian: ObatPenggantian(
+      dari: row.penggantian?.dari ?? row.obat,
+      alasan: alasan,
+      notes: notes,
+      sku: newSku ?? row.sku,
+    ),
+  );
+  return p.copyWith(resep: resep);
+}
+
 class PatientsNotifier extends StateNotifier<List<Patient>> {
   PatientsNotifier({
     PatientApi? api,
@@ -1009,22 +1036,18 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     dynamic newJumlah,
     String? notes,
   }) {
-    _update(id, (p) {
-      final resep = [...p.resep];
-      final row = resep[index];
-      resep[index] = row.copyWith(
-        obat: obatBaru,
-        sku: newSku ?? row.sku,
-        jumlah: newJumlah ?? row.jumlah,
-        penggantian: ObatPenggantian(
-          dari: row.penggantian?.dari ?? row.obat,
-          alasan: alasan,
-          notes: notes,
-          sku: newSku ?? row.sku,
-        ),
-      );
-      return p.copyWith(resep: resep);
-    });
+    _update(
+      id,
+      (p) => withSubstitutedMedicine(
+        p,
+        index,
+        obatBaru,
+        alasan,
+        newSku: newSku,
+        newJumlah: newJumlah,
+        notes: notes,
+      ),
+    );
   }
 
   Future<void> dispensePrescription({

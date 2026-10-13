@@ -36,6 +36,12 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
   /// the visit. Null when the visit isn't in the queue list.
   MedicalHistory? _visit;
 
+  /// What this page shows and edits (substitutions, status). Kept here, not
+  /// read from [patientsProvider]: a refresh of the patient list replaces
+  /// that list with page 1 of /patients, which has no doctor, diagnosis or
+  /// visit, and drops the patients not on it.
+  Patient? _patient;
+
   @override
   void initState() {
     super.initState();
@@ -52,15 +58,14 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
-    // Not during build: the provider can't be modified while widgets build.
-    final fromQueue = await Future.microtask(_takeFromQueue);
-    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _visit = null;
+      _patient = null;
+    });
+    final fromQueue = _takeFromQueue();
     await Future.wait([
-      if (!fromQueue)
-        ref
-            .read(patientsProvider.notifier)
-            .fetchPatientDetail(widget.patientId),
+      if (!fromQueue) _fetchPatient(),
       Future.delayed(const Duration(milliseconds: 250)),
     ]);
     if (mounted) setState(() => _loading = false);
@@ -71,16 +76,29 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
   /// item ids. Use it instead of fetching the patient and all their records.
   /// Returns false when the visit isn't in the queue list.
   bool _takeFromQueue() {
-    final medRecId = widget.medRecId;
-    if (!mounted || medRecId == null || medRecId.isEmpty) return false;
-    final item = ref
-        .read(pharmacyPrescriptionHistoryProvider)
-        .where((h) => h.id == medRecId)
-        .firstOrNull;
+    final item = _queueItem(ref.read(pharmacyPrescriptionHistoryProvider));
     if (item == null) return false;
     _visit = item;
-    ref.read(patientsProvider.notifier).upsertPatient(item.toPatient());
+    _patient = item.toPatient();
     return true;
+  }
+
+  MedicalHistory? _queueItem(List<MedicalHistory> queue) {
+    final medRecId = widget.medRecId;
+    if (medRecId == null || medRecId.isEmpty) return null;
+    return queue.where((h) => h.id == medRecId).firstOrNull;
+  }
+
+  /// Not in the queue (yet): load the patient with their records instead.
+  Future<void> _fetchPatient() async {
+    await ref
+        .read(patientsProvider.notifier)
+        .fetchPatientDetail(widget.patientId);
+    if (!mounted || _patient != null) return;
+    _patient = ref
+        .read(patientsProvider)
+        .where((p) => p.id == widget.patientId)
+        .firstOrNull;
   }
 
   Future<void> _handleStatusChange(
@@ -109,6 +127,14 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
               dispensedById: dispensedById,
               items: patient.resep,
             );
+        if (mounted) {
+          setState(
+            () => _patient = patient.copyWith(
+              resepStatus: ResepStatus.selesai,
+              statusPenanganan: 'Selesai',
+            ),
+          );
+        }
 
         // Refresh real prescription list for pharmacy
         await ref
@@ -126,6 +152,9 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
         await ref
             .read(patientsProvider.notifier)
             .setResepStatus(patient.id, newStatus);
+        if (mounted) {
+          setState(() => _patient = patient.copyWith(resepStatus: newStatus));
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -221,14 +250,19 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
 
   @override
   Widget build(BuildContext context) {
-    // Select only this patient so list-wide updates (WS polls, paging)
-    // don't rebuild the detail pane.
-    final patient = ref.watch(
-      patientsProvider.select(
-        (patients) =>
-            patients.where((p) => p.id == widget.patientId).firstOrNull,
-      ),
-    );
+    // The queue may still be loading when this page opens: take the visit
+    // as soon as it arrives (keeping any edits made in the meantime).
+    ref.listen(pharmacyPrescriptionHistoryProvider, (_, queue) {
+      if (_visit != null) return;
+      final item = _queueItem(queue);
+      if (item == null) return;
+      setState(() {
+        _visit = item;
+        _patient ??= item.toPatient();
+      });
+    });
+
+    final patient = _patient;
     if (_loading || patient == null) {
       return const SkeletonPatientDetail();
     }
@@ -408,17 +442,17 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
                                   newSku,
                                   newJumlah,
                                   notes,
-                                }) => ref
-                                    .read(patientsProvider.notifier)
-                                    .gantiObat(
-                                      patient.id,
-                                      i,
-                                      obatBaru,
-                                      alasan,
-                                      newSku: newSku,
-                                      newJumlah: newJumlah,
-                                      notes: notes,
-                                    ),
+                                }) => setState(
+                                  () => _patient = withSubstitutedMedicine(
+                                    patient,
+                                    i,
+                                    obatBaru,
+                                    alasan,
+                                    newSku: newSku,
+                                    newJumlah: newJumlah,
+                                    notes: notes,
+                                  ),
+                                ),
                           ),
                         ),
                       const SizedBox(height: 14),

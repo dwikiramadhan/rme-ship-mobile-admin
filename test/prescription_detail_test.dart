@@ -53,6 +53,69 @@ class _FakePatientsNotifier extends PatientsNotifier {
   }
 }
 
+/// Rudi's visit as the pharmacy queue (GET /medical-history) has it.
+MedicalHistory _rudiVisit() => MedicalHistory.fromApiJson({
+  'id': 'mr-5',
+  'code': 'RJ12102026-00005',
+  'patient_id': 'p-5',
+  'patient': {'id': 'p-5', 'name': 'Rudi Hartono'},
+  'status_penanganan': 'Menunggu Obat',
+  'diagnosis': 'G43',
+  'doctor_id': 'd-1',
+  'doctor': {'id': 'd-1', 'name': 'dr. Putri', 'sip': 'SIP-123'},
+  'created_by_user': {
+    'id': 'u-1',
+    'full_name': 'Andini Putri',
+    'role': 'Perawat',
+  },
+  'prescriptions': [
+    {
+      'name': 'Paracetamol 500mg',
+      'dosis': '3x1',
+      'instruksi': 'Sesudah makan',
+      'qty': '10',
+      'unit_of_measurement': 'Tablet',
+    },
+  ],
+});
+
+Future<void> _pumpRudiDetail(
+  WidgetTester tester, {
+  required _FakePatientsNotifier patients,
+  required _FakeMedicalHistoryNotifier queue,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        patientsProvider.overrideWith((ref) => patients),
+        pharmacyPrescriptionHistoryProvider.overrideWith((ref) => queue),
+        icd10LookupProvider('G43').overrideWith(
+          (ref) async => const Icd10Item(code: 'G43', display: 'Migrain'),
+        ),
+      ],
+      child: const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: PrescriptionDetail(patientId: 'p-5', medRecId: 'mr-5'),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  // The diagnosis name (ICD lookup) arrives a frame later.
+  await tester.pump();
+}
+
+void _expectVisitDetails() {
+  expect(find.text('dr. Putri'), findsOneWidget);
+  expect(find.text('SIP: SIP-123'), findsOneWidget);
+  expect(find.text('Andini Putri'), findsOneWidget);
+  expect(find.textContaining('Migrain'), findsOneWidget);
+  expect(find.textContaining('Paracetamol 500mg'), findsOneWidget);
+}
+
 class _FakeMedicalHistoryNotifier extends MedicalHistoryNotifier {
   _FakeMedicalHistoryNotifier() : super(autoFetch: false);
 
@@ -501,53 +564,10 @@ void main() {
         waktuMasuk: '2026-10-12T08:00:00Z',
         updatedAt: DateTime(2026, 10, 12),
       );
-      final queue = _FakeMedicalHistoryNotifier()
-        ..upsertHistory(
-          MedicalHistory.fromApiJson({
-            'id': 'mr-5',
-            'code': 'RJ12102026-00005',
-            'patient_id': 'p-5',
-            'patient': {'id': 'p-5', 'name': 'Rudi Hartono'},
-            'status_penanganan': 'Menunggu Obat',
-            'doctor_id': 'd-1',
-            'doctor': {'id': 'd-1', 'name': 'dr. Putri', 'sip': 'SIP-123'},
-            'created_by_user': {
-              'id': 'u-1',
-              'full_name': 'Andini Putri',
-              'role': 'Perawat',
-            },
-            'prescriptions': [
-              {
-                'name': 'Paracetamol 500mg',
-                'dosis': '3x1',
-                'instruksi': 'Sesudah makan',
-                'qty': '10',
-                'unit_of_measurement': 'Tablet',
-              },
-            ],
-          }),
-        );
+      final queue = _FakeMedicalHistoryNotifier()..upsertHistory(_rudiVisit());
 
       final patients = _FakePatientsNotifier([patient]);
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            patientsProvider.overrideWith((ref) => patients),
-            pharmacyPrescriptionHistoryProvider.overrideWith((ref) => queue),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(
-              body: SingleChildScrollView(
-                child: PrescriptionDetail(patientId: 'p-5', medRecId: 'mr-5'),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await _pumpRudiDetail(tester, patients: patients, queue: queue);
 
       expect(find.text('1 Item Obat'), findsOneWidget);
       expect(find.textContaining('Paracetamol 500mg'), findsOneWidget);
@@ -596,6 +616,58 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(patients.fetchedDetails, ['p-6']);
+    },
+  );
+
+  testWidgets(
+    'PrescriptionDetail keeps its details when the patient list refreshes',
+    (tester) async {
+      final patients = _FakePatientsNotifier([]);
+      final queue = _FakeMedicalHistoryNotifier()..upsertHistory(_rudiVisit());
+      await _pumpRudiDetail(tester, patients: patients, queue: queue);
+      _expectVisitDetails();
+
+      // A refresh replaces the list with page 1 of /patients: other patients,
+      // or this one without doctor, diagnosis or visit.
+      patients.state = [
+        Patient(
+          id: 'p-5',
+          nama: 'Rudi Hartono',
+          nik: '',
+          jk: Gender.l,
+          umur: 45,
+          alamat: '',
+          keluhanUtama: '',
+          durasiKeluhan: '',
+          lokasiKeluhan: '',
+          vitals: const Vitals(),
+          assignedDokterId: '',
+          waktuMasuk: '',
+          updatedAt: DateTime(2026, 10, 12),
+        ),
+      ];
+      await tester.pump();
+      _expectVisitDetails();
+
+      patients.state = [];
+      await tester.pump();
+      _expectVisitDetails();
+    },
+  );
+
+  testWidgets(
+    'PrescriptionDetail fills in the visit when the queue loads after opening',
+    (tester) async {
+      final patients = _FakePatientsNotifier([]);
+      final queue = _FakeMedicalHistoryNotifier();
+      await _pumpRudiDetail(tester, patients: patients, queue: queue);
+      expect(find.text('dr. Putri'), findsNothing);
+
+      queue.upsertHistory(_rudiVisit());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      _expectVisitDetails();
     },
   );
 }
