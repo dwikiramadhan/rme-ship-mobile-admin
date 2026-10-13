@@ -7,6 +7,45 @@ import 'package:bayan_rme/features/schedule/domain/trip_schedule.dart';
 import 'package:bayan_rme/features/schedule/presentation/trip_detail_screen.dart';
 import 'package:bayan_rme/features/schedule/presentation/widgets/edit_schedule_modal.dart';
 
+/// A trip with two logistics records: an addition (with what was added)
+/// and an older one without a location.
+JadwalPerjalanan _tripWithLogistics() => JadwalPerjalanan(
+  id: 'sched-phone',
+  code: 'SCH-PH-001',
+  shipCode: 'KPL-001',
+  namaKapal: 'KM Nusantara 01',
+  pelabuhanAsal: 'Pelabuhan Tanjung Priok',
+  kodeAsal: 'TPK',
+  pelabuhanTujuan: 'Pelabuhan Sorong',
+  kodeTujuan: 'SOQ',
+  berangkat: DateTime(2026, 9, 1, 13),
+  tiba: DateTime(2026, 9, 16, 14),
+  status: 'Ongoing',
+  fuelLiters: 1100,
+  waterLiters: 2000,
+  provisions: [
+    ProvisionHistoryItem(
+      id: 'prov-ph-2',
+      scheduleCode: 'SCH-PH-001',
+      fuelOil: 1200,
+      water: 2500,
+      fuelOilAdded: 500,
+      waterAdded: 1000,
+      type: 'tambah',
+      lat: -6.17511,
+      lng: 106.827153,
+      createdAt: DateTime(2026, 9, 3, 10),
+    ),
+    ProvisionHistoryItem(
+      id: 'prov-ph-1',
+      scheduleCode: 'SCH-PH-001',
+      fuelOil: 700,
+      water: 1500,
+      createdAt: DateTime(2026, 9, 2, 10),
+    ),
+  ],
+);
+
 void main() {
   testWidgets('TripDetailScreen renders 4 custom tabs and switches views', (
     tester,
@@ -154,12 +193,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('SISA BAHAN BAKAR'), findsOneWidget);
-    expect(find.text('SISA AIR BERSIH'), findsNWidgets(2));
+    expect(find.text('SISA AIR BERSIH'), findsOneWidget);
     expect(find.text('UPDATE TERAKHIR'), findsOneWidget);
     expect(find.text('Catat Sisa Logistik'), findsOneWidget);
     expect(find.text('RIWAYAT PENCATATAN SISA LOGISTIK'), findsOneWidget);
-    expect(find.text('800 Liter'), findsOneWidget);
-    expect(find.text('1800 Liter'), findsOneWidget);
+    expect(find.textContaining('BBM  800 Liter'), findsOneWidget);
+    expect(find.textContaining('Air  1800 Liter'), findsOneWidget);
 
     // Switch to Tab 4: Kendala Perjalanan
     await tester.ensureVisible(find.text('Kendala Perjalanan'));
@@ -949,6 +988,186 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+
+  testWidgets('a completed trip shows its logistics and issues read-only', (
+    tester,
+  ) async {
+    final schedule = JadwalPerjalanan(
+      id: 'sched-done',
+      code: 'SCH-DONE-001',
+      shipCode: 'KPL-001',
+      namaKapal: 'KM Nusantara 01',
+      pelabuhanAsal: 'Pelabuhan Tanjung Priok',
+      kodeAsal: 'TPK',
+      pelabuhanTujuan: 'Pelabuhan Sorong',
+      kodeTujuan: 'SOQ',
+      berangkat: DateTime(2026, 9, 1, 13),
+      tiba: DateTime(2026, 9, 16, 14),
+      status: 'Completed',
+      fuelLiters: 1100,
+      waterLiters: 2000,
+      provisions: [
+        ProvisionHistoryItem(
+          id: 'prov-done-1',
+          scheduleCode: 'SCH-DONE-001',
+          fuelOil: 700,
+          water: 1500,
+          lat: -6.17511,
+          lng: 106.827153,
+          createdAt: DateTime(2026, 9, 2, 10),
+          isLatest: true,
+        ),
+      ],
+      tripIssues: [
+        TripIssueItem(
+          id: 'issue-done-1',
+          scheduleId: 'sched-done',
+          description: 'Mesin utama mengalami overheat',
+          occurredAt: DateTime(2026, 9, 3, 10, 26),
+          lat: -6.20880,
+          lng: 106.84560,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scheduleRepositoryProvider.overrideWithValue(
+            _FakeScheduleRepo(schedule),
+          ),
+        ],
+        child: MaterialApp(home: TripDetailScreen(item: schedule)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The schedule itself can't be edited either.
+    expect(find.text('RUTE PERJALANAN'), findsOneWidget);
+    expect(find.text('Edit Jadwal'), findsNothing);
+
+    await tester.tap(find.text('Persediaan'));
+    await tester.pumpAndSettle();
+    // The records stay visible, without ways to add or edit them.
+    expect(find.textContaining('BBM  700 Liter'), findsOneWidget);
+    expect(find.text('Catat Sisa Logistik'), findsNothing);
+    expect(find.byTooltip('Edit Pencatatan'), findsNothing);
+
+    await tester.ensureVisible(find.text('Kendala Perjalanan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kendala Perjalanan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Mesin utama mengalami overheat'), findsOneWidget);
+    expect(find.text('Tambah Kendala'), findsNothing);
+    expect(find.byTooltip('Edit Kendala'), findsNothing);
+  });
+
+  testWidgets('the logistics history fits a phone without scrolling sideways', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final schedule = _tripWithLogistics();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scheduleRepositoryProvider.overrideWithValue(
+            _FakeScheduleRepo(schedule),
+          ),
+        ],
+        child: MaterialApp(home: TripDetailScreen(item: schedule)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Persediaan'));
+    await tester.pumpAndSettle();
+    // Phone width (the other tabs aren't part of this check).
+    tester.view.physicalSize = const Size(360, 2400);
+    await tester.pumpAndSettle();
+
+    final entry = find.textContaining('1200 Liter');
+    await tester.ensureVisible(entry);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('(+500 L)'), findsOneWidget);
+    expect(find.text('+ TAMBAH'), findsOneWidget);
+    expect(find.text('Lokasi tidak tercatat'), findsOneWidget);
+    // Nothing in the history scrolls sideways, and every entry stays
+    // within the screen.
+    final historyCard = find
+        .ancestor(
+          of: find.text('RIWAYAT PENCATATAN SISA LOGISTIK'),
+          matching: find.byType(Container),
+        )
+        .first;
+    expect(
+      find.descendant(
+        of: historyCard,
+        matching: find.byWidgetPredicate(
+          (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
+        ),
+      ),
+      findsNothing,
+    );
+    for (final text in [
+      '1200 Liter',
+      '2500 Liter',
+      '700 Liter',
+      '1500 Liter',
+    ]) {
+      expect(
+        tester.getRect(find.textContaining(text)).right,
+        lessThanOrEqualTo(360),
+      );
+    }
+  });
+
+  testWidgets('on a tablet a logistics record is one row', (tester) async {
+    // Wide, as the test font is about twice as wide as the app's.
+    tester.view.physicalSize = const Size(1600, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final schedule = _tripWithLogistics();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          scheduleRepositoryProvider.overrideWithValue(
+            _FakeScheduleRepo(schedule),
+          ),
+        ],
+        child: MaterialApp(home: TripDetailScreen(item: schedule)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Persediaan'));
+    await tester.pumpAndSettle();
+
+    final fuel = tester.getRect(find.textContaining('BBM  1200 Liter'));
+    final water = tester.getRect(find.textContaining('Air  2500 Liter'));
+    // The same location is also on the "Update Terakhir" card.
+    final historyCard = find
+        .ancestor(
+          of: find.text('RIWAYAT PENCATATAN SISA LOGISTIK'),
+          matching: find.byType(Container),
+        )
+        .first;
+    final where = tester.getRect(
+      find.descendant(
+        of: historyCard,
+        matching: find.text('-6.17511, 106.82715'),
+      ),
+    );
+    final when = tester.getRect(find.text('+ TAMBAH'));
+    // Fuel, water and location side by side, right of the time.
+    for (final part in [water, where]) {
+      expect((part.center.dy - fuel.center.dy).abs(), lessThan(4));
+    }
+    expect(fuel.left, greaterThan(when.right));
+    expect(water.left, greaterThan(fuel.right));
+    expect(where.left, greaterThan(water.right));
+  });
 }
 
 JadwalPerjalanan createTestSchedule() {

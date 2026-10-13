@@ -479,8 +479,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                           const Text(
                             'Edit Jadwal Perjalanan',
                             style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.text,
                             ),
                           ),
@@ -488,9 +488,9 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                           Text(
                             widget.schedule.namaKapal,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11.5,
                               color: AppColors.sub,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -536,8 +536,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                           _errorMessage!,
                           style: const TextStyle(
                             color: Color(0xFF991B1B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -611,7 +611,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                           style: TextStyle(
                             color: Color(0xFF475569),
                             fontWeight: FontWeight.w600,
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                       ),
@@ -645,8 +645,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                                     'Menyimpan...',
                                     style: TextStyle(
                                       color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ],
@@ -655,8 +655,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                                 'Simpan',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
                                 ),
                               ),
                       ),
@@ -684,8 +684,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             Text(
               'STATUS',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
                 color: Color(0xFF64748B),
               ),
@@ -693,7 +693,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             SizedBox(width: 4),
             Text(
               '*',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -717,7 +717,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                 color: Color(0xFF94A3B8),
               ),
               style: const TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 color: AppColors.text,
                 fontWeight: FontWeight.w500,
               ),
@@ -752,8 +752,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             const Text(
               'RUTE PELABUHAN',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
                 color: Color(0xFF64748B),
               ),
@@ -761,7 +761,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             const SizedBox(width: 4),
             const Text(
               '*',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),
             const Spacer(),
             InkWell(
@@ -784,8 +784,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                     Text(
                       'Tambah Singgah',
                       style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.orange,
                       ),
                     ),
@@ -832,8 +832,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                     child: Text(
                       '${index + 1}',
                       style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: isFirst || isLast
                             ? Colors.white
                             : const Color(0xFF475569),
@@ -911,9 +911,9 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                                                 : 'Pilih Pelabuhan'),
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontSize: 12.5,
+                                        fontSize: 12,
                                         color: AppColors.text,
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: FontWeight.w500,
                                       ),
                                     ),
                                   ),
@@ -961,7 +961,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                                       'TIBA',
                                       style: TextStyle(
                                         fontSize: 10,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w600,
                                         color: Color(0xFF64748B),
                                       ),
                                     ),
@@ -970,7 +970,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                                       '*',
                                       style: TextStyle(
                                         color: Colors.red,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
@@ -1016,7 +1016,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                                       'BERANGKAT',
                                       style: TextStyle(
                                         fontSize: 10,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w600,
                                         color: Color(0xFF64748B),
                                       ),
                                     ),
@@ -1025,7 +1025,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                                       '*',
                                       style: TextStyle(
                                         color: Colors.red,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ],
@@ -1071,7 +1071,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                             'BERANGKAT',
                             style: TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFF64748B),
                             ),
                           ),
@@ -1080,7 +1080,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                             '*',
                             style: TextStyle(
                               color: Colors.red,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -1118,7 +1118,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                             'TIBA',
                             style: TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFF64748B),
                             ),
                           ),
@@ -1127,7 +1127,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                             '*',
                             style: TextStyle(
                               color: Colors.red,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -1232,8 +1232,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             ),
           ),
           style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w500,
             color: AppColors.text,
           ),
           items: const [
@@ -1264,8 +1264,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             const Text(
               'DOKTER BERTUGAS',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
                 color: Color(0xFF64748B),
               ),
@@ -1273,7 +1273,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             const SizedBox(width: 4),
             const Text(
               '*',
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),
             const Spacer(),
             _buildCountBadge(
@@ -1324,8 +1324,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             const Text(
               'PERAWAT BERTUGAS',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
                 color: Color(0xFF64748B),
               ),
@@ -1379,8 +1379,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
             const Text(
               'ABK KAPAL (CREW)',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
                 color: Color(0xFF64748B),
               ),
@@ -1457,8 +1457,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
                 hasValue ? displayText : placeholder,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                  fontSize: 12,
+                  fontWeight: hasValue ? FontWeight.w500 : FontWeight.w400,
                   color: hasValue ? AppColors.text : const Color(0xFF94A3B8),
                   letterSpacing: 0,
                 ),
@@ -1512,7 +1512,7 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
               initials,
               style: const TextStyle(
                 fontSize: 9,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
             ),
@@ -1521,8 +1521,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
               color: AppColors.text,
             ),
           ),
@@ -1550,8 +1550,8 @@ class _EditScheduleModalState extends State<EditScheduleModal> {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
           color: textCol,
         ),
       ),
@@ -1893,15 +1893,15 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                         Text(
                           'Pilih Pelabuhan',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.text,
                           ),
                         ),
                         SizedBox(height: 2),
                         Text(
                           'Gulir ke bawah untuk memuat pelabuhan lainnya',
-                          style: TextStyle(fontSize: 12, color: AppColors.sub),
+                          style: TextStyle(fontSize: 11.5, color: AppColors.sub),
                         ),
                       ],
                     ),
@@ -1933,8 +1933,8 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                   controller: _searchController,
                   onChanged: _onSearchChanged,
                   style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
                     color: AppColors.text,
                   ),
                   decoration: InputDecoration(
@@ -1942,7 +1942,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                     border: InputBorder.none,
                     hintText: 'Cari pelabuhan...',
                     hintStyle: const TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       color: Color(0xFF94A3B8),
                       letterSpacing: 0,
                     ),
@@ -1987,7 +1987,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                         padding: EdgeInsets.all(24),
                         child: Text(
                           'Tidak ada pelabuhan ditemukan',
-                          style: TextStyle(fontSize: 13, color: AppColors.sub),
+                          style: TextStyle(fontSize: 12, color: AppColors.sub),
                         ),
                       ),
                     )
@@ -2121,12 +2121,12 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                                         Text(
                                           port.name,
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 12.5,
                                             fontWeight: isSelected
-                                                ? FontWeight.w700
+                                                ? FontWeight.w600
                                                 : (isDisabled
-                                                      ? FontWeight.w500
-                                                      : FontWeight.w600),
+                                                      ? FontWeight.w400
+                                                      : FontWeight.w500),
                                             color: isSelected
                                                 ? AppColors.orange
                                                 : (isDisabled
@@ -2154,8 +2154,8 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                                                 child: Text(
                                                   port.code,
                                                   style: TextStyle(
-                                                    fontSize: 10.5,
-                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w600,
                                                     color: isDisabled
                                                         ? const Color(
                                                             0xFF94A3B8,
@@ -2172,7 +2172,7 @@ class _PortPickerBottomSheetState extends State<_PortPickerBottomSheet> {
                                               Text(
                                                 port.city,
                                                 style: const TextStyle(
-                                                  fontSize: 11.5,
+                                                  fontSize: 11,
                                                   color: Color(0xFF94A3B8),
                                                 ),
                                               ),
@@ -2431,8 +2431,8 @@ class _PersonnelPickerBottomSheetState
                       Text(
                         widget.title,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.text,
                         ),
                       ),
@@ -2440,9 +2440,9 @@ class _PersonnelPickerBottomSheetState
                       Text(
                         '${_selectedItems.length} dipilih',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           color: widget.accentColor,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -2474,14 +2474,14 @@ class _PersonnelPickerBottomSheetState
                 controller: _searchController,
                 onChanged: _onSearchChanged,
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
                   color: AppColors.text,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Cari nama atau spesialisasi...',
                   hintStyle: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     color: Color(0xFF94A3B8),
                     letterSpacing: 0,
                   ),
@@ -2539,8 +2539,8 @@ class _PersonnelPickerBottomSheetState
                             'Tidak ada data tenaga medis ditemukan.',
                             style: TextStyle(
                               color: Color(0xFF94A3B8),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -2618,7 +2618,7 @@ class _PersonnelPickerBottomSheetState
                                   item.initials,
                                   style: const TextStyle(
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -2631,10 +2631,10 @@ class _PersonnelPickerBottomSheetState
                                     Text(
                                       item.name,
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 12.5,
                                         fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w600,
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
                                         color: isSelected
                                             ? widget.accentColor
                                             : AppColors.text,
@@ -2648,9 +2648,9 @@ class _PersonnelPickerBottomSheetState
                                                 ? item.role
                                                 : widget.personnelType),
                                       style: const TextStyle(
-                                        fontSize: 11.5,
+                                        fontSize: 11,
                                         color: Color(0xFF94A3B8),
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w400,
                                       ),
                                     ),
                                   ],
@@ -2711,7 +2711,7 @@ class _PersonnelPickerBottomSheetState
                       style: TextStyle(
                         color: Color(0xFF475569),
                         fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -2735,8 +2735,8 @@ class _PersonnelPickerBottomSheetState
                       'Terapkan (${_selectedItems.length})',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -2951,8 +2951,8 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                       const Text(
                         'Pilih ABK Kapal (Crew)',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.text,
                         ),
                       ),
@@ -2960,9 +2960,9 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                       Text(
                         '${_selectedItems.length} dipilih',
                         style: const TextStyle(
-                          fontSize: 12,
+                          fontSize: 11.5,
                           color: _accentColor,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -2994,14 +2994,14 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                 controller: _searchController,
                 onChanged: _onSearchChanged,
                 style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
                   color: AppColors.text,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Cari nama atau jabatan kru...',
                   hintStyle: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     color: Color(0xFF94A3B8),
                     letterSpacing: 0,
                   ),
@@ -3059,8 +3059,8 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                             'Tidak ada kru kapal ditemukan.',
                             style: TextStyle(
                               color: Color(0xFF94A3B8),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ],
@@ -3138,7 +3138,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                                   item.initials,
                                   style: const TextStyle(
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -3151,10 +3151,10 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                                     Text(
                                       item.name,
                                       style: TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 12.5,
                                         fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w600,
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
                                         color: isSelected
                                             ? _accentColor
                                             : AppColors.text,
@@ -3166,9 +3166,9 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                                           ? item.role
                                           : 'ABK Kapal',
                                       style: const TextStyle(
-                                        fontSize: 11.5,
+                                        fontSize: 11,
                                         color: Color(0xFF94A3B8),
-                                        fontWeight: FontWeight.w500,
+                                        fontWeight: FontWeight.w400,
                                       ),
                                     ),
                                   ],
@@ -3229,7 +3229,7 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                       style: TextStyle(
                         color: Color(0xFF475569),
                         fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -3253,8 +3253,8 @@ class _CrewPickerBottomSheetState extends State<_CrewPickerBottomSheet> {
                       'Terapkan (${_selectedItems.length})',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
                       ),
                     ),
                   ),
@@ -3393,8 +3393,8 @@ class _TopErrorToastState extends State<_TopErrorToast>
                         widget.message,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ),

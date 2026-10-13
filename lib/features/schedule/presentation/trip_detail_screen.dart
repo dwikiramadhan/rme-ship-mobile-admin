@@ -153,8 +153,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         title: const Text(
           'Detail Jadwal Perjalanan',
           style: TextStyle(
-            fontSize: 16.5,
-            fontWeight: FontWeight.w800,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
             color: AppColors.text,
           ),
         ),
@@ -210,8 +210,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             schedule.namaKapal,
                             style: const TextStyle(
-                              fontSize: 17.5,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.text,
                             ),
                           ),
@@ -221,8 +221,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               Text(
                                 schedule.shipCode,
                                 style: const TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
                                   color: AppColors.sub,
                                 ),
                               ),
@@ -240,7 +240,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 child: Text(
                                   schedule.shipType,
                                   style: const TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 11.5,
                                     color: AppColors.sub,
                                   ),
                                   overflow: TextOverflow.ellipsis,
@@ -280,8 +280,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             status.label,
                             style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
                               color: status.color,
                             ),
                           ),
@@ -468,8 +468,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                 color: isSelected ? activeTextColor : const Color(0xFF64748B),
               ),
             ),
@@ -487,8 +487,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 child: Text(
                   '$badgeCount',
                   style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                     color: badgeColor ?? const Color(0xFFF97316),
                   ),
                 ),
@@ -642,49 +642,51 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               const Text(
                 'RUTE PERJALANAN',
                 style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
                   color: Color(0xFF64748B),
                 ),
               ),
               const Spacer(),
-              InkWell(
-                onTap: () => _editSchedule(context, schedule),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.orangeLt,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.orange.withValues(alpha: 0.3),
+              // A completed trip can no longer be changed.
+              if (!schedule.isCompleted)
+                InkWell(
+                  onTap: () => _editSchedule(context, schedule),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
                     ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        LucideIcons.pencilLine,
-                        size: 13,
-                        color: AppColors.orange,
+                    decoration: BoxDecoration(
+                      color: AppColors.orangeLt,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.orange.withValues(alpha: 0.3),
                       ),
-                      SizedBox(width: 5),
-                      Text(
-                        'Edit Jadwal',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          LucideIcons.pencilLine,
+                          size: 13,
                           color: AppColors.orange,
                         ),
-                      ),
-                    ],
+                        SizedBox(width: 5),
+                        Text(
+                          'Edit Jadwal',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 18),
@@ -745,8 +747,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             stop.portName,
                             style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.text,
                             ),
                           ),
@@ -758,7 +760,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   const TextSpan(
                                     text: 'Berangkat: ',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       color: AppColors.sub,
                                     ),
                                   ),
@@ -768,9 +770,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                       stop.departureTz,
                                     ),
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11.5,
                                       color: AppColors.text,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -783,7 +785,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   const TextSpan(
                                     text: 'Tiba Est: ',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11,
                                       color: AppColors.sub,
                                     ),
                                   ),
@@ -793,9 +795,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                       stop.arrivalTz,
                                     ),
                                     style: const TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 11.5,
                                       color: AppColors.text,
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
@@ -813,7 +815,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                         const TextSpan(
                                           text: 'Berangkat: ',
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             color: AppColors.sub,
                                           ),
                                         ),
@@ -823,9 +825,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                             stop.departureTz,
                                           ),
                                           style: const TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11.5,
                                             color: AppColors.text,
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ],
@@ -838,7 +840,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                         const TextSpan(
                                           text: 'Tiba Est: ',
                                           style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11,
                                             color: AppColors.sub,
                                           ),
                                         ),
@@ -848,9 +850,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                             stop.arrivalTz,
                                           ),
                                           style: const TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 11.5,
                                             color: AppColors.text,
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w500,
                                           ),
                                         ),
                                       ],
@@ -913,8 +915,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       Text(
                         schedule.pelabuhanAsal,
                         style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.text,
                         ),
                       ),
@@ -925,7 +927,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             const TextSpan(
                               text: 'Berangkat: ',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 color: AppColors.sub,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -933,9 +935,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             TextSpan(
                               text: _formatFullDateTime(schedule.berangkat, schedule.berangkatTz),
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11.5,
                                 color: AppColors.text,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
@@ -945,8 +947,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       Text(
                         schedule.pelabuhanTujuan,
                         style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.text,
                         ),
                       ),
@@ -957,7 +959,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             const TextSpan(
                               text: 'Tiba Est: ',
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 11,
                                 color: AppColors.sub,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -965,9 +967,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             TextSpan(
                               text: _formatFullDateTime(schedule.tiba, schedule.tibaTz),
                               style: const TextStyle(
-                                fontSize: 12,
+                                fontSize: 11.5,
                                 color: AppColors.text,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
@@ -1009,8 +1011,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               Text(
                 'LOGISTIK AWAL JADWAL',
                 style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
                   color: Color(0xFF64748B),
                 ),
@@ -1042,8 +1044,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             'BBM AWAL',
                             style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFFB45309),
                             ),
                           ),
@@ -1068,7 +1070,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           const Text(
                             'Liter',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: AppColors.sub,
                             ),
@@ -1102,8 +1104,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             'AIR AWAL',
                             style: TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.sky,
                             ),
                           ),
@@ -1128,7 +1130,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           const Text(
                             'Liter',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: AppColors.sub,
                             ),
@@ -1184,8 +1186,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
                       color: Color(0xFF334155),
                     ),
@@ -1201,8 +1203,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 child: Text(
                   '${items.length}',
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
                     color: badgeColor,
                   ),
                 ),
@@ -1213,7 +1215,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           if (items.isEmpty)
             Text(
               emptyText,
-              style: const TextStyle(fontSize: 12, color: AppColors.sub),
+              style: const TextStyle(fontSize: 11.5, color: AppColors.sub),
             )
           else
             ListView.separated(
@@ -1240,8 +1242,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         child: Text(
                           initials,
                           style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                             color: avatarTextColor,
                           ),
                         ),
@@ -1255,8 +1257,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             p.name,
                             style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.text,
                             ),
                           ),
@@ -1265,7 +1267,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             Text(
                               p.specialization,
                               style: const TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 11,
                                 color: AppColors.sub,
                               ),
                             ),
@@ -1312,8 +1314,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   Text(
                     'CREW (ABK KAPAL)',
                     style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 0.5,
                       color: Color(0xFF334155),
                     ),
@@ -1329,8 +1331,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 child: Text(
                   '${items.length}',
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.sky,
                   ),
                 ),
@@ -1342,7 +1344,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             const Text(
               'Belum ada data crew kapal',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 11.5,
                 color: AppColors.sub,
                 letterSpacing: 0,
               ),
@@ -1372,8 +1374,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         child: Text(
                           initials,
                           style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.sky,
                           ),
                         ),
@@ -1387,8 +1389,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             crew.name,
                             style: const TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.text,
                             ),
                           ),
@@ -1397,7 +1399,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             Text(
                               crew.role,
                               style: const TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 11,
                                 color: AppColors.sub,
                               ),
                             ),
@@ -1421,6 +1423,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   // ==========================================
   Widget _buildTabPersediaan(JadwalPerjalanan schedule) {
     final provisions = schedule.provisions;
+    // A completed trip's logistics are final: no new or edited records.
+    final canRecord = !schedule.isCompleted;
     final latest = provisions.isNotEmpty ? provisions.first : null;
 
     final latestFuel = latest != null
@@ -1473,8 +1477,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                       time: latestTime,
                       lat: latestLat,
                       lng: latestLng,
-                      onAddPressed: () =>
-                          _showAddProvisionDialog(context, schedule),
+                      onAddPressed: canRecord
+                          ? () => _showAddProvisionDialog(context, schedule)
+                          : null,
                     ),
                   ),
                 ],
@@ -1508,8 +1513,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   time: latestTime,
                   lat: latestLat,
                   lng: latestLng,
-                  onAddPressed: () =>
-                      _showAddProvisionDialog(context, schedule),
+                  onAddPressed: canRecord
+                      ? () => _showAddProvisionDialog(context, schedule)
+                      : null,
                 ),
               ],
             );
@@ -1540,13 +1546,15 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 children: [
                   Icon(LucideIcons.history, size: 16, color: Color(0xFFEA580C)),
                   SizedBox(width: 8),
-                  Text(
-                    'RIWAYAT PENCATATAN SISA LOGISTIK',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: Color(0xFF334155),
+                  Expanded(
+                    child: Text(
+                      'RIWAYAT PENCATATAN SISA LOGISTIK',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        color: Color(0xFF334155),
+                      ),
                     ),
                   ),
                 ],
@@ -1558,228 +1566,254 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   child: Center(
                     child: Text(
                       'Belum ada riwayat pencatatan logistik',
-                      style: TextStyle(fontSize: 12.5, color: AppColors.sub),
+                      style: TextStyle(fontSize: 11.5, color: AppColors.sub),
                     ),
                   ),
                 )
               else
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columnSpacing: 24,
-                    horizontalMargin: 8,
-                    headingTextStyle: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 0.4,
-                    ),
-                    columns: const [
-                      DataColumn(label: Text('WAKTU PENCATATAN')),
-                      DataColumn(label: Text('SISA BBM')),
-                      DataColumn(label: Text('SISA AIR BERSIH')),
-                      DataColumn(label: Text('KOORDINAT LOKASI')),
-                      DataColumn(label: Text('AKSI')),
+                // A stacked list, not a table: fits a phone without
+                // scrolling sideways.
+                Column(
+                  children: [
+                    for (final (index, item) in provisions.indexed) ...[
+                      if (index > 0)
+                        const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      _buildProvisionEntry(
+                        schedule,
+                        item,
+                        isLatest: index == 0,
+                        canEdit: canRecord,
+                      ),
                     ],
-                    rows: provisions.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final item = entry.value;
-                      final isFirst = idx == 0;
-
-                      return DataRow(
-                        cells: [
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 7,
-                                  height: 7,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: item.isTambah
-                                        ? const Color(0xFF059669)
-                                        : (isFirst
-                                            ? const Color(0xFF10B981)
-                                            : const Color(0xFF94A3B8)),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _formatFullDateTime(item.createdAt),
-                                  style: const TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.text,
-                                  ),
-                                ),
-                                if (item.isTambah) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFDCFCE7),
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: const Color(0xFF86EFAC),
-                                      ),
-                                    ),
-                                    child: const Text(
-                                      '+ TAMBAH',
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF15803D),
-                                      ),
-                                    ),
-                                  ),
-                                ] else if (isFirst) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFD1FAE5),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: const Text(
-                                      'TERBARU',
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF059669),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFFBEB),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFFFEF3C7),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    LucideIcons.fuel,
-                                    size: 13,
-                                    color: Color(0xFFB45309),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    item.isTambah && item.fuelOilAdded > 0
-                                        ? '${item.fuelOil.toInt()} L (+${item.fuelOilAdded.toInt()} L)'
-                                        : '${item.fuelOil.toInt()} Liter',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFFB45309),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF0F7FF),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFFE0EFFF),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    LucideIcons.droplets,
-                                    size: 13,
-                                    color: AppColors.sky,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    item.isTambah && item.waterAdded > 0
-                                        ? '${item.water.toInt()} L (+${item.waterAdded.toInt()} L)'
-                                        : '${item.water.toInt()} Liter',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.sky,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  LucideIcons.mapPin,
-                                  size: 12,
-                                  color: Color(0xFF94A3B8),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  (item.lat != null && item.lng != null)
-                                      ? '${item.lat!.toStringAsFixed(5)}, ${item.lng!.toStringAsFixed(5)}'
-                                      : '—',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(
-                                    LucideIcons.pencil,
-                                    size: 15,
-                                    color: Color(0xFF94A3B8),
-                                  ),
-                                  tooltip: 'Edit Pencatatan',
-                                  onPressed: () =>
-                                      _showEditProvisionDialog(context, schedule, item),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
-                  ),
+                  ],
                 ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// One logistics record: when, the fuel and water left (and what was
+  /// added), and where it was recorded. On a phone the parts are stacked;
+  /// on a wider screen (tablet) they sit side by side in one row.
+  Widget _buildProvisionEntry(
+    JadwalPerjalanan schedule,
+    ProvisionHistoryItem item, {
+    required bool isLatest,
+    required bool canEdit,
+  }) {
+    final dotColor = item.isTambah
+        ? const Color(0xFF059669)
+        : (isLatest ? const Color(0xFF10B981) : const Color(0xFFCBD5E1));
+    final hasLocation = item.lat != null && item.lng != null;
+
+    final when = Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text(
+          _formatFullDateTime(item.createdAt),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppColors.text,
+          ),
+        ),
+        if (item.isTambah)
+          _buildProvisionTag(
+            '+ TAMBAH',
+            color: const Color(0xFF15803D),
+            background: const Color(0xFFDCFCE7),
+          )
+        else if (isLatest)
+          _buildProvisionTag(
+            'TERBARU',
+            color: const Color(0xFF059669),
+            background: const Color(0xFFD1FAE5),
+          ),
+      ],
+    );
+    final fuel = _buildProvisionAmount(
+      icon: LucideIcons.fuel,
+      label: 'BBM',
+      liters: item.fuelOil,
+      added: item.isTambah ? item.fuelOilAdded : 0,
+      color: const Color(0xFFB45309),
+      background: const Color(0xFFFFFBEB),
+      border: const Color(0xFFFEF3C7),
+    );
+    final water = _buildProvisionAmount(
+      icon: LucideIcons.droplets,
+      label: 'Air',
+      liters: item.water,
+      added: item.isTambah ? item.waterAdded : 0,
+      color: AppColors.sky,
+      background: const Color(0xFFF0F7FF),
+      border: const Color(0xFFE0EFFF),
+    );
+    Widget location({required bool fill}) {
+      final text = Text(
+        hasLocation
+            ? '${item.lat!.toStringAsFixed(5)}, ${item.lng!.toStringAsFixed(5)}'
+            : 'Lokasi tidak tercatat',
+        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+        overflow: TextOverflow.ellipsis,
+      );
+      return Row(
+        mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          const Icon(LucideIcons.mapPin, size: 12, color: Color(0xFF94A3B8)),
+          const SizedBox(width: 4),
+          fill ? Expanded(child: text) : Flexible(child: text),
+        ],
+      );
+    }
+
+    final dot = Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+    );
+    final edit = canEdit
+        ? IconButton(
+            icon: const Icon(
+              LucideIcons.pencil,
+              size: 15,
+              color: Color(0xFF94A3B8),
+            ),
+            tooltip: 'Edit Pencatatan',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => _showEditProvisionDialog(context, schedule, item),
+          )
+        : null;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 600) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                dot,
+                const SizedBox(width: 10),
+                // Fixed width so the amounts line up from row to row.
+                SizedBox(width: 230, child: when),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      fuel,
+                      water,
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: location(fill: false),
+                      ),
+                    ],
+                  ),
+                ),
+                ?edit,
+              ],
+            ),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(padding: const EdgeInsets.only(top: 5), child: dot),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    when,
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 8, runSpacing: 6, children: [fuel, water]),
+                    const SizedBox(height: 8),
+                    location(fill: true),
+                  ],
+                ),
+              ),
+              ?edit,
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProvisionTag(
+    String text, {
+    required Color color,
+    required Color background,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w600,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  /// "BBM 700 Liter (+100 L)" in a tinted chip.
+  Widget _buildProvisionAmount({
+    required IconData icon,
+    required String label,
+    required num liters,
+    required num added,
+    required Color color,
+    required Color background,
+    required Color border,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 6),
+          // Wraps instead of overflowing on a very narrow screen.
+          Flexible(
+            child: Text.rich(
+              TextSpan(
+                style: TextStyle(fontSize: 11, color: color),
+                children: [
+                  TextSpan(text: '$label  '),
+                  TextSpan(
+                    text: '${liters.toInt()} Liter',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (added > 0) TextSpan(text: '  (+${added.toInt()} L)'),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1820,8 +1854,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 0.4,
                       color: isWater ? AppColors.sky : const Color(0xFFB45309),
                     ),
@@ -1841,8 +1875,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   child: Text(
                     'Terbaru',
                     style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                       color: isWater ? AppColors.sky : const Color(0xFFD97706),
                     ),
                   ),
@@ -1882,7 +1916,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               const Flexible(
                 child: Text(
                   'Kapasitas Awal',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1890,8 +1924,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               Text(
                 '$initialValue L',
                 style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.text,
                 ),
               ),
@@ -1906,7 +1940,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     required DateTime? time,
     required double? lat,
     required double? lng,
-    required VoidCallback onAddPressed,
+    // Null hides "Catat Sisa Logistik".
+    required VoidCallback? onAddPressed,
   }) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -1932,8 +1967,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
               Text(
                 'UPDATE TERAKHIR',
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 0.4,
                   color: Color(0xFF64748B),
                 ),
@@ -1944,8 +1979,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           Text(
             _formatFullDateTime(time),
             style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
               color: AppColors.text,
             ),
           ),
@@ -1963,31 +1998,33 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   (lat != null && lng != null)
                       ? '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'
                       : '—',
-                  style: const TextStyle(fontSize: 12, color: AppColors.sub),
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.sub),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFEA580C),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (onAddPressed != null) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFEA580C),
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: onAddPressed,
+                icon: const Icon(LucideIcons.plus, size: 16),
+                label: const Text(
+                  'Catat Sisa Logistik',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ),
-              onPressed: onAddPressed,
-              icon: const Icon(LucideIcons.plus, size: 16),
-              label: const Text(
-                'Catat Sisa Logistik',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -3497,8 +3534,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           Text(
                             issue.description,
                             style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFF92400E),
                             ),
                           ),
@@ -3511,7 +3548,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   issue.occurredAtTz,
                                 ),
                                 style: const TextStyle(
-                                  fontSize: 11.5,
+                                  fontSize: 11,
                                   color: AppColors.sub,
                                 ),
                               ),
@@ -3526,7 +3563,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                 Text(
                                   '${issue.lat!.toStringAsFixed(5)}, ${issue.lng!.toStringAsFixed(5)}',
                                   style: const TextStyle(
-                                    fontSize: 11.5,
+                                    fontSize: 11,
                                     color: AppColors.sub,
                                   ),
                                 ),
@@ -3536,58 +3573,62 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(
-                        LucideIcons.pencil,
-                        color: Color(0xFFD97706),
-                        size: 18,
+                    if (!schedule.isCompleted)
+                      IconButton(
+                        icon: const Icon(
+                          LucideIcons.pencil,
+                          color: Color(0xFFD97706),
+                          size: 18,
+                        ),
+                        tooltip: 'Edit Kendala',
+                        onPressed: () =>
+                            _showEditTripIssueDialog(context, schedule, issue),
                       ),
-                      tooltip: 'Edit Kendala',
-                      onPressed: () =>
-                          _showEditTripIssueDialog(context, schedule, issue),
-                    ),
                   ],
                 ),
               );
             },
           ),
-        const SizedBox(height: 14),
+        // A completed trip is closed: no new issues.
+        if (!schedule.isCompleted) ...[
+          const SizedBox(height: 14),
 
-        // Dashed "+ Tambah Kendala" Button
-        CustomPaint(
-          painter: _DashedRoundedBorderPainter(
-            color: const Color(0xFFFDBA74),
-            strokeWidth: 1.5,
-            radius: 18,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(18),
-              onTap: () => _showAddTripIssueDialog(context, schedule),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                alignment: Alignment.center,
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(LucideIcons.plus, size: 16, color: Color(0xFFEA580C)),
-                    SizedBox(width: 6),
-                    Text(
-                      'Tambah Kendala',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFEA580C),
+          // Dashed "+ Tambah Kendala" Button
+          CustomPaint(
+            painter: _DashedRoundedBorderPainter(
+              color: const Color(0xFFFDBA74),
+              strokeWidth: 1.5,
+              radius: 18,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => _showAddTripIssueDialog(context, schedule),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  alignment: Alignment.center,
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(LucideIcons.plus, size: 16, color: Color(0xFFEA580C)),
+                      SizedBox(width: 6),
+                      Text(
+                        'Tambah Kendala',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFEA580C),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }
