@@ -9,10 +9,10 @@ import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
+import '../../notifications/domain/notification_rules.dart';
 import '../../notifications/presentation/notifications_view.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/medical_history.dart';
-import '../../patients/domain/prescription_item.dart';
 import '../../patients/presentation/status_meta.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../shell/presentation/nav_item.dart';
@@ -120,11 +120,7 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
   Widget build(BuildContext context) {
     final notifsCount = ref.watch(
       notificationsProvider.select(
-        (all) => all.where(
-          (p) =>
-              p.statusPenanganan == 'Menunggu Obat' ||
-              p.resepStatus == ResepStatus.baru,
-        ).length,
+        (all) => all.where(isWaitingForPharmacy).length,
       ),
     );
 
@@ -156,9 +152,11 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
       'notifikasi' => NotificationsView(
           role: NotificationRole.pharmacy,
           onTapItem: (context, p, _) {
-            ref.read(notificationsProvider.notifier).markPharmacySeen(p.id);
+            final notifications = ref.read(notificationsProvider.notifier);
+            notifications.markPharmacySeen(notificationKey(p));
             ref.read(patientsProvider.notifier).markDilihatPharmacy(p.id);
-            final medHist = p.toMedicalHistory();
+            // The real visit, so it lands in its place in the queue.
+            final medHist = notifications.recordFor(p) ?? p.toMedicalHistory();
             ref
                 .read(pharmacyPrescriptionHistoryProvider.notifier)
                 .upsertHistory(medHist);

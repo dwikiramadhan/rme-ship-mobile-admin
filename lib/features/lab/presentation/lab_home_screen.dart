@@ -9,9 +9,9 @@ import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/status_filter_button.dart';
+import '../../notifications/domain/notification_rules.dart';
 import '../../notifications/presentation/notifications_view.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/medical_history.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../shell/presentation/nav_item.dart';
@@ -67,16 +67,7 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final notifsCount = ref.watch(
-      notificationsProvider.select(
-        (all) => all
-            .where(
-              (p) =>
-                  p.statusPenanganan == 'Menunggu Lab' ||
-                  (p.labOrder != null &&
-                      p.labOrder!.status == LabOrderStatus.baru),
-            )
-            .length,
-      ),
+      notificationsProvider.select((all) => all.where(isWaitingForLab).length),
     );
     final labHistories = ref.watch(labOrderHistoryProvider);
 
@@ -104,9 +95,11 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
       'notifikasi' => NotificationsView(
         role: NotificationRole.lab,
         onTapItem: (context, p, _) {
-          ref.read(notificationsProvider.notifier).markLabSeen(p.id);
+          final notifications = ref.read(notificationsProvider.notifier);
+          notifications.markLabSeen(notificationKey(p));
           ref.read(patientsProvider.notifier).markDilihatLab(p.id);
-          final medHist = p.toMedicalHistory();
+          // The real visit, so it lands in its place in the list.
+          final medHist = notifications.recordFor(p) ?? p.toMedicalHistory();
           ref.read(labOrderHistoryProvider.notifier).upsertHistory(medHist);
           ref.read(patientsProvider.notifier).upsertPatient(p);
           setState(() {
@@ -184,9 +177,7 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
         ref
             .read(patientsProvider.notifier)
             .fetchPatientDetail(effectivePatientId);
-        ref
-            .read(notificationsProvider.notifier)
-            .markLabSeen(effectivePatientId);
+        ref.read(notificationsProvider.notifier).markLabSeen(id);
         ref.read(patientsProvider.notifier).markDilihatLab(effectivePatientId);
       },
       entries: [

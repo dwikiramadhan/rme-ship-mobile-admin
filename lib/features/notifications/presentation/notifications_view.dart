@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../domain/notification_rules.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/patient.dart';
-import '../../patients/domain/prescription_item.dart';
 import '../../../core/utils/date_helper.dart';
 
 enum NotificationRole { doctor, pharmacy, lab }
@@ -33,25 +32,12 @@ class NotificationsView extends ConsumerStatefulWidget {
 
 class _NotificationsViewState extends ConsumerState<NotificationsView> {
   List<Patient> _filterRolePatients(List<Patient> all) => switch (widget.role) {
-    NotificationRole.doctor => all.where((p) {
-      final isWaitingDoc =
-          p.status == PatientStatus.menungguDokter &&
-          (p.statusPenanganan == null ||
-              p.statusPenanganan == '' ||
-              p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
-              p.statusPenanganan == 'Pemeriksaan awal');
-      final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
-      return isWaitingDoc || isLabReady;
-    }).toList(),
-    NotificationRole.pharmacy => all.where((p) {
-      return p.statusPenanganan == 'Menunggu Obat' ||
-          p.resepStatus == ResepStatus.baru ||
-          (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai);
-    }).toList(),
-    NotificationRole.lab => all.where((p) {
-      return p.statusPenanganan == 'Menunggu Lab' ||
-          (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru);
-    }).toList(),
+    NotificationRole.doctor =>
+      all
+          .where((p) => isWaitingForDoctor(p) || isLabResultForDoctor(p))
+          .toList(),
+    NotificationRole.pharmacy => all.where(isWaitingForPharmacy).toList(),
+    NotificationRole.lab => all.where(isWaitingForLab).toList(),
   };
 
   void _markAllRead() {
@@ -153,8 +139,7 @@ class _NotificationsViewState extends ConsumerState<NotificationsView> {
                   itemCount: roleNotifs.length,
                   itemBuilder: (context, index) {
                     final patient = roleNotifs[index];
-                    final isLab =
-                        patient.labOrder?.status == LabOrderStatus.selesai;
+                    final isLab = isLabResultForDoctor(patient);
                     final isUnread = _isUnread(patient, isLab);
 
                     return _NotificationCard(

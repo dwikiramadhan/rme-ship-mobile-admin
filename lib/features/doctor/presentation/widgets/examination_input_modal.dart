@@ -427,7 +427,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
             );
       }
 
-      ref.read(notificationsProvider.notifier).markDoctorSeen(patientId);
+      ref.read(notificationsProvider.notifier).markDoctorSeen(recordId);
       ref.read(patientsProvider.notifier).markDilihatDokter(patientId);
 
       // Refresh data from API for both all-history and doctor-specific history

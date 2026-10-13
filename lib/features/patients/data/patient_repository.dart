@@ -19,6 +19,7 @@ import '../../auth/domain/user_role.dart';
 import 'patient_api.dart';
 import 'seen_notification_storage.dart';
 import '../../../core/utils/ship_code_helper.dart';
+import '../../notifications/domain/notification_rules.dart';
 
 /// Patient state management wired directly to [PatientApi] and real-time [WebSocketService]
 /// for instant sub-second event pushes (Perawat -> Dokter, Dokter -> Farmasi/Lab).
@@ -1274,6 +1275,14 @@ final webSocketServiceProvider = Provider<WebSocketService>((ref) {
 
 /// Dedicated notifier for unread active notifications.
 /// Completely independent of patient directory pagination/scrolling.
+/// The signed-in user's unread notifications. Each one is a visit (medical
+/// record) waiting for this role, shown as a [Patient] (see
+/// [MedicalHistory.toPatient]):
+/// - doctor: their own visits waiting for them (also back from the lab),
+/// - pharmacy: visits waiting for medicine,
+/// - lab: visits waiting for the lab.
+/// Only visits with activity in the last [window] notify; older ones are
+/// still in the role's own lists.
 class NotificationsNotifier extends StateNotifier<List<Patient>> {
   NotificationsNotifier({
     PatientApi? api,
@@ -1281,9 +1290,12 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     WebSocketService? wsService,
     this.inAppNotifier,
     this.currentRole,
+    this.currentUserId,
+    DateTime Function()? clock,
   }) : _api = api ?? PatientApi(),
        _seenStorage = seenStorage ?? SeenNotificationStorage(),
        _wsService = wsService ?? WebSocketService(),
+       _clock = clock ?? DateTime.now,
        super(const []) {
     // Without a session the request would only bounce with 401.
     if (currentRole != null) {
@@ -1293,66 +1305,61 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     _initConnectionMonitor();
   }
 
+  static const window = Duration(hours: 24);
+
   final PatientApi _api;
   final SeenNotificationStorage _seenStorage;
   final WebSocketService _wsService;
+  final DateTime Function() _clock;
   final InAppNotificationNotifier? inAppNotifier;
   final UserRole? currentRole;
+
+  /// The signed-in user's id; a doctor is only notified about visits
+  /// assigned to them (the backend maps it to their medical personnel).
+  final String? currentUserId;
 
   StreamSubscription? _wsSubscription;
   StreamSubscription? _connSubscription;
   bool _isFirstLoad = true;
 
+  // The visits behind [state], by record id (see [recordFor]).
+  Map<String, MedicalHistory> _records = const {};
+
   // WS events arriving close together are merged into one fetch.
   Timer? _eventFetchTimer;
-  final Set<String> _pendingTargetIds = {};
   String? _pendingBannerPatientId;
   // Only the newest fetch may write state (older responses are dropped).
   int _fetchSeq = 0;
 
-  bool _isWaitingDoctor(Patient p) {
-    return p.status == PatientStatus.menungguDokter &&
-        (p.statusPenanganan == null ||
-            p.statusPenanganan == '' ||
-            p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
-            p.statusPenanganan == 'Pemeriksaan awal');
-  }
+  /// The backend status of the visits this role is notified about.
+  String? get _status => switch (currentRole) {
+    UserRole.dokter => 'Menunggu Dokter',
+    UserRole.pharmacy => 'Menunggu Obat',
+    UserRole.lab => 'Menunggu Lab',
+    _ => null,
+  };
+
+  /// WS events that may bring this role a new notification.
+  bool _isEventForRole(Object? type) => switch (currentRole) {
+    UserRole.dokter =>
+      type == 'patient_assigned' ||
+          type == 'patient_registered' ||
+          type == 'lab_result_ready',
+    UserRole.pharmacy => type == 'prescription_created',
+    UserRole.lab => type == 'lab_order_created',
+    _ => false,
+  };
 
   void _initWebSocket() {
-    _wsSubscription = _wsService.onEvent.listen((event) async {
+    _wsSubscription = _wsService.onEvent.listen((event) {
       final type = event['type'] ?? event['event'];
       if (type == 'ping' || type == 'pong') return;
       debugPrint('⚡ [NotificationsNotifier] Event received: $type');
 
       final patientId = event['patient_id']?.toString();
-      String? bannerPatientId;
-      if (type == 'prescription_created' && patientId != null) {
-        await _seenStorage.unmarkPharmacySeen(patientId);
-        if (currentRole == UserRole.pharmacy) {
-          bannerPatientId = patientId;
-        }
-      } else if ((type == 'patient_assigned' || type == 'patient_registered') &&
-          patientId != null) {
-        await _seenStorage.unmarkDoctorSeen(patientId);
-        if (currentRole == UserRole.dokter) {
-          bannerPatientId = patientId;
-        }
-      } else if (type == 'lab_result_ready' && patientId != null) {
-        await _seenStorage.unmarkDoctorLabSeen(patientId);
-        if (currentRole == UserRole.dokter) {
-          bannerPatientId = patientId;
-        }
-      } else if (type == 'lab_order_created' && patientId != null) {
-        await _seenStorage.unmarkLabSeen(patientId);
-        if (currentRole == UserRole.lab) {
-          bannerPatientId = patientId;
-        }
-      } else if (type == 'prescription_completed' && patientId != null) {
-        await _seenStorage.markPharmacySeen(patientId);
+      if (patientId != null && _isEventForRole(type)) {
+        _pendingBannerPatientId = patientId;
       }
-
-      if (patientId != null) _pendingTargetIds.add(patientId);
-      if (bannerPatientId != null) _pendingBannerPatientId = bannerPatientId;
       _scheduleEventFetch();
     });
   }
@@ -1360,14 +1367,9 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
   void _scheduleEventFetch() {
     _eventFetchTimer?.cancel();
     _eventFetchTimer = Timer(const Duration(milliseconds: 400), () {
-      final targets = {..._pendingTargetIds};
       final banner = _pendingBannerPatientId;
-      _pendingTargetIds.clear();
       _pendingBannerPatientId = null;
-      fetchRecentNotifications(
-        targetPatientIds: targets,
-        triggerBannerForPatientId: banner,
-      );
+      fetchRecentNotifications(triggerBannerForPatientId: banner);
     });
   }
 
@@ -1381,7 +1383,6 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
       }
     });
   }
-
 
   /// Triggered when tablet screen wakes up / resumes from background.
   /// Only reconnects WebSocket if disconnected, without performing any HTTP requests.
@@ -1399,83 +1400,70 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     await fetchRecentNotifications();
   }
 
+  /// The visit behind notification [p], to open it in the role's list.
+  MedicalHistory? recordFor(Patient p) => _records[notificationKey(p)];
+
+  bool _isUnread(Patient p) {
+    final key = notificationKey(p);
+    return switch (currentRole) {
+      UserRole.dokter =>
+        isLabResultForDoctor(p)
+            ? !_seenStorage.isDoctorLabSeen(key)
+            : !_seenStorage.isDoctorSeen(key),
+      UserRole.pharmacy => !_seenStorage.isPharmacySeen(key),
+      UserRole.lab => !_seenStorage.isLabSeen(key),
+      _ => false,
+    };
+  }
+
   Future<void> fetchRecentNotifications({
-    Set<String> targetPatientIds = const {},
     String? triggerBannerForPatientId,
   }) async {
+    final status = _status;
+    // A doctor without a known id would see everyone's patients.
+    final userId = currentRole == UserRole.dokter ? currentUserId : null;
+    if (status == null ||
+        (currentRole == UserRole.dokter && (userId ?? '').isEmpty)) {
+      state = const [];
+      return;
+    }
+
     final seq = ++_fetchSeq;
     try {
       await _seenStorage.load();
-      // Fetch recent triage/intake patients (page 1 with limit 50)
-      final paginated = await _api.getPatientsPaginated(limit: 50);
-      var patientList = paginated.data;
-
-      // Notified patients that aren't on page 1 are fetched individually (in parallel)
-      final missingIds = targetPatientIds
-          .where((id) => !patientList.any((p) => p.id == id))
-          .toList();
-      if (missingIds.isNotEmpty) {
-        final targets = await Future.wait(
-          missingIds.map((id) async {
-            try {
-              return await _api.getPatient(id);
-            } catch (_) {
-              return null;
-            }
-          }),
-        );
-        patientList = [...targets.whereType<Patient>(), ...patientList];
-      }
-
+      final page = await _api.getMedicalHistoryPaginated(
+        limit: 50,
+        statusPenanganan: status,
+        userId: userId,
+      );
       if (!mounted || seq != _fetchSeq) return;
 
-      // Sync viewed flags from storage
-      patientList = patientList.map((p) {
-        return p.copyWith(
-          dilihatDokter: _seenStorage.isDoctorSeen(p.id),
-          dilihatDokterLab: _seenStorage.isDoctorLabSeen(p.id),
-          dilihatPharmacy: _seenStorage.isPharmacySeen(p.id),
-          dilihatLab: _seenStorage.isLabSeen(p.id),
-        );
+      final since = _clock().subtract(window);
+      final recent = page.data.where((h) {
+        final at = DateTime.tryParse(h.updatedAt ?? h.createdAt ?? '');
+        return at != null && at.isAfter(since);
       }).toList();
+      _records = {for (final h in recent) h.id: h};
 
-      final unread = patientList.where((p) {
-        final isUnreadDoc =
-            _isWaitingDoctor(p) && !_seenStorage.isDoctorSeen(p.id);
-        final isUnreadDocLab =
-            (p.labOrder?.status == LabOrderStatus.selesai) &&
-            !_seenStorage.isDoctorLabSeen(p.id);
-        final isUnreadPharm =
-            (p.statusPenanganan == 'Menunggu Obat' ||
-                p.resepStatus == ResepStatus.baru ||
-                (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)) &&
-            !_seenStorage.isPharmacySeen(p.id);
-        final isUnreadLab =
-            (p.statusPenanganan == 'Menunggu Lab' ||
-                (p.labOrder != null &&
-                    p.labOrder!.status == LabOrderStatus.baru)) &&
-            !_seenStorage.isLabSeen(p.id);
-        return isUnreadDoc || isUnreadDocLab || isUnreadPharm || isUnreadLab;
-      }).toList();
+      final unread = recent
+          .map((h) => _withReadFlags(h.toPatient()))
+          .where(_isUnread)
+          .toList();
 
-      // Check for new notifications to trigger floating in-app banner
+      // A floating banner for the visit that just came in.
       if (inAppNotifier != null) {
+        Patient? fresh;
         if (triggerBannerForPatientId != null) {
-          final target = unread
+          fresh = unread
               .where((p) => p.id == triggerBannerForPatientId)
               .firstOrNull;
-          if (target != null) {
-            _dispatchBanner(target);
-          }
         } else if (!_isFirstLoad) {
-          for (final p in unread) {
-            final wasInState = state.any((old) => old.id == p.id);
-            if (!wasInState) {
-              _dispatchBanner(p);
-              break; // Show top priority banner
-            }
-          }
+          final known = state.map(notificationKey).toSet();
+          fresh = unread
+              .where((p) => !known.contains(notificationKey(p)))
+              .firstOrNull;
         }
+        if (fresh != null) _dispatchBanner(fresh);
       }
 
       _isFirstLoad = false;
@@ -1483,167 +1471,99 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
     } catch (_) {}
   }
 
+  Patient _withReadFlags(Patient p) {
+    final key = notificationKey(p);
+    return p.copyWith(
+      dilihatDokter: _seenStorage.isDoctorSeen(key),
+      dilihatDokterLab: _seenStorage.isDoctorLabSeen(key),
+      dilihatPharmacy: _seenStorage.isPharmacySeen(key),
+      dilihatLab: _seenStorage.isLabSeen(key),
+    );
+  }
+
   void _dispatchBanner(Patient p) {
     final identifier = p.nik.isNotEmpty ? p.nik : p.registerNo;
+    final id = '${notificationKey(p)}_${DateTime.now().millisecondsSinceEpoch}';
 
-    // 1. Lab Result Ready (intended for Doctor)
-    if (p.labOrder?.status == LabOrderStatus.selesai) {
-      if (currentRole != null && currentRole != UserRole.dokter) return;
-      inAppNotifier?.showNotification(
-        InAppNotificationItem(
-          id: 'lab_res_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Hasil Lab Selesai',
-          message:
-              'Hasil pemeriksaan laboratorium untuk ${p.nama} telah selesai.',
-          type: InAppNotificationType.lab,
-          patientId: p.id,
-        ),
-      );
-      return;
-    }
-
-    // 2. Pharmacy Order (intended for Pharmacy)
-    if (p.statusPenanganan == 'Menunggu Obat' ||
-        p.resepStatus == ResepStatus.baru) {
-      if (currentRole != null && currentRole != UserRole.pharmacy) return;
-      inAppNotifier?.showNotification(
-        InAppNotificationItem(
-          id: 'pharm_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Order Resep Baru',
-          message: 'Resep obat baru untuk pasien ${p.nama} siap diracik.',
-          type: InAppNotificationType.pharmacy,
-          patientId: p.id,
-        ),
-      );
-      return;
-    }
-
-    // 3. Lab Order (intended for Lab)
-    if (p.statusPenanganan == 'Menunggu Lab' ||
-        (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru)) {
-      if (currentRole != null && currentRole != UserRole.lab) return;
-      inAppNotifier?.showNotification(
-        InAppNotificationItem(
-          id: 'lab_ord_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Order Pemeriksaan Lab',
-          message: 'Permintaan lab baru untuk pasien ${p.nama}.',
-          type: InAppNotificationType.lab,
-          patientId: p.id,
-        ),
-      );
-      return;
-    }
-
-    // 4. Doctor Queue (intended for Doctor)
-    if (_isWaitingDoctor(p) && !_seenStorage.isDoctorSeen(p.id)) {
-      if (currentRole != null && currentRole != UserRole.dokter) return;
-      inAppNotifier?.showNotification(
-        InAppNotificationItem(
-          id: 'doc_${p.id}_${DateTime.now().millisecondsSinceEpoch}',
-          title: 'Pasien Siap Diperiksa',
-          message: '${p.nama} ($identifier) menunggu di antrian dokter.',
-          type: InAppNotificationType.doctor,
-          patientId: p.id,
-        ),
-      );
-      return;
-    }
+    final item = switch (currentRole) {
+      UserRole.dokter when isLabResultForDoctor(p) => InAppNotificationItem(
+        id: 'lab_res_$id',
+        title: 'Hasil Lab Selesai',
+        message:
+            'Hasil pemeriksaan laboratorium untuk ${p.nama} telah selesai.',
+        type: InAppNotificationType.lab,
+        patientId: p.id,
+      ),
+      UserRole.dokter => InAppNotificationItem(
+        id: 'doc_$id',
+        title: 'Pasien Siap Diperiksa',
+        message: '${p.nama} ($identifier) menunggu di antrian dokter.',
+        type: InAppNotificationType.doctor,
+        patientId: p.id,
+      ),
+      UserRole.pharmacy => InAppNotificationItem(
+        id: 'pharm_$id',
+        title: 'Order Resep Baru',
+        message: 'Resep obat baru untuk pasien ${p.nama} siap diracik.',
+        type: InAppNotificationType.pharmacy,
+        patientId: p.id,
+      ),
+      UserRole.lab => InAppNotificationItem(
+        id: 'lab_ord_$id',
+        title: 'Order Pemeriksaan Lab',
+        message: 'Permintaan lab baru untuk pasien ${p.nama}.',
+        type: InAppNotificationType.lab,
+        patientId: p.id,
+      ),
+      _ => null,
+    };
+    if (item != null) inAppNotifier?.showNotification(item);
   }
 
-  void markDoctorSeen(String id) {
-    _seenStorage.markDoctorSeen(id);
-    state = state.where((p) => !(p.id == id && _isWaitingDoctor(p))).toList();
+  /// Drops the notification of visit [visitId] from the list.
+  void _remove(String visitId) {
+    state = state.where((n) => notificationKey(n) != visitId).toList();
   }
 
-  void markDoctorLabSeen(String id) {
-    _seenStorage.markDoctorLabSeen(id);
-    state = state
-        .where(
-          (p) => !(p.id == id && p.labOrder?.status == LabOrderStatus.selesai),
-        )
-        .toList();
+  /// Marks visit [visitId] (see [notificationKey]) as read.
+  void markDoctorSeen(String visitId) {
+    _seenStorage.markDoctorSeen(visitId);
+    _remove(visitId);
+  }
+
+  void markDoctorLabSeen(String visitId) {
+    _seenStorage.markDoctorLabSeen(visitId);
+    _remove(visitId);
   }
 
   void markAllDoctorSeen() {
-    final docIds = state.where((p) => _isWaitingDoctor(p)).map((p) => p.id);
-    final labIds = state
-        .where((p) => p.labOrder?.status == LabOrderStatus.selesai)
-        .map((p) => p.id);
-    _seenStorage.markAllDoctorSeen(docIds);
-    _seenStorage.markAllDoctorLabSeen(labIds);
-    state = state
-        .where(
-          (p) =>
-              !_isWaitingDoctor(p) &&
-              p.labOrder?.status != LabOrderStatus.selesai,
-        )
-        .toList();
+    _seenStorage.markAllDoctorSeen(
+      state.where(isWaitingForDoctor).map(notificationKey),
+    );
+    _seenStorage.markAllDoctorLabSeen(
+      state.where(isLabResultForDoctor).map(notificationKey),
+    );
+    state = const [];
   }
 
-  void markPharmacySeen(String id) {
-    _seenStorage.markPharmacySeen(id);
-    state = state
-        .where(
-          (p) =>
-              !(p.id == id &&
-                  (p.statusPenanganan == 'Menunggu Obat' ||
-                      p.resepStatus == ResepStatus.baru ||
-                      (p.resep.isNotEmpty &&
-                          p.resepStatus != ResepStatus.selesai))),
-        )
-        .toList();
+  void markPharmacySeen(String visitId) {
+    _seenStorage.markPharmacySeen(visitId);
+    _remove(visitId);
   }
 
   void markAllPharmacySeen() {
-    final pharmIds = state
-        .where(
-          (p) =>
-              p.statusPenanganan == 'Menunggu Obat' ||
-              p.resepStatus == ResepStatus.baru ||
-              (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai),
-        )
-        .map((p) => p.id);
-    _seenStorage.markAllPharmacySeen(pharmIds);
-    state = state
-        .where(
-          (p) =>
-              !(p.statusPenanganan == 'Menunggu Obat' ||
-                  p.resepStatus == ResepStatus.baru ||
-                  (p.resep.isNotEmpty && p.resepStatus != ResepStatus.selesai)),
-        )
-        .toList();
+    _seenStorage.markAllPharmacySeen(state.map(notificationKey));
+    state = const [];
   }
 
-  void markLabSeen(String id) {
-    _seenStorage.markLabSeen(id);
-    state = state
-        .where(
-          (p) =>
-              !(p.id == id &&
-                  (p.statusPenanganan == 'Menunggu Lab' ||
-                      (p.labOrder != null &&
-                          p.labOrder!.status == LabOrderStatus.baru))),
-        )
-        .toList();
+  void markLabSeen(String visitId) {
+    _seenStorage.markLabSeen(visitId);
+    _remove(visitId);
   }
 
   void markAllLabSeen() {
-    final labIds = state
-        .where(
-          (p) =>
-              p.statusPenanganan == 'Menunggu Lab' ||
-              (p.labOrder != null && p.labOrder!.status == LabOrderStatus.baru),
-        )
-        .map((p) => p.id);
-    _seenStorage.markAllLabSeen(labIds);
-    state = state
-        .where(
-          (p) =>
-              !(p.statusPenanganan == 'Menunggu Lab' ||
-                  (p.labOrder != null &&
-                      p.labOrder!.status == LabOrderStatus.baru)),
-        )
-        .toList();
+    _seenStorage.markAllLabSeen(state.map(notificationKey));
+    state = const [];
   }
 
   @override
@@ -1666,12 +1586,16 @@ final notificationsProvider =
       final userRole = ref.watch(
         authControllerProvider.select((s) => s.session?.user.role),
       );
+      final userId = ref.watch(
+        authControllerProvider.select((s) => s.session?.user.id),
+      );
       return NotificationsNotifier(
         api: api,
         wsService: ws,
         seenStorage: seenStorage,
         inAppNotifier: inAppNotifier,
         currentRole: userRole,
+        currentUserId: userId,
       );
     });
 
@@ -1875,12 +1799,10 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     });
   }
 
+  /// Adds [history] or replaces the same visit. Other visits of the same
+  /// patient stay as they are.
   void upsertHistory(MedicalHistory history) {
-    final idx = state.indexWhere(
-      (h) =>
-          h.id == history.id ||
-          (history.patientId.isNotEmpty && h.patientId == history.patientId),
-    );
+    final idx = state.indexWhere((h) => h.id == history.id);
     List<MedicalHistory> updated;
     if (idx >= 0) {
       updated = [...state.sublist(0, idx), history, ...state.sublist(idx + 1)];

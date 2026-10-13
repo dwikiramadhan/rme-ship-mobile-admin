@@ -10,12 +10,11 @@ import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/status_filter_button.dart';
 import '../../history/presentation/add_visit_screen.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
+import '../../notifications/domain/notification_rules.dart';
 import '../../notifications/presentation/notifications_view.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../patients/domain/lab_order.dart';
 import '../../patients/domain/medical_history.dart';
-import '../../patients/domain/patient.dart';
 import '../../patients/presentation/medical_history_detail_view.dart';
 import '../../patients/presentation/patient_list_screen.dart';
 import '../../patients/presentation/status_meta.dart';
@@ -50,15 +49,9 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
     // screen rebuilds only when that number changes.
     final notifsCount = ref.watch(
       notificationsProvider.select(
-        (allNotifs) => allNotifs.where((p) {
-          final isWaitingDoc = p.status == PatientStatus.menungguDokter &&
-              (p.statusPenanganan == null ||
-                  p.statusPenanganan == '' ||
-                  p.statusPenanganan == 'Menunggu Pemeriksaan Dokter' ||
-                  p.statusPenanganan == 'Pemeriksaan awal');
-          final isLabReady = p.labOrder?.status == LabOrderStatus.selesai;
-          return isWaitingDoc || isLabReady;
-        }).length,
+        (all) => all
+            .where((p) => isWaitingForDoctor(p) || isLabResultForDoctor(p))
+            .length,
       ),
     );
 
@@ -95,14 +88,16 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
       'notifikasi' => NotificationsView(
           role: NotificationRole.doctor,
           onTapItem: (context, p, isLab) {
+            final notifications = ref.read(notificationsProvider.notifier);
             if (isLab) {
-              ref.read(notificationsProvider.notifier).markDoctorLabSeen(p.id);
+              notifications.markDoctorLabSeen(notificationKey(p));
               ref.read(patientsProvider.notifier).markDilihatDokterLab(p.id);
             } else {
-              ref.read(notificationsProvider.notifier).markDoctorSeen(p.id);
+              notifications.markDoctorSeen(notificationKey(p));
               ref.read(patientsProvider.notifier).markDilihatDokter(p.id);
             }
-            final medHist = p.toMedicalHistory();
+            // The real visit, so it lands in its place in the list.
+            final medHist = notifications.recordFor(p) ?? p.toMedicalHistory();
             ref.read(medicalHistoryProvider.notifier).upsertHistory(medHist);
             final uid =
                 ref.read(authControllerProvider).session?.user.id ?? '';
