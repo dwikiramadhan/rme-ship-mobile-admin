@@ -156,7 +156,8 @@ class StatusFilterButton extends StatelessWidget {
       ],
       child: showLabel
           ? Container(
-              height: 42,
+              // Same height as the dense search field beside it.
+              height: 36,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               alignment: Alignment.center,
               decoration: BoxDecoration(
@@ -168,7 +169,7 @@ class StatusFilterButton extends StatelessWidget {
                   color: isFiltered
                       ? activeColor
                       : (isDark ? const Color(0xFF1E293B) : AppColors.border),
-                  width: isFiltered ? 1.5 : 1,
+                  // Default 1px width, like the search field beside it.
                 ),
               ),
               child: Row(
@@ -182,9 +183,11 @@ class StatusFilterButton extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     selectedOption?.label ?? 'Filter',
+                    // Same text style as the search field beside it.
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0,
                       color: isFiltered
                           ? activeColor
                           : theme.colorScheme.onSurface,

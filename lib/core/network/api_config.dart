@@ -118,6 +118,7 @@ class ApiConfig {
   static String shipMedicineStocksPath(String shipCode) =>
       '/api/v1/ship-medicines/stocks/${Uri.encodeComponent(shipCode)}';
   static const String shipMedicineHistoryPath = '/api/v1/ship-medicines/history';
+  static const String shipMedicinesPath = '/api/v1/ship-medicines';
   static const String environmentsPath = '/api/v1/environments';
   static String medicalRecordDispensePath(String medRecId) =>
       '/api/v1/medical-records/$medRecId/dispense';

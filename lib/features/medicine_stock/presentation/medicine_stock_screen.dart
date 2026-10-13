@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -13,6 +15,8 @@ import '../../../core/widgets/status_filter_button.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../domain/ship_medicine_history.dart';
 import '../domain/ship_medicine_stock.dart';
+import '../../../core/widgets/responsive_master_detail.dart';
+import 'add_stock_sheet.dart';
 import 'medicine_stock_controller.dart';
 
 /// Stok & Inventaris Obat Kapal
@@ -83,6 +87,38 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
     return sessionUser?.shipId?.trim() ?? '';
   }
 
+  Future<void> _addStock(String shipCode) async {
+    final messenger = ScaffoldMessenger.of(context);
+    if (shipCode.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Kapal belum diatur, stok tidak dapat ditambahkan.'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+      return;
+    }
+    final added = await showAddStockSheet(context, shipCode: shipCode);
+    if (!added || !mounted) return;
+    // Both tabs show the new stock and its history entry.
+    unawaited(
+      ref
+          .read(shipMedicineStockProvider(shipCode).notifier)
+          .loadInitial(refresh: true),
+    );
+    unawaited(
+      ref
+          .read(shipMedicineHistoryProvider(shipCode).notifier)
+          .loadInitial(refresh: true),
+    );
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Stok obat berhasil ditambahkan'),
+        backgroundColor: AppColors.green,
+      ),
+    );
+  }
+
   void _onStockScroll() {
     if (!_stockScrollController.hasClients) return;
     final pos = _stockScrollController.position;
@@ -118,7 +154,17 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const ScreenHeader(title: 'Stok & Transaksi Obat'),
+        ScreenHeader(
+          title: 'Stok & Transaksi Obat',
+          // Adding stock is for the pharmacist only (as on the web).
+          trailing: widget.canManage
+              ? HeaderActionButton(
+                  icon: LucideIcons.plus,
+                  tooltip: 'Tambah Stok',
+                  onPressed: () => _addStock(effectiveShipCode),
+                )
+              : null,
+        ),
         _buildTabBar(),
         Expanded(
           child: ClipRect(

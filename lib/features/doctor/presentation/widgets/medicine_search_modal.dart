@@ -16,9 +16,14 @@ class MedicineSearchModal extends ConsumerStatefulWidget {
     required this.selectedName,
     required this.onSelect,
     this.onSelectMedicine,
+    this.showStock = true,
   });
 
   final String? shipCode;
+
+  /// Hide the stock badge, e.g. when picking from the master list (no
+  /// [shipCode]) where every medicine would read "Habis".
+  final bool showStock;
   final String? selectedName;
   final ValueChanged<String> onSelect;
   final ValueChanged<MedicineItem>? onSelectMedicine;
@@ -475,6 +480,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
                                               ),
 
                                             // Stock badge
+                                            if (widget.showStock)
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(

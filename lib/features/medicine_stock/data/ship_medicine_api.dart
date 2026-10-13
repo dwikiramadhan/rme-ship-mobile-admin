@@ -13,6 +13,30 @@ class ShipMedicineApi {
 
   final Dio _dio;
 
+  /// Adds [quantity] to the ship's stock of a medicine (the backend creates
+  /// the ship's entry for a medicine it doesn't carry yet) and records it in
+  /// the stock history: POST /api/v1/ship-medicines.
+  Future<void> addStock({
+    required String shipCode,
+    required String medicineId,
+    required int quantity,
+    String notes = '',
+  }) async {
+    try {
+      await _dio.post(
+        ApiConfig.shipMedicinesPath,
+        data: {
+          'ship_code': shipCode.trim(),
+          'medicine_id': medicineId,
+          'stock': quantity,
+          if (notes.trim().isNotEmpty) 'notes': notes.trim(),
+        },
+      );
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
   /// Fetches paginated ship medicine stocks:
   /// GET /api/v1/ship-medicines/stocks/:ship_code?page=1&limit=15&search=...
   Future<PaginatedShipMedicineStocks> fetchStocks({
