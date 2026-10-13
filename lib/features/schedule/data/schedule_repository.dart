@@ -254,6 +254,12 @@ class ScheduleRepository {
 
 final scheduleApiProvider = Provider<ScheduleApi>((ref) => ScheduleApi());
 
+/// Harbors to pick for a visit ("Pelabuhan"), from GET /api/v1/ports.
+final portsProvider = FutureProvider<List<PortItem>>((ref) async {
+  final result = await ref.watch(scheduleApiProvider).getPorts(limit: 100);
+  return result.items;
+});
+
 final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
   final api = ref.watch(scheduleApiProvider);
   return ScheduleRepository(api);
@@ -262,6 +268,8 @@ final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
 /// Provides stable counter data fetched from GET /api/v1/schedules/ship/:shipCode/counter.
 final scheduleCounterProvider = FutureProvider.autoDispose<ScheduleCounter>((ref) async {
   final shipCode = await resolveLocalStorageShipCode(ref);
+  // No ship yet: nothing to count.
+  if (shipCode.isEmpty) return const ScheduleCounter();
   final repo = ref.watch(scheduleRepositoryProvider);
   return repo.fetchScheduleCounter(shipCode);
 });
@@ -493,6 +501,8 @@ class SchedulesNotifier
 
   Future<String> _getShipCode() async {
     final code = await resolveLocalStorageShipCode(_ref);
+    // Shown on the schedule screen's error state.
+    if (code.isEmpty) throw Exception(noActiveShipMessage);
     _resolvedShipCode = code;
     return code;
   }

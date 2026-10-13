@@ -8,6 +8,7 @@ import '../../features/environment/presentation/environment_controller.dart';
 
 /// Resolves the active `ship_code` from on-device local storage (FlutterSecureStorage,
 /// EnvironmentStorage, SessionStorage) with fallback to memory state.
+/// Empty when no ship is set on this device.
 Future<String> resolveLocalStorageShipCode([dynamic ref]) async {
   // 1. Direct FlutterSecureStorage keys
   try {
@@ -70,8 +71,24 @@ Future<String> resolveLocalStorageShipCode([dynamic ref]) async {
     } catch (_) {}
   }
 
-  return 'KPL-001';
+  return '';
 }
+
+/// The active ship's id (a UUID), which the backend requires on every new
+/// visit. Null when no ship is set on this device.
+Future<String?> resolveActiveShipId(WidgetRef ref) async {
+  try {
+    final stored = await ref.read(environmentStorageProvider).getShipId();
+    if (stored != null && stored.trim().isNotEmpty) return stored.trim();
+  } catch (_) {}
+  final active = ref.read(activeEnvironmentShipIdProvider);
+  if (active != null && active.trim().isNotEmpty) return active.trim();
+  return null;
+}
+
+/// Shown when [resolveActiveShipId] finds no ship.
+const String noActiveShipMessage =
+    'Kapal aktif belum diatur. Pilih kapal terlebih dahulu.';
 
 /// Riverpod provider for active ship_code from local storage
 final localStorageShipCodeProvider = FutureProvider<String>((ref) async {

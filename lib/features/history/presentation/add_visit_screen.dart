@@ -7,6 +7,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
+import '../../../core/utils/ship_code_helper.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
@@ -20,6 +21,7 @@ import '../../nurse/presentation/patient_form.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
+import '../../schedule/domain/trip_schedule.dart';
 
 /// Form Input Kunjungan Baru / Tambah Riwayat Kunjungan
 /// Memungkinkan perawat atau dokter mencatat kunjungan rekam medis baru untuk pasien terdaftar:
@@ -57,6 +59,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
   // Doctor & Poliklinik
   String? _selectedDoctorId;
   String _poliCode = 'UMUM';
+  String? _portId;
 
   // Complaint
   final _keluhanUtama = TextEditingController();
@@ -107,7 +110,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
     if (p.vitals.suhu.isNotEmpty) _suhu.text = p.vitals.suhu;
     if (p.vitals.frekuensiNapas.isNotEmpty) _rr.text = p.vitals.frekuensiNapas;
     if (p.vitals.spo2.isNotEmpty) _spo2.text = p.vitals.spo2;
-    if (p.assignedDokterId.isNotEmpty) _selectedDoctorId = p.assignedDokterId;
   }
 
   @override
@@ -177,46 +179,40 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
       return;
     }
 
-    final doctorsAsync = ref.read(doctorsProvider);
-    final doctorList = doctorsAsync.maybeWhen(
-      data: (list) => list.isNotEmpty ? list : kDoctors,
-      orElse: () => kDoctors,
-    );
-    final effectiveDoctorId =
-        (_selectedDoctorId != null && _selectedDoctorId!.isNotEmpty)
-        ? _selectedDoctorId!
-        : (doctorList.isNotEmpty
-              ? doctorList.first.id
-              : '0f3a4534-3385-4305-8932-7154dd8cb35f');
+    final effectiveDoctorId = _selectedDoctorId;
+    if (effectiveDoctorId == null || effectiveDoctorId.isEmpty) {
+      setState(() => _errorMessage = 'Dokter pemeriksa wajib dipilih.');
+      return;
+    }
 
-    // Ambil ship code & ship id dari local storage (bayan_rme.active_environment_code & bayan_rme.active_environment_ship_id)
+    final portId = _portId;
+    if (portId == null) {
+      setState(() => _errorMessage = 'Pelabuhan wajib dipilih.');
+      return;
+    }
+
+
+    // The backend needs the ship's id (a UUID), so there is no fallback.
+    final effectiveShipId = await resolveActiveShipId(ref);
+    if (effectiveShipId == null) {
+      if (mounted) setState(() => _errorMessage = noActiveShipMessage);
+      return;
+    }
+
+    // Ambil ship code dari local storage (bayan_rme.active_environment_code)
     String? activeEnvCode;
-    String? activeEnvShipId;
     try {
-      final envStorage = ref.read(environmentStorageProvider);
-      activeEnvCode = await envStorage.getCode();
-      activeEnvShipId = await envStorage.getShipId();
+      activeEnvCode = await ref.read(environmentStorageProvider).getCode();
     } catch (_) {
       // Fallback
     }
     if (activeEnvCode == null || activeEnvCode.trim().isEmpty) {
       activeEnvCode = ref.read(activeEnvironmentCodeProvider);
     }
-    if (activeEnvShipId == null || activeEnvShipId.trim().isEmpty) {
-      activeEnvShipId = ref.read(activeEnvironmentShipIdProvider);
-    }
-
-    final effectiveShipId =
-        (activeEnvShipId != null && activeEnvShipId.trim().isNotEmpty)
-        ? activeEnvShipId.trim()
-        : (_selectedPatient?.serviceShipCode ??
-              '3a7ff982-e187-49f8-a34e-95f775afda61');
     final effectiveShipCode =
         (activeEnvCode != null && activeEnvCode.trim().isNotEmpty)
         ? activeEnvCode.trim()
         : (_selectedPatient?.serviceShipCode ?? effectiveShipId);
-    const effectivePortId =
-        '85bc4ed2-2a82-44dc-b831-eb99a5165575'; // Pelabuhan default
 
     // Parse Vitals
     final sys = int.tryParse(_sistolik.text.trim());
@@ -254,12 +250,11 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
       'doctor_id': effectiveDoctorId,
       'ship_id': effectiveShipId,
       'ship_code': effectiveShipCode,
-      'port_id': effectivePortId,
+      'port_id': portId,
       'poli_code': _poliCode,
       'date': dateStr,
       'complaint': fullComplaint,
-      'diagnosis': 'Pemeriksaan Awal',
-      'treatment': 'Menunggu Pemeriksaan Dokter',
+      // Diagnosis and treatment are left for the doctor to fill.
       'notes': _catatan.text.trim().isNotEmpty
           ? _catatan.text.trim()
           : 'Pendaftaran kunjungan poli $_poliCode',
@@ -362,14 +357,13 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                 d.email?.toLowerCase() == currentUser?.email.toLowerCase(),
           )
           .firstOrNull;
-      _selectedDoctorId = myDoctor?.id ?? doctorList.first.id;
-    } else if (_selectedDoctorId == null && doctorList.isNotEmpty) {
-      _selectedDoctorId = doctorList.first.id;
+      // A doctor registering a visit examines it themselves; otherwise the
+      // doctor is chosen, never preselected.
+      _selectedDoctorId = myDoctor?.id;
     }
 
     final selectedDoctor =
-        doctorList.where((d) => d.id == _selectedDoctorId).firstOrNull ??
-        (doctorList.isNotEmpty ? doctorList.first : null);
+        doctorList.where((d) => d.id == _selectedDoctorId).firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -820,6 +814,27 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
   // ==========================================
   // Section: Poliklinik & Dokter Pemeriksa
   // ==========================================
+  Widget _buildPortSelect() {
+    final ports = ref.watch(portsProvider);
+    return AppSelect<String>(
+      labelFontSize: 11,
+      fontSize: 12,
+      label: 'Pelabuhan',
+      required: true,
+      value: _portId,
+      hint: ports.isLoading
+          ? 'Memuat pelabuhan...'
+          : ports.hasError
+          ? 'Gagal memuat pelabuhan'
+          : 'Pilih pelabuhan...',
+      options: [
+        for (final port in ports.valueOrNull ?? const <PortItem>[])
+          AppSelectOption(value: port.id, label: port.name),
+      ],
+      onChanged: (val) => setState(() => _portId = val),
+    );
+  }
+
   Widget _buildDoctorAndPoliCard(
     Doctor? selectedDoctor,
     List<Doctor> doctorList,
@@ -871,6 +886,10 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
               if (val != null) setState(() => _poliCode = val);
             },
           ),
+          const SizedBox(height: 14),
+
+          // Harbor of this visit (port_id, required by the backend).
+          _buildPortSelect(),
           const SizedBox(height: 14),
 
           // Dokter Pemeriksa Selector

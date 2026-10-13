@@ -20,6 +20,7 @@ import '../../patients/data/region_api.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/domain/vitals.dart';
+import '../../schedule/domain/trip_schedule.dart';
 
 /// Patient intake & edit form with Material UI v3 aesthetics:
 /// - DOB datepicker with auto age calculation
@@ -71,6 +72,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   Gender? _jk;
   String? _bloodType;
   String? _dokterId;
+  String? _portId;
   String? _hubunganWali;
   bool _saving = false;
 
@@ -130,7 +132,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       if (p.nik.startsWith('FTO') ||
           (p.photoUrl != null && p.photoUrl!.isNotEmpty) ||
           p.nik.isEmpty ||
-          (p.keterangan != null && p.keterangan!.contains('[Identitas: Foto'))) {
+          (p.keterangan != null &&
+              p.keterangan!.contains('[Identitas: Foto'))) {
         _identityType = 'Photo';
       } else {
         _identityType = 'NIK';
@@ -167,31 +170,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       } else if (p.umur > 0) {
         _dob = DateTime(DateTime.now().year - p.umur);
       }
-    } else {
-      // Default test values for quick testing
-      _nama.text = 'Budi Santoso';
-      _nik.text = '3171012304950001';
-      _identityType = 'NIK';
-      _photoFile = null;
-      _dob = DateTime(1995, 4, 23);
-      _jk = Gender.l;
-      _bloodType = 'O+';
-      _isManualAddress = false;
-      _alamat.text = 'Jl. Pelabuhan Semayang No. 12';
-      _namaWali.text = 'Siti Rahmawati';
-      _hubunganWali = 'Suami / Istri';
-      _keterangan.text = 'Pemeriksaan kesehatan posko kapal';
-
-      _keluhanUtama.text = 'Demam dan sakit kepala sejak kemarin';
-      _durasiKeluhan.text = '2 hari';
-      _lokasiKeluhan.text = 'Kepala';
-      _td.text = '120/80';
-      _nadi.text = '80';
-      _suhu.text = '37.5';
-      _rr.text = '18';
-      _spo2.text = '98';
-      _dokterId = null;
     }
+    // A new patient starts with an empty form.
 
     _updateValidState();
     _loadProvinsi();
@@ -213,24 +193,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       }
       return;
     }
-
-    if (!_isManualAddress && _selectedProvinsi == null && list.isNotEmpty) {
-      final defaultProv =
-          list
-              .where((p) => p.namaProvinsi.toLowerCase().contains('kalimantan'))
-              .firstOrNull ??
-          list.first;
-      await _onProvinsiChanged(defaultProv);
-      if (_kabkotaList.isNotEmpty) {
-        await _onKabkotaChanged(_kabkotaList.first);
-        if (_kecamatanList.isNotEmpty) {
-          await _onKecamatanChanged(_kecamatanList.first);
-          if (_kelurahanList.isNotEmpty && mounted) {
-            setState(() => _selectedKelurahan = _kelurahanList.first);
-          }
-        }
-      }
-    }
+    // A new patient picks the region themselves; nothing is preselected.
   }
 
   /// Street part of a stored address ("Jl. X No. 1, Kel. A, Kec. B, ..." ->
@@ -401,11 +364,31 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _jk != null &&
       _dob != null &&
       (widget.isEdit ||
-          (_keluhanUtama.text.trim().isNotEmpty && _dokterId != null));
+          (_keluhanUtama.text.trim().isNotEmpty &&
+              _dokterId != null &&
+              _portId != null));
 
   Future<void> _save() async {
     if (!_valid) return;
     setState(() => _saving = true);
+
+    // A new patient's first visit needs the ship; check it before anything
+    // (photo, patient) is saved.
+    String? shipId;
+    if (widget.initialPatient == null) {
+      shipId = await resolveActiveShipId(ref);
+      if (shipId == null) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(noActiveShipMessage),
+            backgroundColor: AppColors.red,
+          ),
+        );
+        return;
+      }
+    }
 
     try {
       final String nikValue;
@@ -415,7 +398,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         nikValue = _nik.text.trim();
       }
 
-      String? effectiveKeterangan = _keterangan.text.trim().isNotEmpty ? _keterangan.text.trim() : null;
+      String? effectiveKeterangan = _keterangan.text.trim().isNotEmpty
+          ? _keterangan.text.trim()
+          : null;
       if (_identityType == 'Photo' && _photoFile != null) {
         final photoTag = '[Identitas: Foto Kamera (${_photoFile!.name})]';
         if (effectiveKeterangan == null) {
@@ -475,10 +460,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           fullAddress = parts.join(', ');
         }
       }
-      // New patients get a placeholder; an edit never invents an address.
-      if (fullAddress.isEmpty && !widget.isEdit) {
-        fullAddress = 'Kalimantan Timur';
-      }
 
       final kodeKel = (!_isManualAddress && _selectedKelurahan != null)
           ? _selectedKelurahan!.kodeKelurahan
@@ -495,7 +476,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       String? activeShipCode = widget.initialPatient?.serviceShipCode;
       if (activeShipCode == null || activeShipCode.isEmpty) {
         try {
-          activeShipCode = await resolveLocalStorageShipCode(ref);
+          final resolved = await resolveLocalStorageShipCode(ref);
+          if (resolved.isNotEmpty) activeShipCode = resolved;
         } catch (_) {}
       }
 
@@ -571,6 +553,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                 waktuMasuk: waktu,
                 updatedAt: DateTime.now(),
               ),
+              shipId: shipId!,
+              portId: _portId!,
             );
       }
 
@@ -587,7 +571,11 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(LucideIcons.checkCircle2, color: Colors.white, size: 18),
+              const Icon(
+                LucideIcons.checkCircle2,
+                color: Colors.white,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -605,6 +593,20 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         ),
       );
 
+      widget.onSaved();
+    } on VisitNotCreatedException catch (e) {
+      // The patient is saved; close the form so saving again can't
+      // register them twice.
+      if (!mounted) return;
+      setState(() => _saving = false);
+      unawaited(ref.read(patientsProvider.notifier).fetchPatients());
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.toString()),
+          backgroundColor: AppColors.red,
+          duration: const Duration(seconds: 6),
+        ),
+      );
       widget.onSaved();
     } catch (e) {
       if (!mounted) return;
@@ -642,21 +644,26 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       data: (list) => list.isNotEmpty ? list : kDoctors,
       orElse: () => kDoctors,
     );
-    if ((_dokterId == null || !doctorList.any((d) => d.id == _dokterId)) &&
-        doctorList.isNotEmpty) {
-      if (widget.initialPatient == null) {
-        _dokterId = doctorList.first.id;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _updateValidState();
-        });
-      }
+    // No doctor is preselected for a new patient; a choice that is no longer
+    // in the list (e.g. after the server list loads) has to be made again.
+    if (widget.initialPatient == null &&
+        _dokterId != null &&
+        !doctorList.any((d) => d.id == _dokterId)) {
+      _dokterId = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateValidState();
+      });
     }
 
     final theme = Theme.of(context);
     final compactTheme = theme.copyWith(
       inputDecorationTheme: theme.inputDecorationTheme.copyWith(
         contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        hintStyle: const TextStyle(color: AppColors.sub, fontSize: 10.5, letterSpacing: 0),
+        hintStyle: const TextStyle(
+          color: AppColors.sub,
+          fontSize: 10.5,
+          letterSpacing: 0,
+        ),
         isDense: true,
       ),
     );
@@ -918,8 +925,35 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _buildPortSelect(),
         ],
       ),
+    );
+  }
+
+  /// Harbor of the first visit (`port_id`, required by the backend).
+  Widget _buildPortSelect() {
+    final ports = ref.watch(portsProvider);
+    return AppSelect<String>(
+      label: 'Pelabuhan',
+      required: true,
+      value: _portId,
+      fontSize: 11.0,
+      labelFontSize: 10.5,
+      hint: ports.isLoading
+          ? 'Memuat pelabuhan...'
+          : ports.hasError
+          ? 'Gagal memuat pelabuhan'
+          : 'Pilih pelabuhan...',
+      options: [
+        for (final port in ports.valueOrNull ?? const <PortItem>[])
+          AppSelectOption(value: port.id, label: port.name),
+      ],
+      onChanged: (v) {
+        setState(() => _portId = v);
+        _updateValidState();
+      },
     );
   }
 
@@ -990,7 +1024,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                                 style: const TextStyle(
                                   fontSize: 11.0,
                                   color: AppColors.text,
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                             ),
@@ -1158,16 +1192,15 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
   Widget _buildPhotoIdentitySection() {
     final bool hasExistingPhoto =
-        _photoFile == null && _existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty;
+        _photoFile == null &&
+        _existingPhotoUrl != null &&
+        _existingPhotoUrl!.isNotEmpty;
     final bool hasPhoto = _photoFile != null || hasExistingPhoto;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const AppFieldLabel(
-          label: 'Foto Identitas Pasien',
-          fontSize: 10.5,
-        ),
+        const AppFieldLabel(label: 'Foto Identitas Pasien', fontSize: 10.5),
         const SizedBox(height: 5),
         if (!hasPhoto) ...[
           InkWell(
@@ -1215,17 +1248,17 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                         SizedBox(height: 2),
                         Text(
                           'Ketuk untuk buka kamera ponsel & foto fisik KTP / Paspor / Wajah Pasien',
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            color: AppColors.sub,
-                          ),
+                          style: TextStyle(fontSize: 9.5, color: AppColors.sub),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.blue,
                       borderRadius: BorderRadius.circular(8),
@@ -1309,13 +1342,18 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                           // BoxFit.cover crops instead.
                           cacheWidth: 168,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 56,
-                            height: 56,
-                            color: AppColors.card2,
-                            alignment: Alignment.center,
-                            child: const Icon(LucideIcons.image, size: 20, color: AppColors.sub),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                width: 56,
+                                height: 56,
+                                color: AppColors.card2,
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  LucideIcons.image,
+                                  size: 20,
+                                  color: AppColors.sub,
+                                ),
+                              ),
                         ),
                 ),
                 const SizedBox(width: 12),
@@ -1583,16 +1621,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           ),
           const SizedBox(height: 12),
 
-          // Riwayat Alergi (terpisah dari keterangan; dipakai di resep)
-          AppTextField(
-            label: 'Riwayat Alergi',
-            controller: _alergi,
-            fontSize: 11.0,
-            labelFontSize: 10.5,
-            placeholder: 'Mis. Amoksisilin, seafood. Kosongkan jika tidak ada.',
-            maxLines: 2,
-          ),
-          const SizedBox(height: 12),
+          // A new patient enters allergies with the complaint; editing has
+          // no complaint card, so the field stays here.
+          if (widget.isEdit) ...[
+            _buildAlergiField(),
+            const SizedBox(height: 12),
+          ],
 
           // Keterangan Tambahan
           AppTextField(
@@ -1606,6 +1640,18 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Riwayat Alergi: separate from keterangan, printed on prescriptions.
+  Widget _buildAlergiField() {
+    return AppTextField(
+      label: 'Riwayat Alergi',
+      controller: _alergi,
+      fontSize: 11.0,
+      labelFontSize: 10.5,
+      placeholder: 'Mis. Amoksisilin, seafood. Kosongkan jika tidak ada.',
+      maxLines: 2,
     );
   }
 
@@ -1657,6 +1703,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _buildAlergiField(),
           const SizedBox(height: 16),
 
           // Divider with Section Subheading for Tanda Vital

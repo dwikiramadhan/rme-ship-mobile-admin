@@ -769,13 +769,21 @@ class Patient extends Equatable {
                 ? this.serviceShipCode!.trim()
                 : null);
 
+    final effectiveDob = (dob != null && dob.isNotEmpty) ? dob : this.dob;
+    final effectivePhone = (phone != null && phone.isNotEmpty)
+        ? phone
+        : this.phone;
+
     return {
       'nik': effectiveNik,
       'name': nama,
       'gender': jk == Gender.l ? 'Laki-laki' : 'Perempuan',
-      'dob': (dob != null && dob.isNotEmpty) ? dob : (this.dob ?? '1990-01-01'),
+      // Left out when unknown: no made-up values. On update, the server
+      // then keeps what it has.
+      if (effectiveDob != null && effectiveDob.isNotEmpty) 'dob': effectiveDob,
       'address': alamat,
-      'phone': phone ?? this.phone ?? '08123456789',
+      if (effectivePhone != null && effectivePhone.isNotEmpty)
+        'phone': effectivePhone,
       'blood_type': ?normalizedBlood,
       'status': normalizedStatus ?? 'Active',
       if (effectiveStatusPenanganan != null &&

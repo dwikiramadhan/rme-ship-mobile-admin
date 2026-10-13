@@ -6,6 +6,7 @@ import 'package:bayan_rme/features/nurse/presentation/patient_form.dart';
 import 'package:bayan_rme/features/patients/data/patient_api.dart';
 import 'package:bayan_rme/features/patients/data/patient_repository.dart';
 import 'package:bayan_rme/features/patients/data/region_api.dart';
+import 'package:bayan_rme/features/patients/domain/doctor.dart';
 import 'package:bayan_rme/features/patients/domain/patient.dart';
 import 'package:bayan_rme/features/patients/domain/vitals.dart';
 import 'package:bayan_rme/features/patients/presentation/patient_detail_screen.dart';
@@ -112,6 +113,8 @@ void main() {
     // Triage belongs to visits, not to editing the patient.
     expect(find.text('DOKTER PEMERIKSA'), findsNothing);
     expect(find.text('Keluhan Utama'), findsNothing);
+    // Allergies are patient data, so they stay editable here.
+    expect(find.text('Riwayat Alergi'), findsOneWidget);
 
     // The street is edited on its own; the region comes from the code.
     final street = tester.widget<TextFormField>(
@@ -174,5 +177,66 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('Edit Data Pasien'), findsOneWidget);
     expect(find.text('Simpan Perubahan'), findsOneWidget);
+  });
+
+  testWidgets('new patient: Riwayat Alergi comes right after Lokasi Keluhan', (tester) async {
+    tester.view.physicalSize = const Size(640, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          patientApiProvider.overrideWithValue(_RecordingPatientApi()),
+          wilayahApiProvider.overrideWithValue(_FakeWilayahApi()),
+          doctorsProvider.overrideWith((ref) async => []),
+        ],
+        child: MaterialApp(
+          home: Scaffold(body: PatientForm(onBack: () {}, onSaved: () {})),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Starts empty: no sample patient, complaint or vitals.
+    for (final sample in ['Budi Santoso', '3171012304950001', 'Demam dan sakit kepala sejak kemarin', '120/80']) {
+      expect(find.text(sample), findsNothing, reason: sample);
+    }
+    // No region picked for the nurse.
+    expect(find.text('Kalimantan Barat'), findsNothing);
+    expect(find.text('Kalimantan Timur'), findsNothing);
+
+    expect(find.text('Riwayat Alergi'), findsOneWidget);
+    final lokasi = tester.getTopLeft(find.text('Lokasi Keluhan')).dy;
+    final alergi = tester.getTopLeft(find.text('Riwayat Alergi')).dy;
+    final tandaVital = tester.getTopLeft(find.text('TANDA VITAL')).dy;
+    expect(alergi, greaterThan(lokasi));
+    expect(alergi, lessThan(tandaVital));
+  });
+
+  testWidgets('new patient: no doctor is preselected', (tester) async {
+    tester.view.physicalSize = const Size(640, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          patientApiProvider.overrideWithValue(_RecordingPatientApi()),
+          wilayahApiProvider.overrideWithValue(_FakeWilayahApi()),
+          doctorsProvider.overrideWith(
+            (ref) async => const [
+              Doctor(id: 'doc-1', nama: 'dr. Putri Maulina', spesialisasi: 'Umum', online: true),
+            ],
+          ),
+        ],
+        child: MaterialApp(
+          home: Scaffold(body: PatientForm(onBack: () {}, onSaved: () {})),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('dr. Putri Maulina'), findsNothing);
   });
 }

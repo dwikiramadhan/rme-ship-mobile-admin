@@ -19,10 +19,24 @@ import '../../auth/domain/user_role.dart';
 import 'patient_api.dart';
 import 'seen_notification_storage.dart';
 import '../../../core/utils/ship_code_helper.dart';
-import '../../environment/data/environment_storage.dart';
 
 /// Patient state management wired directly to [PatientApi] and real-time [WebSocketService]
 /// for instant sub-second event pushes (Perawat -> Dokter, Dokter -> Farmasi/Lab).
+/// The patient was registered, but their first visit could not be created.
+/// Saving again would register the patient twice, so the visit has to be
+/// added from "Tambah Kunjungan" instead.
+class VisitNotCreatedException implements Exception {
+  const VisitNotCreatedException(this.patient, this.cause);
+
+  final Patient patient;
+  final Object cause;
+
+  @override
+  String toString() =>
+      'Pasien tersimpan, tetapi kunjungan gagal dibuat: $cause. '
+      'Tambahkan kunjungan lewat menu Tambah Kunjungan.';
+}
+
 class PatientsNotifier extends StateNotifier<List<Patient>> {
   PatientsNotifier({
     PatientApi? api,
@@ -617,7 +631,13 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
   Future<String> uploadPhoto(File photo) => _api.uploadPatientPhoto(photo);
 
-  Future<Patient> addPatient(Patient patient) async {
+  /// Registers [patient] and opens their first visit on ship [shipId] at
+  /// harbor [portId].
+  Future<Patient> addPatient(
+    Patient patient, {
+    required String shipId,
+    required String portId,
+  }) async {
     String? effectiveShipCode = patient.serviceShipCode;
     if (effectiveShipCode == null || effectiveShipCode.trim().isEmpty) {
       try {
@@ -663,6 +683,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       serviceShipCode: effectiveShipCode ?? created.serviceShipCode,
     );
 
+    Object? visitError;
     if (patient.assignedDokterId.isNotEmpty) {
       try {
         final triageNotes = StringBuffer('[Triage]');
@@ -734,26 +755,16 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
               '$formattedComplaint • ${extraComplaint.join(' • ')}';
         }
 
-        String? effectiveShipId;
-        try {
-          final envStorage = EnvironmentStorage();
-          effectiveShipId = await envStorage.getShipId();
-        } catch (_) {}
-        if (effectiveShipId == null || effectiveShipId.isEmpty) {
-          effectiveShipId = '3a7ff982-e187-49f8-a34e-95f775afda61';
-        }
-
         await _api.addMedicalRecord(created.id, {
           'doctor_id': patient.assignedDokterId,
-          'ship_id': effectiveShipId,
+          'ship_id': shipId,
           if (effectiveShipCode != null && effectiveShipCode.isNotEmpty) ...{
             'ship_code': effectiveShipCode,
             'service_ship_code': effectiveShipCode,
           },
-          'port_id': 'f7d71b54-4c2c-4b10-a601-b82a604c7315',
+          'port_id': portId,
           'complaint': formattedComplaint,
-          'diagnosis': 'Pemeriksaan Umum',
-          'treatment': 'Menunggu Pemeriksaan Dokter',
+          // Diagnosis and treatment are left for the doctor to fill.
           'notes': finalNotes,
           'date': DateTime.now().toIso8601String().split('T').first,
           'status': 'Stable',
@@ -769,7 +780,17 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         });
       } catch (e) {
         debugPrint('addPatient medical record error: $e');
+        visitError = e;
       }
+    }
+
+    // The patient exists on the server either way, so keep them listed.
+    state = [
+      fullPatient,
+      ...state.where((p) => p.id != patient.id && p.id != created.id),
+    ];
+    if (visitError != null) {
+      throw VisitNotCreatedException(fullPatient, visitError);
     }
 
     _wsService.send({
@@ -778,11 +799,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       'doctor_id': patient.assignedDokterId,
       'nama': fullPatient.nama,
     });
-
-    state = [
-      fullPatient,
-      ...state.where((p) => p.id != patient.id && p.id != created.id),
-    ];
     return fullPatient;
   }
 
@@ -901,144 +917,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   void markDilihatLab(String id) {
     _seenStorage.markLabSeen(id);
     _update(id, (p) => p.copyWith(dilihatLab: true));
-  }
-
-  Future<void> submitDiagnosaResep({
-    required String id,
-    required String diagnosa,
-    String? tindakan,
-    required List<ResepItem> resep,
-    LabOrder? labOrder,
-    String? doctorId,
-    String? shipId,
-    String? portId,
-    String? statusKondisi,
-  }) async {
-    final matchedDoc = kDoctors.where((d) => d.id == doctorId).firstOrNull;
-    await _seenStorage.markDoctorSeen(id);
-    if (labOrder != null) {
-      await _seenStorage.unmarkLabSeen(id);
-    } else {
-      await _seenStorage.unmarkPharmacySeen(id);
-    }
-
-    _update(
-      id,
-      (p) => p.copyWith(
-        status: PatientStatus.diperiksa,
-        statusPenanganan: 'Menunggu Obat',
-        diagnosa: diagnosa,
-        tindakan: tindakan ?? p.tindakan,
-        resep: resep,
-        resepStatus: ResepStatus.baru,
-        labOrder: labOrder ?? p.labOrder,
-        dilihatDokter: true,
-        assignedDokterId: (doctorId != null && doctorId.isNotEmpty)
-            ? doctorId
-            : p.assignedDokterId,
-        doctorName:
-            matchedDoc?.nama ??
-            (p.doctorName?.isNotEmpty == true
-                ? p.doctorName
-                : 'Dr. Budi Santoso'),
-      ),
-    );
-
-    try {
-      final patient = state.where((p) => p.id == id).firstOrNull;
-      final assignedDoctorId = patient?.assignedDokterId ?? '';
-      final complaint = patient?.keluhanUtama ?? '';
-      final treatmentText = resep
-          .map((r) => '${r.obat} ${r.dosis} (${r.instruksi})')
-          .join(', ');
-
-      final validDoctorIds = kDoctors.map((d) => d.id).toSet();
-      String effectiveDoctorId =
-          '8afc72cb-b1c5-4ea1-a438-b06c6ae4a99b'; // Dr. Budi Santoso fallback
-      if (doctorId != null &&
-          doctorId.isNotEmpty &&
-          (validDoctorIds.contains(doctorId) || doctorId.length > 20)) {
-        effectiveDoctorId = doctorId;
-      } else if (assignedDoctorId.isNotEmpty &&
-          (validDoctorIds.contains(assignedDoctorId) ||
-              assignedDoctorId.length > 20)) {
-        effectiveDoctorId = assignedDoctorId;
-      }
-
-      final effectiveShipId = (shipId != null && shipId.isNotEmpty)
-          ? shipId
-          : '3a7ff982-e187-49f8-a34e-95f775afda61'; // RSK dr. Lie Dharmawan Bayan Peduli I
-
-      final effectivePortId = (portId != null && portId.isNotEmpty)
-          ? portId
-          : 'f7d71b54-4c2c-4b10-a601-b82a604c7315'; // Pelabuhan Tanjung Priok default
-
-      final effectiveTreatment = (tindakan != null && tindakan.isNotEmpty)
-          ? tindakan
-          : (treatmentText.isNotEmpty ? treatmentText : 'Pemeriksaan Dokter');
-
-      await _api.addMedicalRecord(id, {
-        'doctor_id': effectiveDoctorId,
-        'ship_id': effectiveShipId,
-        'port_id': effectivePortId,
-        'diagnosis': diagnosa,
-        'treatment': effectiveTreatment,
-        if (tindakan != null && tindakan.isNotEmpty) 'procedure': tindakan,
-        if (tindakan != null && tindakan.isNotEmpty) 'tindakan': tindakan,
-        if (tindakan != null && tindakan.isNotEmpty) 'icd9': tindakan,
-        if (treatmentText.isNotEmpty) 'prescription': treatmentText,
-        if (treatmentText.isNotEmpty) 'recipe': treatmentText,
-        'prescriptions': resep.map((r) => r.toJson()).toList(),
-        'medicines': resep.map((r) => r.toJson()).toList(),
-        'complaint': complaint.isNotEmpty ? complaint : 'Pemeriksaan klinis',
-        'date': DateTime.now().toIso8601String().split('T').first,
-        'status': statusKondisi?.isNotEmpty == true ? statusKondisi! : 'Stable',
-        if (labOrder != null)
-          'notes': 'Order Lab: ${labOrder.jenis} (${labOrder.catatan})',
-      });
-
-      // Update patient status_penanganan to 'Menunggu Obat' in backend database
-      try {
-        final patientToUpdate = state.where((p) => p.id == id).firstOrNull;
-        if (patientToUpdate != null) {
-          final updatePayload = patientToUpdate.toCreatePatientJson(
-            statusPenanganan: 'Menunggu Obat',
-          );
-          await _api.updatePatient(id, updatePayload);
-          debugPrint(
-            '✅ [addMedicalRecord] Successfully synced status_penanganan to Menunggu Obat',
-          );
-        }
-      } catch (e) {
-        debugPrint('Failed to sync status_penanganan to backend: $e');
-      }
-
-      _wsService.send({
-        'type': 'prescription_created',
-        'target_role': 'pharmacy',
-        'patient_id': id,
-        'patient_name': patient?.nama ?? '',
-        'doctor_id': effectiveDoctorId,
-        'status_penanganan': 'Menunggu Obat',
-        'resep_count': resep.length,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-
-      if (labOrder != null) {
-        _wsService.send({
-          'type': 'lab_order_created',
-          'target_role': 'lab',
-          'patient_id': id,
-          'patient_name': patient?.nama ?? '',
-          'doctor_id': effectiveDoctorId,
-          'status_penanganan': 'Menunggu Lab',
-          'timestamp': DateTime.now().toIso8601String(),
-        });
-      }
-    } catch (e) {
-      debugPrint('Failed to sync medical record to API: $e');
-      rethrow;
-    }
   }
 
   /// Patches a patient's medical record via PATCH /api/v1/patients/:id/medical-records/:recordId

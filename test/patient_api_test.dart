@@ -187,6 +187,25 @@ void main() {
         expect(jsonWithNik['nik'], equals('3171012304950001'));
       },
     );
+
+    test('toCreatePatientJson leaves out an unknown phone and birth date', () {
+      final patient = Patient.fromApiJson(const {
+        'id': '03872b15-c38d-4aa5-a007-e6a59b9b2241',
+        'name': 'Pierre Gasly',
+      });
+
+      // No made-up values, so an update keeps what the server has.
+      final json = patient.toCreatePatientJson();
+      expect(json.containsKey('phone'), isFalse);
+      expect(json.containsKey('dob'), isFalse);
+
+      final filled = patient.toCreatePatientJson(
+        phone: '081234500001',
+        dob: '1995-08-12',
+      );
+      expect(filled['phone'], '081234500001');
+      expect(filled['dob'], '1995-08-12');
+    });
   });
 
   group('userRoleFromApiValue', () {
