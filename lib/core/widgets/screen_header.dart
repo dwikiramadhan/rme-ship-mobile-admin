@@ -67,7 +67,7 @@ class ScreenHeader extends StatelessWidget implements PreferredSizeWidget {
                     style: TextStyle(
                       fontSize: 11,
                       color: sfg,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ],
