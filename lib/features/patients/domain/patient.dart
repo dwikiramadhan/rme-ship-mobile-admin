@@ -119,6 +119,7 @@ class Patient extends Equatable {
   final bool dilihatDokterLab;
 
   Patient copyWith({
+    String? id,
     String? nama,
     String? nik,
     Gender? jk,
@@ -164,7 +165,7 @@ class Patient extends Equatable {
     Object? medicalRecordId = _unset,
   }) {
     return Patient(
-      id: id,
+      id: id ?? this.id,
       nama: nama ?? this.nama,
       nik: nik ?? this.nik,
       jk: jk ?? this.jk,

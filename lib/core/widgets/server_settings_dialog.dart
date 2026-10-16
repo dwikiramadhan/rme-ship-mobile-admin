@@ -7,9 +7,8 @@ import '../theme/app_colors.dart';
 import 'app_button.dart';
 import 'app_text_field.dart';
 
-/// A modal dialog allowing users / IT officers to inspect and configure the
-/// backend server IP or URL dynamically at runtime, especially useful for
-/// offline ship LAN / Wi-Fi deployments.
+/// A debug-only dialog for pointing the app at another backend (a local or
+/// staging server) at runtime. Release builds always use the cloud backend.
 class ServerSettingsDialog extends StatefulWidget {
   const ServerSettingsDialog({super.key});
 
@@ -142,7 +141,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
                         ),
                         SizedBox(height: 2),
                         Text(
-                          'Koneksi lokal jaringan Wi-Fi kapal',
+                          'Mode debug: server lokal / staging',
                           style: TextStyle(
                             fontSize: 11,
                             color: AppColors.sub,
@@ -163,7 +162,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
 
               // Description
               const Text(
-                'Masukkan alamat IP backend server yang terhubung di jaringan Wi-Fi yang sama.',
+                'Masukkan URL backend. Tanpa skema akan dianggap https://; untuk server lokal tulis http:// secara eksplisit.',
                 style: TextStyle(
                   fontSize: 11,
                   color: AppColors.sub,
@@ -176,7 +175,7 @@ class _ServerSettingsDialogState extends State<ServerSettingsDialog> {
               AppTextField(
                 label: 'URL / IP Server Backend',
                 controller: _urlCtrl,
-                placeholder: 'cth: 192.168.1.26:8080',
+                placeholder: 'cth: http://192.168.1.26:8080',
                 capitalizeFirst: false,
                 // Same sizes as the password form on the profile page.
                 labelFontSize: 11.5,

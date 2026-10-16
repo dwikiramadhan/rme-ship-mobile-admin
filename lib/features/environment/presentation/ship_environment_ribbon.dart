@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/offline/sync_service.dart';
+import '../../sync/presentation/sync_providers.dart';
+import '../../sync/presentation/sync_queue_sheet.dart';
 import 'environment_controller.dart';
 import 'server_connection_controller.dart';
 
@@ -15,6 +18,8 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
     final envState = ref.watch(activeEnvironmentProvider);
     final env = envState.valueOrNull;
     final isConnected = ref.watch(serverConnectionProvider);
+    final sync =
+        ref.watch(syncStatusProvider).valueOrNull ?? const SyncStatus();
 
     return Container(
       width: double.infinity,
@@ -163,12 +168,17 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
                   fontFamily: 'PlusJakartaSans',
                 ),
               ),
+              if (sync.pending > 0 || sync.failed > 0) ...[
+                const SizedBox(width: 8),
+                _SyncChip(status: sync),
+              ],
               const SizedBox(width: 10),
               InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
                   ref.read(activeEnvironmentProvider.notifier).refresh();
                   ref.read(serverConnectionProvider.notifier).check();
+                  ref.read(syncServiceProvider)?.syncNow();
                 },
                 child: Padding(
                   padding: const EdgeInsets.all(3),
@@ -182,6 +192,58 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "3 belum sync" / "1 gagal sync": the writes kept on the device. Opens the
+/// list of them.
+class _SyncChip extends StatelessWidget {
+  const _SyncChip({required this.status});
+
+  final SyncStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = status.failed > 0;
+    final color = failed ? const Color(0xFFF87171) : const Color(0xFFFBBF24);
+    final label = failed
+        ? '${status.failed} gagal sync'
+        : '${status.pending} belum sync';
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => showSyncQueueSheet(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.5), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              status.syncing
+                  ? LucideIcons.refreshCw
+                  : (failed ? LucideIcons.alertCircle : LucideIcons.cloudOff),
+              size: 10.5,
+              color: color,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: color,
+                fontFamily: 'PlusJakartaSans',
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

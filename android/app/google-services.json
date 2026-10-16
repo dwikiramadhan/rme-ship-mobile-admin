@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "138298942116",
+    "project_id": "rme-bayan-peduli",
+    "storage_bucket": "rme-bayan-peduli.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:138298942116:android:69da53173c9f39c6ecbc31",
+        "android_client_info": {
+          "package_name": "com.bayanrme.bayan_rme"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApywbZTgf0rDJ9ohQM0p5PIpbK9foOzas"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

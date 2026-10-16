@@ -6,6 +6,11 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
+        <!-- Push notification small icon: must be a silhouette (the full-colour
+             launcher icon shows as a white square in the status bar). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_launcher_foreground" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

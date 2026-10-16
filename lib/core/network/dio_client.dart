@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../offline/http_cache.dart';
 import 'api_config.dart';
 import 'api_exception.dart';
 
@@ -24,8 +25,11 @@ class DioClient {
     final dio = Dio(
       BaseOptions(
         baseUrl: ApiConfig.baseUrl,
-        connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 15),
+        // Generous limits: the cloud backend is reached over ship internet
+        // (satellite / cellular), and uploads carry photos and lab files.
+        connectTimeout: const Duration(seconds: 20),
+        sendTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 30),
         headers: {'Content-Type': 'application/json'},
       ),
     );
@@ -87,9 +91,21 @@ class DioClient {
     );
 
     dio.interceptors.add(RetryInterceptor(dio));
+    // After the retries: only a GET that still fails falls back to the cache.
+    dio.interceptors.add(OfflineCacheInterceptor());
 
     return _instance = dio;
   }
+
+  /// True when [error] means the request never reached the server, so it can
+  /// be queued and replayed later without risk of applying it twice. Send /
+  /// receive timeouts are excluded: the server may already have handled them.
+  static bool isOffline(DioException error) => switch (error.type) {
+        DioExceptionType.connectionError ||
+        DioExceptionType.connectionTimeout =>
+          true,
+        _ => false,
+      };
 
   static bool _isAuthPath(String path) =>
       path.contains(ApiConfig.loginPath) || path.contains(ApiConfig.changePasswordPath);
@@ -102,12 +118,18 @@ class DioClient {
     final url = error.requestOptions.uri.toString();
 
     return switch (error.type) {
-      DioExceptionType.connectionTimeout ||
+      DioExceptionType.connectionTimeout => ApiException(
+          'Koneksi timeout ke $url. Periksa jaringan Anda.',
+          isOffline: true,
+        ),
       DioExceptionType.sendTimeout ||
       DioExceptionType.receiveTimeout =>
         ApiException('Koneksi timeout ke $url. Periksa jaringan Anda.'),
-      DioExceptionType.connectionError =>
-        ApiException('Tidak dapat terhubung ke server ($url).', statusCode: statusCode),
+      DioExceptionType.connectionError => ApiException(
+          'Tidak dapat terhubung ke server ($url).',
+          statusCode: statusCode,
+          isOffline: true,
+        ),
       DioExceptionType.badResponse => () {
           final serverMessage = switch (error.response?.data) {
             {'message': final String msg} => msg,

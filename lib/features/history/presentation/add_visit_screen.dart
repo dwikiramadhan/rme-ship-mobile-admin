@@ -19,6 +19,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../environment/presentation/environment_controller.dart';
 import '../../nurse/presentation/patient_form.dart';
 import '../../patients/data/patient_repository.dart';
+import '../../sync/presentation/sync_providers.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
 import '../../schedule/domain/trip_schedule.dart';
@@ -310,12 +311,18 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
       );
 
       if (mounted) {
+        // Offline: kept in the outbox instead of sent.
+        final savedOffline =
+            (ref.read(syncServiceProvider)?.status.pending ?? 0) > 0;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Kunjungan berhasil ditambahkan untuk ${_selectedPatient!.nama} (Status: Menunggu Dokter)',
+              savedOffline
+                  ? 'Kunjungan ${_selectedPatient!.nama} tersimpan di perangkat '
+                        '(offline). Akan dikirim otomatis saat koneksi kembali.'
+                  : 'Kunjungan berhasil ditambahkan untuk ${_selectedPatient!.nama} (Status: Menunggu Dokter)',
             ),
-            backgroundColor: AppColors.green,
+            backgroundColor: savedOffline ? AppColors.yellow : AppColors.green,
             behavior: SnackBarBehavior.floating,
           ),
         );

@@ -5,7 +5,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_config.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/websocket_service.dart';
+import '../../../core/offline/sync_service.dart';
+import '../../sync/presentation/sync_providers.dart';
 import '../../../core/notifications/in_app_notification_manager.dart';
 import '../../../core/notifications/in_app_notification_model.dart';
 import '../domain/doctor.dart';
@@ -70,19 +74,30 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     PatientApi? api,
     SeenNotificationStorage? seenStorage,
     WebSocketService? wsService,
+    SyncService? sync,
     bool autoFetch = true,
   }) : _api = api ?? PatientApi(),
        _seenStorage = seenStorage ?? SeenNotificationStorage(),
        _wsService = wsService ?? WebSocketService(),
        _ownsWsService = wsService == null,
+       _sync = sync,
        super(const []) {
     if (autoFetch) {
       Future.microtask(() => fetchPatients());
       _initWebSocket();
     }
+    _syncedSubscription = sync?.onSynced.listen((_) => _onSynced());
   }
 
   final PatientApi _api;
+
+  /// Offline outbox; null means writes always go straight to the server.
+  final SyncService? _sync;
+  StreamSubscription<void>? _syncedSubscription;
+
+  /// Patients registered while offline, by their outbox entry id, kept in
+  /// the list until the server has them.
+  final Map<String, Patient> _offlinePatients = {};
   final SeenNotificationStorage _seenStorage;
   final WebSocketService _wsService;
   // The injected service is the app-wide shared socket (owned by
@@ -195,6 +210,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   void dispose() {
     _silentPollTimer?.cancel();
     _wsSubscription?.cancel();
+    _syncedSubscription?.cancel();
     if (_ownsWsService) _wsService.dispose();
     super.dispose();
   }
@@ -246,7 +262,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       _hasMore = _currentPage < _totalPages;
       if (refresh) {
         final existingMap = {for (final p in state) p.id: p};
-        state = paginated.data.map((p) {
+        state = _withOfflinePatients(paginated.data.map((p) {
           final existing = existingMap[p.id];
           if (existing != null) {
             return p.copyWith(
@@ -291,7 +307,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             dilihatLab: _seenStorage.isLabSeen(p.id),
             dilihatDokterLab: _seenStorage.isDoctorLabSeen(p.id),
           );
-        }).toList();
+        }).toList());
       } else {
         // Prevent duplicate IDs when appending
         final existingIds = state.map((p) => p.id).toSet();
@@ -657,7 +673,28 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
   }
 
-  Future<String> uploadPhoto(File photo) => _api.uploadPatientPhoto(photo);
+  /// Uploads an identity photo and returns its URL. Offline, the photo is
+  /// kept in the outbox and a placeholder is returned in its place; the
+  /// outbox puts the real URL into the patient data when it is sent.
+  Future<String> uploadPhoto(File photo) async {
+    if (!await _mustQueue()) {
+      try {
+        return await _api.uploadPatientPhoto(photo);
+      } on ApiException catch (e) {
+        if (!_canQueue(e)) rethrow;
+      }
+    }
+    final sync = _sync!;
+    final placeholder = 'offline-photo:${SyncService.newId()}';
+    await sync.enqueue(
+      method: 'POST',
+      path: '${ApiConfig.patientsPath}/upload-photo',
+      label: 'Foto identitas pasien',
+      files: {'photo': await sync.keepFile(photo)},
+      produces: {placeholder: 'result.url'},
+    );
+    return placeholder;
+  }
 
   /// Registers [patient] and opens their first visit on ship [shipId] at
   /// harbor [portId].
@@ -676,19 +713,36 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       } catch (_) {}
     }
 
-    final created = await _api.createPatient(
-      patient.toCreatePatientJson(
-        dob: patient.dob,
-        bloodType: patient.bloodType,
-        kodeKelurahan: patient.kodeKelurahan,
-        namaWali: patient.namaWali,
-        hubunganWali: patient.hubunganWali,
-        keterangan: patient.keterangan,
-        alergi: patient.alergi,
-        photoUrl: patient.photoUrl,
-        serviceShipCode: effectiveShipCode,
-      ),
+    final createBody = patient.toCreatePatientJson(
+      dob: patient.dob,
+      bloodType: patient.bloodType,
+      kodeKelurahan: patient.kodeKelurahan,
+      namaWali: patient.namaWali,
+      hubunganWali: patient.hubunganWali,
+      keterangan: patient.keterangan,
+      alergi: patient.alergi,
+      photoUrl: patient.photoUrl,
+      serviceShipCode: effectiveShipCode,
     );
+    final visitBody = patient.assignedDokterId.isNotEmpty
+        ? _firstVisitBody(
+            patient,
+            shipId: shipId,
+            portId: portId,
+            effectiveShipCode: effectiveShipCode,
+          )
+        : null;
+
+    if (await _mustQueue()) {
+      return _queueNewPatient(patient, createBody, visitBody, effectiveShipCode);
+    }
+    final Patient created;
+    try {
+      created = await _api.createPatient(createBody);
+    } on ApiException catch (e) {
+      if (!_canQueue(e)) rethrow;
+      return _queueNewPatient(patient, createBody, visitBody, effectiveShipCode);
+    }
 
     // Attach local clinical intake fields (keluhan, vitals, assigned doctor)
     final fullPatient = created.copyWith(
@@ -712,100 +766,24 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     );
 
     Object? visitError;
-    if (patient.assignedDokterId.isNotEmpty) {
+    var visitQueued = false;
+    if (visitBody != null) {
       try {
-        final triageNotes = StringBuffer('[Triage]');
-        if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
-          triageNotes.write(' Durasi: ${patient.durasiKeluhan} |');
+        await _api.addMedicalRecord(created.id, visitBody);
+      } on ApiException catch (e) {
+        if (_canQueue(e)) {
+          // The patient is on the server; only the visit waits.
+          await _sync!.enqueue(
+            method: 'POST',
+            path: _medicalRecordsPath(created.id),
+            label: 'Kunjungan pertama: ${fullPatient.nama}',
+            body: visitBody,
+          );
+          visitQueued = true;
+        } else {
+          debugPrint('addPatient medical record error: $e');
+          visitError = e;
         }
-        if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
-          triageNotes.write(' Lokasi: ${patient.lokasiKeluhan} |');
-        }
-        if (patient.vitals.tekananDarah.isNotEmpty) {
-          triageNotes.write(' TD: ${patient.vitals.tekananDarah} |');
-        }
-        if (patient.vitals.nadi.isNotEmpty) {
-          triageNotes.write(' Nadi: ${patient.vitals.nadi} |');
-        }
-        if (patient.vitals.suhu.isNotEmpty) {
-          triageNotes.write(' Suhu: ${patient.vitals.suhu} |');
-        }
-        if (patient.vitals.frekuensiNapas.isNotEmpty) {
-          triageNotes.write(' RR: ${patient.vitals.frekuensiNapas} |');
-        }
-        if (patient.vitals.spo2.isNotEmpty) {
-          triageNotes.write(' SpO2: ${patient.vitals.spo2} |');
-        }
-        var finalNotes = triageNotes.toString();
-        if (finalNotes.endsWith('|')) {
-          finalNotes = finalNotes.substring(0, finalNotes.length - 1).trim();
-        }
-        if (finalNotes == '[Triage]') {
-          finalNotes = 'Triage Awal Perawat';
-        }
-
-        int? systolic;
-        int? diastolic;
-        if (patient.vitals.tekananDarah.contains('/')) {
-          final parts = patient.vitals.tekananDarah.split('/');
-          systolic = int.tryParse(parts[0].trim());
-          diastolic = int.tryParse(parts[1].trim());
-        }
-        final heartRate = int.tryParse(
-          patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''),
-        );
-        final temperature = double.tryParse(
-          patient.vitals.suhu
-              .replaceAll(',', '.')
-              .replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-        final respiratoryRate = int.tryParse(
-          patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''),
-        );
-        final oxygenSaturation = double.tryParse(
-          patient.vitals.spo2
-              .replaceAll(',', '.')
-              .replaceAll(RegExp(r'[^\d.]'), ''),
-        );
-
-        var formattedComplaint = patient.keluhanUtama.isNotEmpty
-            ? patient.keluhanUtama
-            : 'Pemeriksaan awal';
-        final extraComplaint = <String>[];
-        if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
-          extraComplaint.add('Durasi: ${patient.durasiKeluhan}');
-        }
-        if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
-          extraComplaint.add('Lokasi: ${patient.lokasiKeluhan}');
-        }
-        if (extraComplaint.isNotEmpty) {
-          formattedComplaint =
-              '$formattedComplaint • ${extraComplaint.join(' • ')}';
-        }
-
-        await _api.addMedicalRecord(created.id, {
-          'doctor_id': patient.assignedDokterId,
-          'ship_id': shipId,
-          if (effectiveShipCode != null && effectiveShipCode.isNotEmpty) ...{
-            'ship_code': effectiveShipCode,
-            'service_ship_code': effectiveShipCode,
-          },
-          'port_id': portId,
-          'complaint': formattedComplaint,
-          // Diagnosis and treatment are left for the doctor to fill.
-          'notes': finalNotes,
-          'date': DateTime.now().toIso8601String().split('T').first,
-          'status': 'Stable',
-          'status_penanganan': 'Menunggu Dokter',
-          if (patient.vitals.tekananDarah.isNotEmpty)
-            'blood_pressure': patient.vitals.tekananDarah,
-          'systolic': ?systolic,
-          'diastolic': ?diastolic,
-          'heart_rate': ?heartRate,
-          'temperature': ?temperature,
-          'respiratory_rate': ?respiratoryRate,
-          'oxygen_saturation': ?oxygenSaturation,
-        });
       } catch (e) {
         debugPrint('addPatient medical record error: $e');
         visitError = e;
@@ -821,41 +799,241 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       throw VisitNotCreatedException(fullPatient, visitError);
     }
 
-    _wsService.send({
-      'type': 'patient_assigned',
-      'patient_id': created.id,
-      'doctor_id': patient.assignedDokterId,
-      'nama': fullPatient.nama,
-    });
+    if (!visitQueued) {
+      _wsService.send({
+        'type': 'patient_assigned',
+        'patient_id': created.id,
+        'doctor_id': patient.assignedDokterId,
+        'nama': fullPatient.nama,
+      });
+    }
     return fullPatient;
   }
 
+  /// The first visit opened when a patient is registered: the nurse's triage
+  /// (complaint, vitals) for the assigned doctor on ship [shipId] at harbor
+  /// [portId]. Diagnosis and treatment are left for the doctor.
+  Map<String, dynamic> _firstVisitBody(
+    Patient patient, {
+    required String shipId,
+    required String portId,
+    required String? effectiveShipCode,
+  }) {
+    final triageNotes = StringBuffer('[Triage]');
+    if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
+      triageNotes.write(' Durasi: ${patient.durasiKeluhan} |');
+    }
+    if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
+      triageNotes.write(' Lokasi: ${patient.lokasiKeluhan} |');
+    }
+    if (patient.vitals.tekananDarah.isNotEmpty) {
+      triageNotes.write(' TD: ${patient.vitals.tekananDarah} |');
+    }
+    if (patient.vitals.nadi.isNotEmpty) {
+      triageNotes.write(' Nadi: ${patient.vitals.nadi} |');
+    }
+    if (patient.vitals.suhu.isNotEmpty) {
+      triageNotes.write(' Suhu: ${patient.vitals.suhu} |');
+    }
+    if (patient.vitals.frekuensiNapas.isNotEmpty) {
+      triageNotes.write(' RR: ${patient.vitals.frekuensiNapas} |');
+    }
+    if (patient.vitals.spo2.isNotEmpty) {
+      triageNotes.write(' SpO2: ${patient.vitals.spo2} |');
+    }
+    var finalNotes = triageNotes.toString();
+    if (finalNotes.endsWith('|')) {
+      finalNotes = finalNotes.substring(0, finalNotes.length - 1).trim();
+    }
+    if (finalNotes == '[Triage]') {
+      finalNotes = 'Triage Awal Perawat';
+    }
+
+    int? systolic;
+    int? diastolic;
+    if (patient.vitals.tekananDarah.contains('/')) {
+      final parts = patient.vitals.tekananDarah.split('/');
+      systolic = int.tryParse(parts[0].trim());
+      diastolic = int.tryParse(parts[1].trim());
+    }
+    final heartRate = int.tryParse(
+      patient.vitals.nadi.replaceAll(RegExp(r'[^\d]'), ''),
+    );
+    final temperature = double.tryParse(
+      patient.vitals.suhu
+          .replaceAll(',', '.')
+          .replaceAll(RegExp(r'[^\d.]'), ''),
+    );
+    final respiratoryRate = int.tryParse(
+      patient.vitals.frekuensiNapas.replaceAll(RegExp(r'[^\d]'), ''),
+    );
+    final oxygenSaturation = double.tryParse(
+      patient.vitals.spo2
+          .replaceAll(',', '.')
+          .replaceAll(RegExp(r'[^\d.]'), ''),
+    );
+
+    var formattedComplaint = patient.keluhanUtama.isNotEmpty
+        ? patient.keluhanUtama
+        : 'Pemeriksaan awal';
+    final extraComplaint = <String>[];
+    if (patient.durasiKeluhan.isNotEmpty && patient.durasiKeluhan != '-') {
+      extraComplaint.add('Durasi: ${patient.durasiKeluhan}');
+    }
+    if (patient.lokasiKeluhan.isNotEmpty && patient.lokasiKeluhan != '-') {
+      extraComplaint.add('Lokasi: ${patient.lokasiKeluhan}');
+    }
+    if (extraComplaint.isNotEmpty) {
+      formattedComplaint =
+          '$formattedComplaint • ${extraComplaint.join(' • ')}';
+    }
+
+    return {
+      'doctor_id': patient.assignedDokterId,
+      'ship_id': shipId,
+      if (effectiveShipCode != null && effectiveShipCode.isNotEmpty) ...{
+        'ship_code': effectiveShipCode,
+        'service_ship_code': effectiveShipCode,
+      },
+      'port_id': portId,
+      'complaint': formattedComplaint,
+      // Diagnosis and treatment are left for the doctor to fill.
+      'notes': finalNotes,
+      'date': DateTime.now().toIso8601String().split('T').first,
+      'status': 'Stable',
+      'status_penanganan': 'Menunggu Dokter',
+      if (patient.vitals.tekananDarah.isNotEmpty)
+        'blood_pressure': patient.vitals.tekananDarah,
+      'systolic': ?systolic,
+      'diastolic': ?diastolic,
+      'heart_rate': ?heartRate,
+      'temperature': ?temperature,
+      'respiratory_rate': ?respiratoryRate,
+      'oxygen_saturation': ?oxygenSaturation,
+    };
+  }
+
+  /// Keeps a new patient (and their first visit) on the device, to be sent
+  /// once the server is reachable. The patient gets a client-made id; the
+  /// outbox swaps it for the server's id before sending the visit.
+  Future<Patient> _queueNewPatient(
+    Patient patient,
+    Map<String, dynamic> createBody,
+    Map<String, dynamic>? visitBody,
+    String? effectiveShipCode,
+  ) async {
+    final sync = _sync!;
+    final localId = SyncService.newId();
+    final entry = await sync.enqueue(
+      method: 'POST',
+      path: ApiConfig.patientsPath,
+      label: 'Pasien baru: ${patient.nama}',
+      body: {...createBody, 'id': localId},
+      produces: {localId: 'result.id'},
+    );
+    if (visitBody != null) {
+      await sync.enqueue(
+        method: 'POST',
+        path: _medicalRecordsPath(localId),
+        label: 'Kunjungan pertama: ${patient.nama}',
+        body: visitBody,
+      );
+    }
+
+    final local = patient.copyWith(
+      id: localId,
+      serviceShipCode: effectiveShipCode,
+      statusPenanganan: visitBody != null ? 'Menunggu Dokter' : null,
+    );
+    _offlinePatients[entry.id] = local;
+    state = [local, ...state.where((p) => p.id != patient.id)];
+    return local;
+  }
+
+  static String _medicalRecordsPath(String patientId) =>
+      '${ApiConfig.patientsPath}/$patientId/medical-records';
+
+  /// Whether a write must wait in the outbox: earlier writes are still
+  /// queued and this one has to follow them.
+  Future<bool> _mustQueue() async =>
+      _sync != null && await _sync.hasPending();
+
+  /// Whether a failed write can be queued: it never reached the server.
+  bool _canQueue(ApiException e) => _sync != null && e.isOffline;
+
+  /// Re-adds the patients registered offline (not on the server yet) to a
+  /// freshly fetched list.
+  List<Patient> _withOfflinePatients(List<Patient> fetched) {
+    if (_offlinePatients.isEmpty) return fetched;
+    final ids = {for (final p in fetched) p.id};
+    return [
+      ..._offlinePatients.values.where((p) => !ids.contains(p.id)),
+      ...fetched,
+    ];
+  }
+
+  /// After the outbox sent something: forget the offline patients whose
+  /// registration has gone out, and reload the server's version.
+  Future<void> _onSynced() async {
+    final waiting = {for (final e in await _sync!.entries()) e.id};
+    _offlinePatients.removeWhere((entryId, _) => !waiting.contains(entryId));
+    if (mounted) await fetchPatients();
+  }
+
   /// Adds a new clinical visit (medical record) to an existing patient
-  /// via POST /api/v1/patients/:id/medical-records and updates patient vitals / status
+  /// via POST /api/v1/patients/:id/medical-records and updates patient vitals / status.
+  /// Offline, both are kept in the outbox and sent later.
   Future<void> addKunjungan({
     required String patientId,
     required Map<String, dynamic> recordData,
     Map<String, dynamic>? patientUpdates,
   }) async {
-    // 1. Post to /api/v1/patients/:id/medical-records
-    await _api.addMedicalRecord(patientId, recordData);
-
-    // 2. Update patient vitals & status_penanganan if provided
-    if (patientUpdates != null && patientUpdates.isNotEmpty) {
+    var queued = await _mustQueue();
+    if (!queued) {
+      // 1. Post to /api/v1/patients/:id/medical-records
       try {
-        await _api.updatePatient(patientId, patientUpdates);
-      } catch (e) {
-        debugPrint('updatePatient error in addKunjungan: $e');
+        await _api.addMedicalRecord(patientId, recordData);
+      } on ApiException catch (e) {
+        if (!_canQueue(e)) rethrow;
+        queued = true;
       }
     }
 
-    // 3. Notify WS
-    _wsService.send({
-      'type': 'patient_assigned',
-      'patient_id': patientId,
-      'doctor_id': recordData['doctor_id'],
-      'status_penanganan': 'Menunggu Dokter',
-    });
+    final hasUpdates = patientUpdates != null && patientUpdates.isNotEmpty;
+    if (queued) {
+      final nama = state.where((p) => p.id == patientId).firstOrNull?.nama;
+      await _sync!.enqueue(
+        method: 'POST',
+        path: _medicalRecordsPath(patientId),
+        label: 'Kunjungan baru: ${nama ?? 'pasien'}',
+        body: recordData,
+      );
+      if (hasUpdates) {
+        await _sync.enqueue(
+          method: 'PUT',
+          path: '${ApiConfig.patientsPath}/$patientId',
+          label: 'Status & vital pasien: ${nama ?? 'pasien'}',
+          body: patientUpdates,
+        );
+      }
+    } else {
+      // 2. Update patient vitals & status_penanganan if provided
+      if (hasUpdates) {
+        try {
+          await _api.updatePatient(patientId, patientUpdates);
+        } catch (e) {
+          debugPrint('updatePatient error in addKunjungan: $e');
+        }
+      }
+
+      // 3. Notify WS
+      _wsService.send({
+        'type': 'patient_assigned',
+        'patient_id': patientId,
+        'doctor_id': recordData['doctor_id'],
+        'status_penanganan': 'Menunggu Dokter',
+      });
+    }
 
     // 4. Update local state
     _update(patientId, (p) {
@@ -891,20 +1069,26 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   /// Updates the patient's own data (identity, address, guardian, notes).
   /// It does not create a visit: new visits go through "Input Kunjungan
   /// Baru", so editing a typo never adds a medical record.
+  /// Offline, the change is kept in the outbox and shown right away.
   Future<Patient> updatePatient(Patient patient) async {
-    final updated = await _api.updatePatient(
-      patient.id,
-      patient.toCreatePatientJson(
-        dob: patient.dob,
-        bloodType: patient.bloodType,
-        kodeKelurahan: patient.kodeKelurahan,
-        namaWali: patient.namaWali,
-        hubunganWali: patient.hubunganWali,
-        keterangan: patient.keterangan,
-        alergi: patient.alergi,
-        photoUrl: patient.photoUrl,
-      ),
+    final body = patient.toCreatePatientJson(
+      dob: patient.dob,
+      bloodType: patient.bloodType,
+      kodeKelurahan: patient.kodeKelurahan,
+      namaWali: patient.namaWali,
+      hubunganWali: patient.hubunganWali,
+      keterangan: patient.keterangan,
+      alergi: patient.alergi,
+      photoUrl: patient.photoUrl,
     );
+    if (await _mustQueue()) return _queuePatientUpdate(patient, body);
+    final Patient updated;
+    try {
+      updated = await _api.updatePatient(patient.id, body);
+    } on ApiException catch (e) {
+      if (!_canQueue(e)) rethrow;
+      return _queuePatientUpdate(patient, body);
+    }
     final fullPatient = patient.copyWith(
       nama: updated.nama,
       nik: updated.nik,
@@ -925,6 +1109,26 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
     _update(patient.id, (_) => fullPatient);
     return fullPatient;
+  }
+
+  Future<Patient> _queuePatientUpdate(
+    Patient patient,
+    Map<String, dynamic> body,
+  ) async {
+    await _sync!.enqueue(
+      method: 'PUT',
+      path: '${ApiConfig.patientsPath}/${patient.id}',
+      label: 'Ubah data pasien: ${patient.nama}',
+      body: body,
+    );
+    // A patient registered offline: keep their local copy current too.
+    for (final MapEntry(key: entryId, value: p) in [
+      ..._offlinePatients.entries,
+    ]) {
+      if (p.id == patient.id) _offlinePatients[entryId] = patient;
+    }
+    _update(patient.id, (_) => patient);
+    return patient;
   }
 
   void markDilihatDokter(String id) {
@@ -1627,6 +1831,7 @@ final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>(
     final api = ref.watch(patientApiProvider);
     final ws = ref.watch(webSocketServiceProvider);
     final seenStorage = ref.watch(seenNotificationStorageProvider);
+    final sync = ref.watch(syncServiceProvider);
     final hasSession = ref.watch(
       authControllerProvider.select((s) => s.session != null),
     );
@@ -1634,6 +1839,7 @@ final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>(
       api: api,
       wsService: ws,
       seenStorage: seenStorage,
+      sync: sync,
       autoFetch: hasSession,
     );
   },

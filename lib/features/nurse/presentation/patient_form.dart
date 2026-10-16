@@ -16,6 +16,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/utils/ship_code_helper.dart';
 import '../../patients/data/patient_repository.dart';
+import '../../sync/presentation/sync_providers.dart';
 import '../../patients/data/region_api.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
@@ -560,6 +561,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
       if (!mounted) return;
       setState(() => _saving = false);
+      // Offline: kept in the outbox instead of sent.
+      final savedOffline =
+          (ref.read(syncServiceProvider)?.status.pending ?? 0) > 0;
 
       // Auto refresh providers so other screens/tabs are up-to-date
       unawaited(ref.read(patientsProvider.notifier).fetchPatients());
@@ -579,7 +583,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  widget.isEdit
+                  savedOffline
+                      ? 'Tersimpan di perangkat (offline). Akan dikirim '
+                            'otomatis saat koneksi kembali.'
+                      : widget.isEdit
                       ? 'Data pasien berhasil diperbarui'
                       : 'Pasien baru berhasil didaftarkan ke antrian',
                   style: const TextStyle(fontWeight: FontWeight.w600),
@@ -587,7 +594,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               ),
             ],
           ),
-          backgroundColor: AppColors.green,
+          backgroundColor: savedOffline ? AppColors.yellow : AppColors.green,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 3),
         ),

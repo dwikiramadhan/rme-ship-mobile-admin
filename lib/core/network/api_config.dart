@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// API paths and base URL. Can be dynamically configured via local storage or
-/// compiled in via `--dart-define=API_BASE_URL=...`.
+/// API paths and base URL. Defaults to the cloud backend; can be overridden
+/// at build time via `--dart-define=API_BASE_URL=...`, or at runtime (debug
+/// builds only) via the server settings dialog.
 class ApiConfig {
   ApiConfig._();
+
+  static const String cloudBaseUrl = 'https://rme-ship.wikibaggins.com';
 
   static const String serverUrlStorageKey = 'bayan_rme.server_url';
   static String? _customBaseUrl;
@@ -15,18 +19,19 @@ class ApiConfig {
       StreamController<String>.broadcast();
   static Stream<String> get onBaseUrlChanged => _baseUrlChangeController.stream;
 
+  /// Host only, without `/api/v1`: every path below already carries it.
   static String get defaultBaseUrl {
     const raw = String.fromEnvironment('API_BASE_URL');
     if (raw.isNotEmpty) {
       return sanitizeUrl(raw);
     }
-    return 'http://localhost:8080';
+    return cloudBaseUrl;
   }
 
   static String sanitizeUrl(String input) {
     var trimmed = input.trim();
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      trimmed = 'http://$trimmed';
+      trimmed = 'https://$trimmed';
     }
     if (trimmed.endsWith('/')) {
       trimmed = trimmed.substring(0, trimmed.length - 1);
@@ -37,6 +42,12 @@ class ApiConfig {
   static Future<void> init({FlutterSecureStorage? storage}) async {
     try {
       final s = storage ?? const FlutterSecureStorage();
+      // Release builds always use the default backend. Devices that ran the
+      // ship LAN (mini PC) build still hold its address, so drop it.
+      if (!kDebugMode) {
+        await s.delete(key: serverUrlStorageKey);
+        return;
+      }
       final saved = await s.read(key: serverUrlStorageKey);
       if (saved != null && saved.trim().isNotEmpty) {
         _customBaseUrl = sanitizeUrl(saved);
@@ -100,7 +111,7 @@ class ApiConfig {
     }
   }
 
-  static const String healthPath = '/health';
+  static const String healthPath = '/api/v1/health';
   static const String loginPath = '/api/v1/auth/login';
   static const String changePasswordPath = '/api/v1/auth/me/password';
   static const String patientsPath = '/api/v1/patients';
@@ -135,6 +146,7 @@ class ApiConfig {
   static const String portsPath = '/api/v1/ports';
   static const String crewsPath = '/api/v1/crews';
   static const String poliklinikPath = '/api/v1/poliklinik';
+  static const String devicesPath = '/api/v1/devices';
 }
 
 

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/network/api_config.dart';
-import '../../../core/network/server_discovery.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/server_settings_dialog.dart';
@@ -38,7 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void initState() {
     super.initState();
     _loadSavedEmail();
-    _autoDiscoverServer();
+    _checkServer();
     final authState = ref.read(authControllerProvider);
     if (authState.status == AuthStatus.unauthenticated &&
         authState.errorMessage != null) {
@@ -46,25 +45,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _autoDiscoverServer() async {
+  Future<void> _checkServer() async {
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     setState(() => _serverChecking = true);
     final isAlive = await ApiConfig.testConnection(ApiConfig.baseUrl);
-    if (isAlive) {
-      if (mounted) {
-        setState(() {
-          _serverChecking = false;
-          _serverOnline = true;
-        });
-      }
-      return;
-    }
-
-    final found = await ServerDiscovery.autoDiscover();
     if (!mounted) return;
     setState(() {
       _serverChecking = false;
-      _serverOnline = found != null;
+      _serverOnline = isAlive;
     });
   }
 
@@ -318,8 +306,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 6),
                       InkWell(
                         onTap: () async {
-                          await ServerSettingsDialog.show(context);
-                          if (mounted) await _autoDiscoverServer();
+                          // Changing the server is a debug-only tool; in
+                          // release the chip just re-checks the connection.
+                          if (kDebugMode) {
+                            await ServerSettingsDialog.show(context);
+                          }
+                          if (mounted) await _checkServer();
                         },
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
@@ -358,7 +350,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                                 const SizedBox(width: 5),
                                 const Text(
-                                  'Mencari server di Wi-Fi...',
+                                  'Memeriksa koneksi server...',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: AppColors.skyBlue,
@@ -409,13 +401,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Pengaturan Server IP',
-                  onPressed: () => ServerSettingsDialog.show(context),
-                  icon: const Icon(LucideIcons.server, size: 18),
-                  color: AppColors.sub,
-                  splashRadius: 20,
-                ),
+                if (kDebugMode)
+                  IconButton(
+                    tooltip: 'Pengaturan Server',
+                    onPressed: () async {
+                      await ServerSettingsDialog.show(context);
+                      if (mounted) await _checkServer();
+                    },
+                    icon: const Icon(LucideIcons.server, size: 18),
+                    color: AppColors.sub,
+                    splashRadius: 20,
+                  ),
               ],
             ),
             const SizedBox(height: 18),

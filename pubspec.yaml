@@ -43,6 +43,11 @@ dependencies:
   web_socket_channel: ^3.0.3
   image_picker: ^1.2.3
   pdfx: ^2.11.0
+  sqflite_sqlcipher: ^3.4.1
+  uuid: ^4.5.1
+  path_provider: ^2.1.5
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

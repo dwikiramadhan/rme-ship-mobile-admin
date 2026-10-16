@@ -6,6 +6,7 @@ import 'core/responsive/breakpoints.dart';
 import 'core/routing/app_navigator.dart';
 import 'core/routing/auth_gate.dart';
 import 'core/theme/app_theme.dart';
+import 'features/notifications/presentation/push_controller.dart';
 import 'features/patients/data/patient_repository.dart';
 
 class BayanRmeApp extends ConsumerStatefulWidget {
@@ -41,6 +42,8 @@ class _BayanRmeAppState extends ConsumerState<BayanRmeApp>
 
   @override
   Widget build(BuildContext context) {
+    // Keeps push registration alive for the whole app (no-op without Firebase).
+    ref.watch(pushControllerProvider);
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
       title: 'RME Bayan',
