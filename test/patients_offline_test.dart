@@ -7,6 +7,7 @@ import 'package:bayan_rme/features/patients/data/patient_api.dart';
 import 'package:bayan_rme/features/patients/data/patient_repository.dart';
 import 'package:bayan_rme/features/patients/domain/patient.dart';
 import 'package:bayan_rme/features/patients/domain/vitals.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/offline_fakes.dart';
@@ -39,6 +40,16 @@ class _PatientApi extends PatientApi {
   Future<Patient> updatePatient(String id, Map<String, dynamic> body) async {
     await _write();
     return _patient.copyWith(id: id);
+  }
+
+  @override
+  Future<Map<String, dynamic>> patchMedicalRecord(
+    String patientId,
+    String recordId,
+    Map<String, dynamic> body,
+  ) async {
+    await _write();
+    return {};
   }
 
   @override
@@ -89,7 +100,11 @@ void main() {
   late PatientsNotifier notifier;
   late Directory tempDir;
 
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUp(() async {
+    // The exam marks notifications seen in secure storage.
+    FlutterSecureStorage.setMockInitialValues({});
     tempDir = await Directory.systemTemp.createTemp('outbox_test');
     store = InMemoryOutboxStore();
     server = FakeServerAdapter((_) => null);
@@ -177,6 +192,24 @@ void main() {
       'POST /api/v1/patients/srv-7/medical-records',
       'PUT /api/v1/patients/srv-7',
     ]);
+  });
+
+  test("offline: the doctor's exam and the patient's status are kept", () async {
+    notifier.upsertPatient(_patient.copyWith(id: 'srv-7'));
+    await notifier.patchMedicalRecord(
+      patientId: 'srv-7',
+      recordId: 'rec-1',
+      body: {'diagnosis': 'A00', 'status_penanganan': 'Menunggu Obat'},
+    );
+
+    expect(store.rows.map((e) => '${e.method} ${e.path}'), [
+      'PATCH /api/v1/patients/srv-7/medical-records/rec-1',
+      'PUT /api/v1/patients/srv-7',
+    ]);
+    expect(store.rows.last.body?['status_penanganan'], 'Menunggu Obat');
+    // Shown right away.
+    expect(notifier.state.single.diagnosa, 'A00');
+    expect(notifier.state.single.statusPenanganan, 'Menunggu Obat');
   });
 
   test('while writes are waiting, new ones queue behind them', () async {

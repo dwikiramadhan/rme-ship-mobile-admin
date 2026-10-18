@@ -8,6 +8,7 @@ import 'core/routing/auth_gate.dart';
 import 'core/theme/app_theme.dart';
 import 'features/notifications/presentation/push_controller.dart';
 import 'features/patients/data/patient_repository.dart';
+import 'features/sync/presentation/master_data_refresher.dart';
 
 class BayanRmeApp extends ConsumerStatefulWidget {
   const BayanRmeApp({super.key});
@@ -44,6 +45,8 @@ class _BayanRmeAppState extends ConsumerState<BayanRmeApp>
   Widget build(BuildContext context) {
     // Keeps push registration alive for the whole app (no-op without Firebase).
     ref.watch(pushControllerProvider);
+    // Doctors and harbors kept on the device for offline forms.
+    ref.watch(masterDataRefresherProvider);
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
       title: 'RME Bayan',

@@ -84,6 +84,11 @@ flutter:
     - assets/images/bayan_logo.png
     - assets/images/doctorshare_logo.png
     - assets/images/bayan-peduli-logo.png
+    # Region reference data for offline address dropdowns (tool/export_wilayah.sh).
+    - assets/data/wilayah.json.gz
+    # ICD code lists for the doctor's offline pickers (tool/export_icd.sh).
+    - assets/data/icd10.json.gz
+    - assets/data/icd9cm.json.gz
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

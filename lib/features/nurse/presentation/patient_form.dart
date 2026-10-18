@@ -16,6 +16,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/utils/ship_code_helper.dart';
 import '../../patients/data/patient_repository.dart';
+import '../../sync/presentation/offline_data_card.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../../patients/data/region_api.dart';
 import '../../patients/domain/doctor.dart';
@@ -646,14 +647,15 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
   @override
   Widget build(BuildContext context) {
+    // The ship's doctors: from the server, or offline from the copy kept on
+    // the device. Never a placeholder list — a visit for a doctor who isn't
+    // on this ship would be rejected (or misassigned) once it syncs.
     final doctorsAsync = ref.watch(doctorsProvider);
-    final List<Doctor> doctorList = doctorsAsync.maybeWhen(
-      data: (list) => list.isNotEmpty ? list : kDoctors,
-      orElse: () => kDoctors,
-    );
+    final List<Doctor> doctorList = doctorsAsync.valueOrNull ?? const [];
     // No doctor is preselected for a new patient; a choice that is no longer
     // in the list (e.g. after the server list loads) has to be made again.
     if (widget.initialPatient == null &&
+        doctorsAsync.hasValue &&
         _dokterId != null &&
         !doctorList.any((d) => d.id == _dokterId)) {
       _dokterId = null;
@@ -761,7 +763,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   }
                   final leftColumn = Column(
                     children: [
-                      _buildDoctorCard(doctorList),
+                      _buildDoctorCard(
+                        doctorList,
+                        loading: doctorsAsync.isLoading && doctorList.isEmpty,
+                      ),
                       const SizedBox(height: 14),
                       _buildIdentityCard(),
                       const SizedBox(height: 14),
@@ -832,7 +837,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     );
   }
 
-  Widget _buildDoctorCard(List<Doctor> doctors) {
+  Widget _buildDoctorCard(List<Doctor> doctors, {required bool loading}) {
     final selectedDoc = doctors.where((d) => d.id == _dokterId).firstOrNull;
 
     return AppCard(
@@ -913,9 +918,11 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                                   ),
                                 ],
                               )
-                            : const Text(
-                                'Pilih dokter pemeriksa...',
-                                style: TextStyle(
+                            : Text(
+                                loading
+                                    ? 'Memuat daftar dokter...'
+                                    : 'Pilih dokter pemeriksa...',
+                                style: const TextStyle(
                                   fontSize: 10.5,
                                   color: AppColors.sub,
                                 ),
@@ -930,6 +937,14 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   ),
                 ),
               ),
+              if (!loading && doctors.isEmpty) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  doctorsUnavailableMessage,
+                  style: TextStyle(fontSize: 10, color: AppColors.red),
+                ),
+              ],
+              const DoctorsStaleNote(),
             ],
           ),
           const SizedBox(height: 12),

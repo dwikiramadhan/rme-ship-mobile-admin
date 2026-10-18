@@ -39,15 +39,29 @@ class InMemoryOutboxStore implements OutboxStore {
 
 class InMemoryHttpCache implements HttpCacheStore {
   final Map<String, String> bodies = {};
+  final Map<String, DateTime> storedAt = {};
 
   @override
   Future<String?> read(String key) async => bodies[key];
 
   @override
-  Future<void> write(String key, String body) async => bodies[key] = body;
+  Future<void> write(String key, String body) async {
+    bodies[key] = body;
+    storedAt[key] = DateTime.now();
+  }
 
   @override
-  Future<void> clear() async => bodies.clear();
+  Future<DateTime?> lastStoredAt(String pathPrefix) async {
+    final times = [
+      for (final MapEntry(:key, :value) in storedAt.entries)
+        if (key.startsWith(pathPrefix)) value,
+    ]..sort();
+    return times.lastOrNull;
+  }
+
+  @override
+  Future<void> clearUserData() async =>
+      bodies.removeWhere((key, _) => !isMasterDataKey(key));
 }
 
 /// A request as the fake server saw it.

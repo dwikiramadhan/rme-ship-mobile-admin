@@ -19,6 +19,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../environment/presentation/environment_controller.dart';
 import '../../nurse/presentation/patient_form.dart';
 import '../../patients/data/patient_repository.dart';
+import '../../sync/presentation/offline_data_card.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
@@ -344,11 +345,10 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
     final currentUser = authState.session?.user;
     final isCurrentUserDoctor = currentUser?.role == UserRole.dokter;
 
+    // From the server, or offline from the copy kept on the device; never a
+    // placeholder list (see patient_form.dart).
     final doctorsAsync = ref.watch(doctorsProvider);
-    final doctorList = doctorsAsync.maybeWhen(
-      data: (list) => list.isNotEmpty ? list : kDoctors,
-      orElse: () => kDoctors,
-    );
+    final List<Doctor> doctorList = doctorsAsync.valueOrNull ?? const [];
 
     // If current user is doctor and doctor not yet selected, pre-fill doctor
     if (_selectedDoctorId == null &&
@@ -467,6 +467,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                       selectedDoctor,
                       doctorList,
                       isCurrentUserDoctor,
+                      doctorsMissing: doctorsAsync.hasValue && doctorList.isEmpty,
                     ),
                   ],
                 );
@@ -845,8 +846,9 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
   Widget _buildDoctorAndPoliCard(
     Doctor? selectedDoctor,
     List<Doctor> doctorList,
-    bool isCurrentUserDoctor,
-  ) {
+    bool isCurrentUserDoctor, {
+    required bool doctorsMissing,
+  }) {
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -996,6 +998,14 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
               ),
             ),
           ),
+          if (doctorsMissing) ...[
+            const SizedBox(height: 6),
+            const Text(
+              doctorsUnavailableMessage,
+              style: TextStyle(fontSize: 10.5, color: AppColors.red),
+            ),
+          ],
+          const DoctorsStaleNote(),
         ],
       ),
     );

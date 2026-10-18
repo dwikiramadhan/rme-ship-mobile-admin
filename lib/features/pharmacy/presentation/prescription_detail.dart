@@ -266,7 +266,7 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
     if (_loading || patient == null) {
       return const SkeletonPatientDetail();
     }
-    final doctorsList = ref.watch(doctorsProvider).valueOrNull ?? kDoctors;
+    final doctorsList = ref.watch(doctorsProvider).valueOrNull ?? const [];
     Doctor? doctor;
     if (patient.assignedDokterId.isNotEmpty) {
       doctor = doctorsList

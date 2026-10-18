@@ -3,13 +3,34 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../network/api_config.dart';
 import 'offline_database.dart';
+
+/// Reference data the forms need offline: the ship's doctors, the harbors
+/// and the ship's medicine stock list. Not patient data, so it stays cached
+/// across logouts (the next user on the ship needs it too). Regions and ICD
+/// codes come from app assets.
+const List<String> masterDataPaths = [
+  ApiConfig.medicalPersonnelPath,
+  ApiConfig.portsPath,
+  ApiConfig.shipMedicineStocksPathPrefix,
+];
+
+/// Whether cache [key] (a path + query) is master data: it starts with one
+/// of [masterDataPaths].
+bool isMasterDataKey(String key) => masterDataPaths.any(key.startsWith);
 
 /// Where [OfflineCacheInterceptor] keeps the last response of each GET.
 abstract class HttpCacheStore {
   Future<String?> read(String key);
   Future<void> write(String key, String body);
-  Future<void> clear();
+
+  /// Drops every cached response except master data ([masterDataPaths]).
+  Future<void> clearUserData();
+
+  /// When a response under [pathPrefix] (any rest of path or query) was last
+  /// stored; null if never.
+  Future<DateTime?> lastStoredAt(String pathPrefix);
 }
 
 class SqliteHttpCache implements HttpCacheStore {
@@ -37,9 +58,29 @@ class SqliteHttpCache implements HttpCacheStore {
   }
 
   @override
-  Future<void> clear() async {
+  Future<void> clearUserData() async {
     final db = await OfflineDatabase.instance;
-    await db.delete('http_cache');
+    final keys = await db.query('http_cache', columns: ['key']);
+    final batch = db.batch();
+    for (final row in keys) {
+      final key = row['key'] as String;
+      if (!isMasterDataKey(key)) {
+        batch.delete('http_cache', where: 'key = ?', whereArgs: [key]);
+      }
+    }
+    await batch.commit(noResult: true);
+  }
+
+  @override
+  Future<DateTime?> lastStoredAt(String pathPrefix) async {
+    final db = await OfflineDatabase.instance;
+    // substr, not LIKE: paths contain "_", a LIKE wildcard.
+    final rows = await db.rawQuery(
+      'SELECT MAX(stored_at) AS t FROM http_cache WHERE substr(key, 1, ?) = ?',
+      [pathPrefix.length, pathPrefix],
+    );
+    final t = rows.first['t'] as int?;
+    return t == null ? null : DateTime.fromMillisecondsSinceEpoch(t);
   }
 }
 

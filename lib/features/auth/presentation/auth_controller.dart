@@ -66,11 +66,12 @@ class AuthController extends StateNotifier<AuthState> {
   }
 
   /// The cached GET responses belong to the user who fetched them; the next
-  /// one to log in on this device must not see them. The outbox is kept: its
+  /// one to log in on this device must not see them. Kept: master data
+  /// (doctors, harbors) the next user needs offline, and the outbox, whose
   /// entries are sent once their own user logs in again.
   void _clearOfflineCache() {
     unawaited(
-      _cache.clear().catchError(
+      _cache.clearUserData().catchError(
         (Object e) => debugPrint('⚠️ [Auth] offline cache clear failed: $e'),
       ),
     );

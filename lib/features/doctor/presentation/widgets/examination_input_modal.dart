@@ -16,6 +16,7 @@ import '../../../patients/domain/lab_order.dart';
 import '../../../patients/domain/medical_history.dart';
 import '../../../patients/domain/patient.dart';
 import '../../../patients/domain/prescription_item.dart';
+import '../../../sync/presentation/sync_providers.dart';
 import '../../data/icd10_api.dart';
 import '../../data/icd9_api.dart';
 import '../../domain/icd10_item.dart';
@@ -399,6 +400,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
           );
 
       if (!mounted) return;
+      // Offline: kept in the outbox instead of sent.
+      final savedOffline =
+          (ref.read(syncServiceProvider)?.status.pending ?? 0) > 0;
 
       final currentUserId =
           ref.read(authControllerProvider).session?.user.id ?? '';
@@ -463,10 +467,15 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
           .showNotification(
             InAppNotificationItem(
               id: 'success_save_${DateTime.now().millisecondsSinceEpoch}',
-              title: 'Rekam Medis Berhasil Disimpan',
-              message:
-                  'Data pemeriksaan klinis dan resep untuk ${widget.patient.nama} berhasil disimpan ke sistem.',
-              type: InAppNotificationType.success,
+              title: savedOffline
+                  ? 'Rekam Medis Tersimpan Offline'
+                  : 'Rekam Medis Berhasil Disimpan',
+              message: savedOffline
+                  ? 'Pemeriksaan ${widget.patient.nama} tersimpan di perangkat dan akan dikirim otomatis saat koneksi kembali.'
+                  : 'Data pemeriksaan klinis dan resep untuk ${widget.patient.nama} berhasil disimpan ke sistem.',
+              type: savedOffline
+                  ? InAppNotificationType.warning
+                  : InAppNotificationType.success,
               patientId: patientId,
             ),
           );

@@ -126,8 +126,10 @@ class ApiConfig {
   static const String icd10Path = '/api/v1/icd10';
   static const String icd9Path = '/api/v1/icd9cm';
   static const String medicinesPath = '/api/v1/medicines';
+  static const String shipMedicineStocksPathPrefix =
+      '/api/v1/ship-medicines/stocks/';
   static String shipMedicineStocksPath(String shipCode) =>
-      '/api/v1/ship-medicines/stocks/${Uri.encodeComponent(shipCode)}';
+      '$shipMedicineStocksPathPrefix${Uri.encodeComponent(shipCode)}';
   static const String shipMedicineHistoryPath = '/api/v1/ship-medicines/history';
   static const String shipMedicinesPath = '/api/v1/ship-medicines';
   static const String environmentsPath = '/api/v1/environments';

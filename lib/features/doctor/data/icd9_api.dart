@@ -1,9 +1,6 @@
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/api_config.dart';
-import '../../../core/network/dio_client.dart';
+import 'icd_catalog.dart';
 import '../domain/icd9_item.dart';
 
 class PaginatedIcd9 {
@@ -24,163 +21,51 @@ class PaginatedIcd9 {
   final bool hasMore;
 }
 
+/// ICD-9-CM procedure codes, searched on the device from the list bundled in the app
+/// ([IcdCatalog]) — no connection needed. Same matching and order as
+/// GET /api/v1/icd9cm?search=...
 class Icd9Api {
-  Icd9Api({Dio? dio}) : _dio = dio ?? DioClient.instance;
+  Icd9Api({IcdCatalog? catalog})
+    : _catalog = catalog ?? IcdCatalog(IcdCatalog.icd9cmAsset);
 
-  final Dio _dio;
+  final IcdCatalog _catalog;
 
-  static final Map<String, PaginatedIcd9> _cache = {};
-  static final Map<String, Future<PaginatedIcd9>> _inFlight = {};
+  static PaginatedIcd9? _initial;
 
-  /// Retrieves cached initial page (unfiltered) if available.
-  static PaginatedIcd9? getCachedInitial() => _cache[''];
+  /// The first unfiltered page, once loaded, so pickers open instantly.
+  static PaginatedIcd9? getCachedInitial() => _initial;
 
-  /// Clears in-memory cache.
-  static void clearCache() => _cache.clear();
+  static void clearCache() => _initial = null;
 
-  /// Prefetches the initial page in background so pickers open instantly.
+  /// Loads the list in the background so the picker opens instantly.
   Future<void> prefetchInitial({int limit = 25}) async {
-    if (_cache.containsKey('')) return;
     try {
-      final res = await fetchIcd9Paginated(
-        limit: limit,
-        useCache: false,
-      );
-      _cache[''] = res;
+      _initial ??= await fetchIcd9Paginated(limit: limit);
     } catch (_) {}
   }
 
-  /// Fetches paginated ICD-9-CM procedure codes via GET /api/v1/icd9?page=1&limit=20&search=...
   Future<PaginatedIcd9> fetchIcd9Paginated({
     String query = '',
     int page = 1,
     int limit = 20,
-    bool useCache = true,
-  }) {
-    final cacheKey = '${query.trim().toLowerCase()}_${page}_$limit';
-    if (useCache && _cache.containsKey(cacheKey)) {
-      return Future.value(_cache[cacheKey]!);
-    }
-
-    // An identical request is already on the wire (e.g. the exam modal's
-    // prefetch and the picker opening at the same time) — share it.
-    final pending = _inFlight[cacheKey];
-    if (pending != null) return pending;
-
-    final future = _request(
-      query: query,
+  }) async {
+    final result = await _catalog.search(query, page: page, limit: limit);
+    final totalPages = result.total == 0 ? 1 : (result.total / limit).ceil();
+    final paginated = PaginatedIcd9(
+      data: [
+        for (final (code, display) in result.items)
+          Icd9Item(code: code, display: display, version: 'ICD9CM_2010'),
+      ],
+      total: result.total,
       page: page,
       limit: limit,
-      cacheKey: cacheKey,
-    ).whenComplete(() {
-      // Block body on purpose: returning the removed Future would make
-      // whenComplete wait on itself and never complete.
-      _inFlight.remove(cacheKey);
-    });
-    _inFlight[cacheKey] = future;
-    return future;
+      totalPages: totalPages,
+      hasMore: page < totalPages,
+    );
+    if (query.trim().isEmpty && page == 1) _initial ??= paginated;
+    return paginated;
   }
 
-  Future<PaginatedIcd9> _request({
-    required String query,
-    required int page,
-    required int limit,
-    required String cacheKey,
-  }) async {
-    try {
-      final response = await _dio.get(
-        ApiConfig.icd9Path,
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-          if (query.trim().isNotEmpty) 'search': query.trim(),
-        },
-      );
-
-      final data = response.data;
-      if (data is! Map<String, dynamic>) {
-        return const PaginatedIcd9(
-          data: [],
-          total: 0,
-          page: 1,
-          limit: 20,
-          totalPages: 1,
-          hasMore: false,
-        );
-      }
-
-      final result = data['result'] ?? data['data'];
-      final List rawList;
-      int total = 0;
-      int totalPages = 1;
-      int currentPage = page;
-      bool hasMore = false;
-
-      if (result is Map<String, dynamic>) {
-        rawList = result['data'] is List ? (result['data'] as List) : [];
-        total = (result['total'] as num?)?.toInt() ??
-            (result['total_items'] as num?)?.toInt() ??
-            rawList.length;
-        totalPages = (result['total_pages'] as num?)?.toInt() ??
-            (result['totalPages'] as num?)?.toInt() ??
-            1;
-        currentPage = (result['page'] as num?)?.toInt() ?? page;
-        hasMore = currentPage < totalPages;
-      } else if (result is List) {
-        rawList = result;
-        total = (data['total'] as num?)?.toInt() ?? rawList.length;
-        totalPages = (data['total_pages'] as num?)?.toInt() ??
-            (rawList.length >= limit ? currentPage + 1 : currentPage);
-        currentPage = page;
-        hasMore = rawList.length >= limit;
-      } else {
-        rawList = [];
-      }
-
-      final list = rawList
-          .whereType<Map<String, dynamic>>()
-          .map((j) => Icd9Item.fromJson(j))
-          .toList();
-
-      final paginated = PaginatedIcd9(
-        data: list,
-        total: total,
-        page: currentPage,
-        limit: limit,
-        totalPages: totalPages,
-        hasMore: hasMore,
-      );
-
-      _cache[cacheKey] = paginated;
-      if (query.trim().isEmpty && page == 1) {
-        _cache[''] = paginated;
-      }
-
-      return paginated;
-    } on DioException catch (e) {
-      debugPrint('Icd9Api fetchIcd9Paginated DioException: $e');
-      return const PaginatedIcd9(
-        data: [],
-        total: 0,
-        page: 1,
-        limit: 20,
-        totalPages: 1,
-        hasMore: false,
-      );
-    } catch (e) {
-      debugPrint('Icd9Api fetchIcd9Paginated error: $e');
-      return const PaginatedIcd9(
-        data: [],
-        total: 0,
-        page: 1,
-        limit: 20,
-        totalPages: 1,
-        hasMore: false,
-      );
-    }
-  }
-
-  /// Fetches ICD-9-CM procedure codes via GET /api/v1/icd9?page=1&limit=20&search=...
   Future<List<Icd9Item>> searchIcd9({
     String query = '',
     int page = 1,

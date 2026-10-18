@@ -7,6 +7,8 @@ import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/server_settings_dialog.dart';
 import '../../auth/presentation/auth_controller.dart';
+import '../../environment/presentation/server_connection_controller.dart';
+import '../../sync/presentation/offline_data_card.dart';
 
 /// Profile screen with modern layout, account details, and password update.
 /// RBAC: Ubah Kata Sandi — all roles (Perawat, Dokter, Pharmacist, Admin Kapal, Lab).
@@ -139,6 +141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final user = authState.session?.user;
+    final online = ref.watch(serverConnectionProvider);
 
     final displayName = user?.name.isNotEmpty == true
         ? user!.name
@@ -366,6 +369,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ],
       const SizedBox(height: 20),
 
+      // Master data on the device for offline forms.
+      _buildSectionLabel('DATA OFFLINE'),
+      const SizedBox(height: 8),
+      const OfflineDataCard(),
+      const SizedBox(height: 20),
+
       // Section C: INFORMASI SISTEM
       _buildSectionLabel('SISTEM & APLIKASI'),
       const SizedBox(height: 8),
@@ -393,29 +402,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
             const Divider(height: 1, indent: 54, color: Color(0xFFF1F5F9)),
             _buildInfoTile(
-              icon: LucideIcons.wifi,
-              iconColor: const Color(0xFF059669),
-              iconBg: const Color(0xFFECFDF5),
+              icon: online ? LucideIcons.wifi : LucideIcons.wifiOff,
+              iconColor: online ? AppColors.green : AppColors.red,
+              iconBg: online ? AppColors.greenLt : AppColors.redLt,
               label: 'Status Sistem',
-              value: 'Terhubung & Aktif',
+              value: online ? 'Terhubung & Aktif' : 'Offline',
               valueWidget: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     width: 7,
                     height: 7,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFF10B981),
+                      color: online ? AppColors.green : AppColors.red,
                     ),
                   ),
                   const SizedBox(width: 6),
-                  const Text(
-                    'Aktif (Online)',
+                  Text(
+                    online
+                        ? 'Aktif (Online)'
+                        : 'Offline · data disimpan di perangkat',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF059669),
+                      color: online ? AppColors.green : AppColors.red,
                     ),
                   ),
                 ],

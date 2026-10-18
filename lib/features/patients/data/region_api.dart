@@ -1,9 +1,9 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
+import 'dart:io' show gzip;
+import 'dart:isolate';
 
-import '../../../core/network/api_config.dart';
-import '../../../core/network/dio_client.dart';
-import '../../../core/network/ttl_cache.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class WilayahProvinsi {
   const WilayahProvinsi({
@@ -13,13 +13,6 @@ class WilayahProvinsi {
 
   final int kodeProvinsi;
   final String namaProvinsi;
-
-  factory WilayahProvinsi.fromJson(Map<String, dynamic> json) {
-    return WilayahProvinsi(
-      kodeProvinsi: (json['kode_provinsi'] as num?)?.toInt() ?? 0,
-      namaProvinsi: json['nama_provinsi']?.toString() ?? '',
-    );
-  }
 }
 
 class WilayahKabupatenKota {
@@ -32,14 +25,6 @@ class WilayahKabupatenKota {
   final double kodeKabkota;
   final String namaKabkota;
   final int kodeProvinsi;
-
-  factory WilayahKabupatenKota.fromJson(Map<String, dynamic> json) {
-    return WilayahKabupatenKota(
-      kodeKabkota: (json['kode_kabkota'] as num?)?.toDouble() ?? 0.0,
-      namaKabkota: json['nama_kabkota']?.toString() ?? '',
-      kodeProvinsi: (json['kode_provinsi'] as num?)?.toInt() ?? 0,
-    );
-  }
 }
 
 class WilayahKecamatan {
@@ -52,14 +37,6 @@ class WilayahKecamatan {
   final String kodeKecamatan;
   final String namaKecamatan;
   final double kodeKabkota;
-
-  factory WilayahKecamatan.fromJson(Map<String, dynamic> json) {
-    return WilayahKecamatan(
-      kodeKecamatan: json['kode_kecamatan']?.toString() ?? '',
-      namaKecamatan: json['nama_kecamatan']?.toString() ?? '',
-      kodeKabkota: (json['kode_kabkota'] as num?)?.toDouble() ?? 0.0,
-    );
-  }
 }
 
 class WilayahKelurahan {
@@ -74,135 +51,93 @@ class WilayahKelurahan {
   final String namaKelurahan;
   final String kodeKecamatan;
   final int kodePos;
+}
 
-  factory WilayahKelurahan.fromJson(Map<String, dynamic> json) {
-    return WilayahKelurahan(
-      kodeKelurahan: json['kode_kelurahan']?.toString() ?? '',
-      namaKelurahan: json['nama_kelurahan']?.toString() ?? '',
-      kodeKecamatan: json['kode_kecamatan']?.toString() ?? '',
-      kodePos: (json['kode_pos'] as num?)?.toInt() ?? 0,
+/// Region reference data (provinsi → kabupaten/kota → kecamatan →
+/// kelurahan/desa) for the address dropdowns.
+///
+/// Read from the app asset [assetPath], not the API, so the dropdowns work
+/// with no connection. The asset is exported from the backend's region
+/// tables by `tool/export_wilayah.sh`; the patient keeps only the
+/// kelurahan code, which the backend resolves against the same tables.
+class WilayahApi {
+  WilayahApi({AssetBundle? bundle}) : _bundle = bundle ?? rootBundle;
+
+  static const assetPath = 'assets/data/wilayah.json.gz';
+
+  final AssetBundle _bundle;
+
+  // Parsed once per app run (about 83k villages); shared by every instance.
+  static Future<Map<String, dynamic>>? _data;
+
+  Future<Map<String, dynamic>> get _regions => _data ??= _load().catchError(
+    (Object e, StackTrace st) {
+      _data = null; // let the next call try again
+      Error.throwWithStackTrace(e, st);
+    },
+  );
+
+  Future<Map<String, dynamic>> _load() async {
+    final bytes = await _bundle.load(assetPath);
+    final compressed = bytes.buffer.asUint8List(
+      bytes.offsetInBytes,
+      bytes.lengthInBytes,
+    );
+    // Off the UI thread: decoding takes a few hundred ms on a slow phone.
+    return Isolate.run(
+      () => jsonDecode(utf8.decode(gzip.decode(compressed)))
+          as Map<String, dynamic>,
     );
   }
-}
 
-/// Administrative regions are static reference data, so each list is kept
-/// for the session instead of being re-downloaded on every form open.
-class _WilayahCache {
-  static const _ttl = Duration(hours: 12);
-  static bool _nonEmpty(List<Object> l) => l.isNotEmpty;
+  /// When the bundled data was exported from the backend (`YYYY-MM-DD`).
+  Future<DateTime?> exportedAt() async =>
+      DateTime.tryParse((await _regions)['exported_at'] as String? ?? '');
 
-  final provinsi = TtlCache<List<WilayahProvinsi>>(_ttl, shouldCache: _nonEmpty);
-  final kabupatenKota =
-      TtlCache<List<WilayahKabupatenKota>>(_ttl, shouldCache: _nonEmpty);
-  final kecamatan = TtlCache<List<WilayahKecamatan>>(_ttl, shouldCache: _nonEmpty);
-  final kelurahan = TtlCache<List<WilayahKelurahan>>(_ttl, shouldCache: _nonEmpty);
-}
-
-class WilayahApi {
-  WilayahApi({Dio? dio}) : _dio = dio ?? DioClient.instance;
-
-  final Dio _dio;
-
-  // Tied to the Dio client (app-wide singleton in production).
-  static final _caches = Expando<_WilayahCache>();
-  _WilayahCache get _cache => _caches[_dio] ??= _WilayahCache();
-
-  // Callers get their own copy so they can't mutate the cached list.
-  Future<List<WilayahProvinsi>> getProvinsi() async => List.of(
-        await _cache.provinsi.getOrFetch(ApiConfig.baseUrl, _fetchProvinsi),
-      );
-
-  Future<List<WilayahKabupatenKota>> getKabupatenKota(int kodeProvinsi) async =>
-      List.of(
-        await _cache.kabupatenKota.getOrFetch(
-          '${ApiConfig.baseUrl}|$kodeProvinsi',
-          () => _fetchKabupatenKota(kodeProvinsi),
-        ),
-      );
-
-  Future<List<WilayahKecamatan>> getKecamatan(double kodeKabkota) async => List.of(
-        await _cache.kecamatan.getOrFetch(
-          '${ApiConfig.baseUrl}|$kodeKabkota',
-          () => _fetchKecamatan(kodeKabkota),
-        ),
-      );
-
-  Future<List<WilayahKelurahan>> getKelurahan(String kodeKecamatan) async =>
-      List.of(
-        await _cache.kelurahan.getOrFetch(
-          '${ApiConfig.baseUrl}|$kodeKecamatan',
-          () => _fetchKelurahan(kodeKecamatan),
-        ),
-      );
-
-  Future<List<WilayahProvinsi>> _fetchProvinsi() async {
-    try {
-      final res = await _dio.get('/api/v1/wilayah/provinsi');
-      final data = res.data;
-      if (data is Map<String, dynamic> && data['result'] is List) {
-        return (data['result'] as List)
-            .map((e) => WilayahProvinsi.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      return const [];
-    } catch (_) {
-      return const [];
-    }
+  /// The rows under [parent] in [level], e.g. the districts of "64.02".
+  Future<List<List<dynamic>>> _rows(String level, String parent) async {
+    final byParent = (await _regions)[level] as Map<String, dynamic>;
+    return [
+      for (final row in (byParent[parent] as List?) ?? const [])
+        row as List<dynamic>,
+    ];
   }
 
-  Future<List<WilayahKabupatenKota>> _fetchKabupatenKota(int kodeProvinsi) async {
-    try {
-      final res = await _dio.get(
-        '/api/v1/wilayah/kabupaten-kota',
-        queryParameters: {'kode_provinsi': kodeProvinsi},
-      );
-      final data = res.data;
-      if (data is Map<String, dynamic> && data['result'] is List) {
-        return (data['result'] as List)
-            .map((e) => WilayahKabupatenKota.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      return const [];
-    } catch (_) {
-      return const [];
-    }
-  }
+  Future<List<WilayahProvinsi>> getProvinsi() async => [
+    for (final row in (await _regions)['provinsi'] as List)
+      WilayahProvinsi(
+        kodeProvinsi: row[0] as int,
+        namaProvinsi: row[1] as String,
+      ),
+  ];
 
-  Future<List<WilayahKecamatan>> _fetchKecamatan(double kodeKabkota) async {
-    try {
-      final res = await _dio.get(
-        '/api/v1/wilayah/kecamatan',
-        queryParameters: {'kode_kabkota': kodeKabkota},
-      );
-      final data = res.data;
-      if (data is Map<String, dynamic> && data['result'] is List) {
-        return (data['result'] as List)
-            .map((e) => WilayahKecamatan.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      return const [];
-    } catch (_) {
-      return const [];
-    }
-  }
+  Future<List<WilayahKabupatenKota>> getKabupatenKota(int kodeProvinsi) async => [
+    for (final row in await _rows('kabkota', '$kodeProvinsi'))
+      WilayahKabupatenKota(
+        kodeKabkota: double.parse(row[0] as String),
+        namaKabkota: row[1] as String,
+        kodeProvinsi: kodeProvinsi,
+      ),
+  ];
 
-  Future<List<WilayahKelurahan>> _fetchKelurahan(String kodeKecamatan) async {
-    try {
-      final res = await _dio.get(
-        '/api/v1/wilayah/kelurahan',
-        queryParameters: {'kode_kecamatan': kodeKecamatan},
-      );
-      final data = res.data;
-      if (data is Map<String, dynamic> && data['result'] is List) {
-        return (data['result'] as List)
-            .map((e) => WilayahKelurahan.fromJson(e as Map<String, dynamic>))
-            .toList();
-      }
-      return const [];
-    } catch (_) {
-      return const [];
-    }
-  }
+  Future<List<WilayahKecamatan>> getKecamatan(double kodeKabkota) async => [
+    for (final row in await _rows('kecamatan', kodeKabkota.toStringAsFixed(2)))
+      WilayahKecamatan(
+        kodeKecamatan: row[0] as String,
+        namaKecamatan: row[1] as String,
+        kodeKabkota: kodeKabkota,
+      ),
+  ];
+
+  Future<List<WilayahKelurahan>> getKelurahan(String kodeKecamatan) async => [
+    for (final row in await _rows('kelurahan', kodeKecamatan))
+      WilayahKelurahan(
+        kodeKelurahan: row[0] as String,
+        namaKelurahan: row[1] as String,
+        kodeKecamatan: kodeKecamatan,
+        kodePos: row[2] as int,
+      ),
+  ];
 }
 
 final wilayahApiProvider = Provider<WilayahApi>((ref) => WilayahApi());

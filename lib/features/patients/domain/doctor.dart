@@ -65,15 +65,6 @@ class Doctor extends Equatable {
   List<Object?> get props => [id, nama, spesialisasi, online, email, phone, sip, shipId, shipName, availability];
 }
 
-
-const List<Doctor> kDoctors = [
-  Doctor(id: '8afc72cb-b1c5-4ea1-a438-b06c6ae4a99b', nama: 'Dr. Budi Santoso Soedibyo', spesialisasi: 'General Practitioner', online: true, email: 'budi.santoso@rme.id'),
-  Doctor(id: '7dde5814-0813-47c4-9802-367d2d38f511', nama: 'dr. Lie Dharmawan', spesialisasi: 'Emergency Medicine, Internal Medicine', online: true, email: 'dr_lie@yopmail.com'),
-  Doctor(id: '5bef5428-83d8-4743-996c-5b015e5da5ce', nama: 'Dr. Agus Wijaya', spesialisasi: 'Pediatrics', online: true, email: 'agus.wijaya@rme.id'),
-  Doctor(id: '3e33ee55-214a-4b72-9c27-bfaa324359a9', nama: 'Dr. Siti Rahayu Putri', spesialisasi: 'Cardiology', online: true, email: 'siti.rahayu@rme.id'),
-  Doctor(id: '9a44e863-01eb-4be2-b017-05bd72d43a13', nama: 'Dr. Dewi Kusuma Wardani', spesialisasi: 'Pulmonology', online: false, email: 'dewi.kusuma@rme.id'),
-];
-
 const List<String> kObatList = [
   'Amoxicillin 500mg',
   'Paracetamol 500mg',
@@ -93,23 +84,6 @@ const List<String> kJenisLab = [
   'Fungsi Hati',
   'Fungsi Ginjal',
 ];
-
-/// Maps a logged-in Dokter's account (from the real auth API) to the mock
-/// care-team directory used by Perawat's "assign dokter" dropdown, so a
-/// signed-in doctor sees the patients assigned to them. Matches by email;
-/// falls back to the first directory entry if this account isn't seeded
-/// there yet (demo data limitation — see mock_patient_repository.dart).
-String resolveDoctorId(String email, {String? userId}) {
-  if (userId != null && userId.isNotEmpty) {
-    for (final d in kDoctors) {
-      if (d.id.toLowerCase() == userId.toLowerCase()) return d.id;
-    }
-  }
-  for (final d in kDoctors) {
-    if (d.email != null && d.email!.toLowerCase() == email.toLowerCase()) return d.id;
-  }
-  return (userId != null && userId.isNotEmpty) ? userId : kDoctors.first.id;
-}
 
 const List<String> kAlasanGantiObat = [
   'Stok habis',

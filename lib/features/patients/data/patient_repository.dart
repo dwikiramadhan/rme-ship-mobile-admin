@@ -1183,18 +1183,28 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       ),
     );
 
+    // Built now, so a queued update carries this exam's status.
+    final currentPatient = state.where((p) => p.id == patientId).firstOrNull;
+    final updatePayload = currentPatient?.toCreatePatientJson(
+      statusPenanganan: statusPenanganan,
+    );
+
+    // Offline: kept in the outbox, sent with the patient update later.
+    if (await _mustQueue()) {
+      return _queueExam(patientId, recordId, body, updatePayload);
+    }
+
     try {
-      await _api.patchMedicalRecord(patientId, recordId, body);
+      try {
+        await _api.patchMedicalRecord(patientId, recordId, body);
+      } on ApiException catch (e) {
+        if (!_canQueue(e)) rethrow;
+        return await _queueExam(patientId, recordId, body, updatePayload);
+      }
 
       // Sync status_penanganan to patient endpoint
       try {
-        final currentPatient = state
-            .where((p) => p.id == patientId)
-            .firstOrNull;
-        if (currentPatient != null) {
-          final updatePayload = currentPatient.toCreatePatientJson(
-            statusPenanganan: statusPenanganan,
-          );
+        if (updatePayload != null) {
           await _api.updatePatient(patientId, updatePayload);
           debugPrint(
             '✅ [patchMedicalRecord] Successfully updated patient status_penanganan to $statusPenanganan',
@@ -1228,6 +1238,32 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     } catch (e) {
       debugPrint('Failed to patch medical record: $e');
       rethrow;
+    }
+  }
+
+  /// The doctor's exam (diagnosis, treatment, prescription, lab order) and
+  /// the patient's new handling status, kept in the outbox while offline.
+  Future<void> _queueExam(
+    String patientId,
+    String recordId,
+    Map<String, dynamic> body,
+    Map<String, dynamic>? patientUpdate,
+  ) async {
+    final sync = _sync!;
+    final nama = state.where((p) => p.id == patientId).firstOrNull?.nama;
+    await sync.enqueue(
+      method: 'PATCH',
+      path: '${_medicalRecordsPath(patientId)}/$recordId',
+      label: 'Pemeriksaan dokter: ${nama ?? 'pasien'}',
+      body: body,
+    );
+    if (patientUpdate != null) {
+      await sync.enqueue(
+        method: 'PUT',
+        path: '${ApiConfig.patientsPath}/$patientId',
+        label: 'Status pasien: ${nama ?? 'pasien'}',
+        body: patientUpdate,
+      );
     }
   }
 
@@ -1845,6 +1881,14 @@ final patientsProvider = StateNotifierProvider<PatientsNotifier, List<Patient>>(
   },
 );
 
+/// Shown when [doctorsProvider] has no doctors: offline before the list was
+/// ever downloaded on this device.
+const String doctorsUnavailableMessage =
+    'Daftar dokter belum tersimpan di perangkat. Sambungkan ke internet '
+    'sekali agar daftar dokter terunduh.';
+
+/// The ship's doctors. Offline, the last list kept on the device is used
+/// (see `masterDataPaths`); empty when there is none yet.
 final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {
   final api = ref.watch(patientApiProvider);
   final authState = ref.watch(authControllerProvider);
