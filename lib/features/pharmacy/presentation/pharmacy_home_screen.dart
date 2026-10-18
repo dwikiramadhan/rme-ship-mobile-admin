@@ -53,7 +53,6 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
               .read(pharmacyPrescriptionHistoryProvider.notifier)
               .fetchHistory(refresh: true);
           final patientName = event['patient_name'] ?? 'Pasien';
-          final count = event['resep_count'] ?? 1;
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -92,7 +91,7 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
                           ),
                         ),
                         Text(
-                          'Dokter telah menyelesaikan $count resep obat untuk $patientName',
+                          'Dokter telah mengirim resep obat untuk $patientName',
                           style: const TextStyle(
                             fontSize: 11.5,
                             color: AppColors.sub,

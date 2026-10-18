@@ -21,6 +21,7 @@ import '../domain/prescription_item.dart';
 import '../domain/vitals.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../auth/domain/user_role.dart';
+import '../../auth/data/session_storage.dart';
 import 'patient_api.dart';
 import 'seen_notification_storage.dart';
 import '../../../core/utils/ship_code_helper.dart';
@@ -767,7 +768,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     );
 
     Object? visitError;
-    var visitQueued = false;
     if (visitBody != null) {
       try {
         await _api.addMedicalRecord(created.id, visitBody);
@@ -780,7 +780,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             label: 'Kunjungan pertama: ${fullPatient.nama}',
             body: visitBody,
           );
-          visitQueued = true;
         } else {
           debugPrint('addPatient medical record error: $e');
           visitError = e;
@@ -800,14 +799,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       throw VisitNotCreatedException(fullPatient, visitError);
     }
 
-    if (!visitQueued) {
-      _wsService.send({
-        'type': 'patient_assigned',
-        'patient_id': created.id,
-        'doctor_id': patient.assignedDokterId,
-        'nama': fullPatient.nama,
-      });
-    }
     return fullPatient;
   }
 
@@ -1027,13 +1018,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         }
       }
 
-      // 3. Notify WS
-      _wsService.send({
-        'type': 'patient_assigned',
-        'patient_id': patientId,
-        'doctor_id': recordData['doctor_id'],
-        'status_penanganan': 'Menunggu Dokter',
-      });
     }
 
     // 4. Update local state
@@ -1214,28 +1198,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       } catch (e) {
         debugPrint('Failed to sync status_penanganan to patient: $e');
       }
-
-      final patient = state.where((p) => p.id == patientId).firstOrNull;
-      _wsService.send({
-        'type': 'prescription_created',
-        'target_role': 'pharmacy',
-        'patient_id': patientId,
-        'patient_name': patient?.nama ?? '',
-        'status_penanganan': statusPenanganan,
-        'resep_count': resep?.length ?? 0,
-        'timestamp': DateTime.now().toIso8601String(),
-      });
-
-      if (labOrder != null) {
-        _wsService.send({
-          'type': 'lab_order_created',
-          'target_role': 'lab',
-          'patient_id': patientId,
-          'patient_name': patient?.nama ?? '',
-          'status_penanganan': 'Menunggu Lab',
-          'timestamp': DateTime.now().toIso8601String(),
-        });
-      }
     } catch (e) {
       debugPrint('Failed to patch medical record: $e');
       rethrow;
@@ -1375,13 +1337,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
     markDispensed();
 
-    _wsService.send({
-      'type': 'prescription_completed',
-      'patient_id': patientId,
-      'medical_record_id': medRecId,
-      'status_penanganan': 'Selesai',
-      'timestamp': DateTime.now().toIso8601String(),
-    });
   }
 
   Future<void> setResepStatus(String id, ResepStatus status) async {
@@ -1416,12 +1371,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         rethrow;
       }
 
-      _wsService.send({
-        'type': 'prescription_completed',
-        'patient_id': id,
-        'status_penanganan': 'Selesai',
-        'timestamp': DateTime.now().toIso8601String(),
-      });
     }
   }
 
@@ -1536,11 +1485,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     await _seenStorage.markLabSeen(patientId);
     await _seenStorage.unmarkDoctorLabSeen(patientId);
 
-    _wsService.send({
-      'type': 'lab_result_ready',
-      'patient_id': patientId,
-      'medical_record_id': medicalRecordId,
-    });
   }
 
   Future<void> submitLabHasil({
@@ -1568,7 +1512,6 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     await _seenStorage.markLabSeen(id);
     await _seenStorage.unmarkDoctorLabSeen(id);
 
-    _wsService.send({'type': 'lab_result_ready', 'patient_id': id});
   }
 }
 
@@ -1583,8 +1526,22 @@ final patientApiProvider = Provider<PatientApi>((ref) {
 });
 
 final webSocketServiceProvider = Provider<WebSocketService>((ref) {
-  final ws = WebSocketService();
+  final ws = WebSocketService(
+    // The stored session has the refreshed token; a session that wasn't
+    // remembered is only in memory.
+    accessToken: () async =>
+        (await SessionStorage().read())?.token ??
+        ref.read(authControllerProvider).session?.token,
+  );
   ref.onDispose(() => ws.dispose());
+  // Only a signed-in user may connect; a new login may be another ship.
+  ref.listen<String?>(
+    authControllerProvider.select((s) => s.session?.user.id),
+    (previous, userId) {
+      ws.disconnect();
+      if (userId != null) ws.connect();
+    },
+  );
   return ws;
 });
 

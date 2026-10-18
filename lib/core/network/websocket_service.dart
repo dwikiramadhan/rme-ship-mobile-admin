@@ -1,14 +1,22 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import '../../features/auth/data/session_storage.dart';
 import 'api_config.dart';
 
 /// Manages real-time WebSocket connection to the backend server.
 /// Dispatches incoming real-time events to listeners and automatically
 /// handles reconnection if the connection drops.
+///
+/// The backend only accepts a signed-in user (access token in the
+/// `Authorization` header) and sends them their own ship's events. Events
+/// come from the backend after it saved a change; the app never sends any.
 class WebSocketService {
-  WebSocketService({String? url}) : _customUrl = url {
+  WebSocketService({String? url, Future<String?> Function()? accessToken})
+    : _customUrl = url,
+      _accessToken = accessToken ?? _sessionToken {
     _baseUrlSub = ApiConfig.onBaseUrlChanged.listen((_) {
       if (!_isDisposed) {
         debugPrint(
@@ -21,6 +29,10 @@ class WebSocketService {
 
   final String? _customUrl;
   String get _url => _customUrl ?? ApiConfig.wsUrl;
+  final Future<String?> Function() _accessToken;
+
+  static Future<String?> _sessionToken() async =>
+      (await SessionStorage().read())?.token;
 
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
@@ -31,6 +43,8 @@ class WebSocketService {
   bool _isConnected = false;
   bool _isConnecting = false;
   bool _isDisposed = false;
+  // Off after [disconnect] (logged out): no reconnecting until [connect].
+  bool _wanted = false;
   int _reconnectAttempts = 0;
 
   final _eventController = StreamController<Map<String, dynamic>>.broadcast();
@@ -41,14 +55,25 @@ class WebSocketService {
   bool get isConnected => _isConnected;
 
   Future<void> connect() async {
+    _wanted = true;
     if (_isDisposed || _isConnected || _isConnecting) return;
     _isConnecting = true;
 
     final targetUrl = _url;
     try {
+      // Read on every attempt: a refreshed token is used on reconnect.
+      final token = await _accessToken();
+      if (token == null || token.isEmpty || !_wanted) {
+        // Not signed in: connected again after login.
+        _isConnecting = false;
+        return;
+      }
       final uri = Uri.parse(targetUrl);
       debugPrint('🔌 [WebSocket] Connecting to $uri...');
-      final channel = WebSocketChannel.connect(uri);
+      final channel = IOWebSocketChannel.connect(
+        uri,
+        headers: {'Authorization': 'Bearer $token'},
+      );
       _channel = channel;
 
       _subscription = channel.stream.listen(
@@ -85,7 +110,21 @@ class WebSocketService {
   }
 
   void reconnect({bool resetAttempts = true}) {
+    if (!_wanted) return;
     if (resetAttempts) _reconnectAttempts = 0;
+    _close();
+    connect();
+  }
+
+  /// Closes the connection and stops reconnecting (e.g. on logout), until
+  /// [connect] is called again.
+  void disconnect() {
+    _wanted = false;
+    _reconnectAttempts = 0;
+    _close();
+  }
+
+  void _close() {
     _reconnectTimer?.cancel();
     _subscription?.cancel();
     _subscription = null;
@@ -96,7 +135,6 @@ class WebSocketService {
     _channel = null;
     _isConnecting = false;
     _updateConnection(false);
-    connect();
   }
 
   void _updateConnection(bool connected) {
@@ -126,6 +164,7 @@ class WebSocketService {
     }
   }
 
+  /// Keeps idle connections open through proxies; the backend ignores it.
   void _startHeartbeat() {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) {
@@ -143,7 +182,7 @@ class WebSocketService {
     _subscription = null;
     _pingTimer?.cancel();
 
-    if (_isDisposed) return;
+    if (_isDisposed || !_wanted) return;
 
     _reconnectTimer?.cancel();
     // Exponential backoff: 2s, 4s, 8s, up to max 15s to keep ship Wi-Fi healthy
@@ -153,21 +192,11 @@ class WebSocketService {
     _reconnectAttempts++;
 
     _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
-      if (!_isDisposed && !_isConnected) {
+      if (!_isDisposed && _wanted && !_isConnected) {
         debugPrint('🔄 [WebSocket] Attempting reconnect (attempt $_reconnectAttempts)...');
         connect();
       }
     });
-  }
-
-  void send(Map<String, dynamic> message) {
-    if (_isConnected && _channel != null) {
-      try {
-        _channel!.sink.add(jsonEncode(message));
-      } catch (e) {
-        debugPrint('⚠️ [WebSocket] Failed to send message: $e');
-      }
-    }
   }
 
   void dispose() {
