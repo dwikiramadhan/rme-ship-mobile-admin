@@ -9,19 +9,26 @@ import '../../doctor/domain/medicine_item.dart';
 import '../../doctor/presentation/widgets/medicine_search_modal.dart';
 import '../data/ship_medicine_api.dart';
 
+/// How "Tambah Stok Obat" ended.
+enum AddStockResult {
+  added,
+
+  /// Offline: kept in the outbox, sent once the server is reachable.
+  savedOffline,
+}
+
 /// Opens "Tambah Stok Obat" for one medicine (the web's "Tambah Satuan").
-/// Returns true when stock was added.
-Future<bool> showAddStockSheet(
+/// Returns null when closed without adding.
+Future<AddStockResult?> showAddStockSheet(
   BuildContext context, {
   required String shipCode,
-}) async {
-  final added = await showModalBottomSheet<bool>(
+}) {
+  return showModalBottomSheet<AddStockResult>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     builder: (_) => AddStockSheet(shipCode: shipCode),
   );
-  return added ?? false;
 }
 
 class AddStockSheet extends ConsumerStatefulWidget {
@@ -56,6 +63,7 @@ class _AddStockSheetState extends ConsumerState<AddStockSheet> {
       builder: (ctx) => MedicineSearchModal(
         selectedName: _medicine?.name,
         showStock: false,
+        offlineShipCode: widget.shipCode,
         onSelect: (_) {},
         onSelectMedicine: (med) {
           setState(() {
@@ -85,15 +93,20 @@ class _AddStockSheetState extends ConsumerState<AddStockSheet> {
       _error = null;
     });
     try {
-      await ref
+      final savedOffline = await ref
           .read(shipMedicineApiProvider)
           .addStock(
             shipCode: widget.shipCode,
             medicineId: medicine.id.isNotEmpty ? medicine.id : medicine.sku,
+            medicineName: medicine.name,
             quantity: quantity,
             notes: _notes.text,
           );
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        Navigator.of(context).pop(
+          savedOffline ? AddStockResult.savedOffline : AddStockResult.added,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

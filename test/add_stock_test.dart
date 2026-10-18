@@ -14,14 +14,18 @@ class _FakeShipMedicineApi implements ShipMedicineApi {
   final added = <Map<String, Object>>[];
   int stockLoads = 0;
 
+  /// Answers like the server can't be reached: kept in the outbox.
+  bool offline = false;
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
-  Future<void> addStock({
+  Future<bool> addStock({
     required String shipCode,
     required String medicineId,
     required int quantity,
+    String medicineName = '',
     String notes = '',
   }) async {
     added.add({
@@ -30,6 +34,7 @@ class _FakeShipMedicineApi implements ShipMedicineApi {
       'quantity': quantity,
       'notes': notes,
     });
+    return offline;
   }
 
   @override
@@ -69,15 +74,18 @@ class _FakeShipMedicineApi implements ShipMedicineApi {
 /// The master medicine list the picker searches.
 class _FakeMedicinesApi extends MedicinesApi {
   String? lastShipCode = 'not called';
+  String? lastOfflineShipCode;
 
   @override
   Future<PaginatedMedicines> fetchMedicines({
     String? shipCode,
+    String? offlineShipCode,
     String query = '',
     int page = 1,
     int limit = 10,
   }) async {
     lastShipCode = shipCode;
+    lastOfflineShipCode = offlineShipCode;
     return const PaginatedMedicines(
       data: [
         MedicineItem(
@@ -176,8 +184,10 @@ void main() {
 
     await tester.tap(find.text('Pilih obat...'));
     await tester.pumpAndSettle();
-    // Picks from the master list (no ship code), without stock badges.
+    // Picks from the master list (no ship code), without stock badges;
+    // offline from the ship's list on the device.
     expect(medicinesApi.lastShipCode, isNull);
+    expect(medicinesApi.lastOfflineShipCode, 'KM-01');
     expect(find.textContaining('Stok:'), findsNothing);
     await tester.tap(find.text('Cefadroxil 500mg'));
     await tester.pumpAndSettle();
@@ -202,5 +212,26 @@ void main() {
     expect(find.text('Tambah Stok Obat'), findsNothing);
     expect(find.text('Stok obat berhasil ditambahkan'), findsOneWidget);
     expect(stockApi.stockLoads, greaterThan(loadsBefore));
+  });
+
+  testWidgets('offline: says the stock is kept on the device', (tester) async {
+    final stockApi = _FakeShipMedicineApi()..offline = true;
+    await _pumpScreen(tester, canManage: true, stockApi: stockApi);
+
+    await tester.tap(find.byTooltip('Tambah Stok'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pilih obat...'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cefadroxil 500mg'));
+    await tester.pumpAndSettle();
+    final fields = find.byType(TextField);
+    await tester.enterText(fields.at(fields.evaluate().length - 2), '24');
+    await tester.tap(find.widgetWithText(InkWell, 'Tambah Stok').last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Stok obat tersimpan di perangkat'),
+      findsOneWidget,
+    );
   });
 }

@@ -1,7 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/network/api_config.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/offline/outbox_entry.dart';
+import '../../../core/offline/sync_service.dart';
 import '../../../core/utils/ship_code_helper.dart';
+import '../../sync/presentation/sync_providers.dart';
 import '../domain/trip_schedule.dart';
 import 'schedule_api.dart';
 
@@ -275,13 +282,28 @@ final scheduleCounterProvider = FutureProvider.autoDispose<ScheduleCounter>((ref
 });
 
 class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
-  TripDetailNotifier(this._repository, this._initial)
+  TripDetailNotifier(this._repository, this._initial, [this._sync])
       : super(AsyncValue.data(_initial)) {
+    // Queued logistics reached the server: show the server's version.
+    _synced = _sync?.onSynced.listen((_) => load());
     load();
   }
 
   final ScheduleRepository _repository;
   final JadwalPerjalanan _initial;
+
+  /// Keeps the logistics written offline (provisions, trip issues).
+  final SyncService? _sync;
+  StreamSubscription<void>? _synced;
+
+  /// The trip as last fetched, before the queued changes are applied.
+  JadwalPerjalanan? _fetched;
+
+  @override
+  void dispose() {
+    _synced?.cancel();
+    super.dispose();
+  }
 
   Future<void> load() async {
     try {
@@ -304,25 +326,135 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
         provisions = await _repository.fetchProvisionsHistory(schedCode);
       }
 
-      schedule = schedule.copyWith(
+      _fetched = schedule.copyWith(
         provisions: provisions,
         tripIssues: issues,
       );
-
-      if (!mounted) return;
-      state = AsyncValue.data(schedule);
-    } catch (e, st) {
+    } catch (e) {
       debugPrint('TripDetailNotifier load error: $e');
-      if (!mounted) return;
-      if (!state.hasValue) {
-        state = AsyncValue.error(e, st);
+    }
+    // Offline the fetched trip is the cached one (or the list item): the
+    // changes still in the outbox are shown on top of it.
+    final shown = await _withQueued(_fetched ?? _initial);
+    if (!mounted) return;
+    state = AsyncValue.data(shown);
+  }
+
+  /// [trip] with the provisions and trip issues still waiting in the outbox
+  /// added, changed or removed.
+  Future<JadwalPerjalanan> _withQueued(JadwalPerjalanan trip) async {
+    final sync = _sync;
+    if (sync == null) return trip;
+    final queued = [
+      for (final e in await sync.entries())
+        if (e.status == OutboxStatus.pending) e,
+    ];
+    if (queued.isEmpty) return trip;
+
+    final code = trip.code.isNotEmpty ? trip.code : _initial.code;
+    final id = trip.id.isNotEmpty ? trip.id : _initial.id;
+    final provisions = _applyQueued(
+      trip.provisions,
+      queued,
+      basePath: ApiConfig.shipProvisionsHistoryPath,
+      isOfTrip: (body) => body['schedule_code'] == code,
+      toJson: (p) => p.toJson(),
+      fromJson: ProvisionHistoryItem.fromJson,
+      idOf: (p) => p.id,
+    );
+    final issues = _applyQueued(
+      trip.tripIssues,
+      queued,
+      basePath: ApiConfig.tripIssuesPath,
+      isOfTrip: (body) => body['schedule_id'] == id,
+      toJson: (i) => i.toJson(),
+      fromJson: TripIssueItem.fromJson,
+      idOf: (i) => i.id,
+    );
+    return trip.copyWith(provisions: provisions, tripIssues: issues);
+  }
+
+  /// [items] after the queued writes to [basePath], oldest first: a POST
+  /// adds an item on top (its entry id stands for the server id until it is
+  /// sent), a PUT changes one, a DELETE removes one.
+  static List<T> _applyQueued<T>(
+    List<T> items,
+    List<OutboxEntry> queued, {
+    required String basePath,
+    required bool Function(Map<String, dynamic> body) isOfTrip,
+    required Map<String, dynamic> Function(T item) toJson,
+    required T Function(Map<String, dynamic> json) fromJson,
+    required String Function(T item) idOf,
+  }) {
+    var result = [...items];
+    for (final entry in queued) {
+      final body = entry.body ?? const <String, dynamic>{};
+      if (entry.path == basePath) {
+        if (entry.method == 'POST' && isOfTrip(body)) {
+          result.insert(
+            0,
+            fromJson({
+              ...body,
+              'id': entry.id,
+              'created_at': entry.createdAt.toUtc().toIso8601String(),
+            }),
+          );
+        }
+        continue;
       }
+      if (!entry.path.startsWith('$basePath/')) continue;
+      final itemId = entry.path.substring(basePath.length + 1);
+      if (entry.method == 'DELETE') {
+        result = [for (final i in result) if (idOf(i) != itemId) i];
+      } else if (entry.method == 'PUT') {
+        result = [
+          for (final i in result)
+            idOf(i) == itemId ? fromJson({...toJson(i), ...body}) : i,
+        ];
+      }
+    }
+    return result;
+  }
+
+  /// Sends a logistics write, or keeps it in the outbox while the server
+  /// can't be reached (or earlier writes still wait there). [localId] names a
+  /// new item until the server gives it its id. Returns true when kept.
+  Future<bool> _sendOrQueue({
+    required String method,
+    required String path,
+    required String label,
+    Map<String, dynamic>? body,
+    String? localId,
+    required Future<void> Function() send,
+  }) async {
+    final sync = _sync;
+    Future<bool> queue() async {
+      await sync!.enqueue(
+        method: method,
+        path: path,
+        label: label,
+        body: body,
+        id: localId,
+        produces: {?localId: 'result.id'},
+      );
+      return true;
+    }
+
+    if (sync != null && await sync.hasPending()) return queue();
+    try {
+      await send();
+      return false;
+    } on ApiException catch (e) {
+      if (sync == null || !e.isOffline) rethrow;
+      return queue();
     }
   }
 
   Future<void> refresh() async => load();
 
-  Future<void> addProvision({
+  /// Returns true when kept offline (see [_sendOrQueue]), as do the other
+  /// logistics writes.
+  Future<bool> addProvision({
     required double fuelOil,
     required double water,
     String type = 'sisa',
@@ -353,16 +485,30 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
       'lng': ?lng,
     };
     debugPrint('ScheduleRepository [POST /api/v1/ship-provisions-history] body: $body');
-    await _repository.addProvision(body);
+    final savedOffline = await _sendOrQueue(
+      method: 'POST',
+      path: ApiConfig.shipProvisionsHistoryPath,
+      label: type == 'tambah' ? 'Pengisian BBM & air' : 'Sisa BBM & air',
+      body: body,
+      localId: SyncService.newId(),
+      send: () => _repository.addProvision(body),
+    );
     await refresh();
+    return savedOffline;
   }
 
-  Future<void> deleteProvision(String id) async {
-    await _repository.deleteProvision(id);
+  Future<bool> deleteProvision(String id) async {
+    final savedOffline = await _sendOrQueue(
+      method: 'DELETE',
+      path: '${ApiConfig.shipProvisionsHistoryPath}/$id',
+      label: 'Hapus catatan BBM & air',
+      send: () => _repository.deleteProvision(id),
+    );
     await refresh();
+    return savedOffline;
   }
 
-  Future<void> updateProvision({
+  Future<bool> updateProvision({
     required String id,
     required double fuelOil,
     required double water,
@@ -386,8 +532,15 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
       'lng': ?lng,
     };
     debugPrint('ScheduleRepository [PUT /api/v1/ship-provisions-history/$id] body: $body');
-    await _repository.updateProvision(id, body);
+    final savedOffline = await _sendOrQueue(
+      method: 'PUT',
+      path: '${ApiConfig.shipProvisionsHistoryPath}/$id',
+      label: 'Ubah catatan BBM & air',
+      body: body,
+      send: () => _repository.updateProvision(id, body),
+    );
     await refresh();
+    return savedOffline;
   }
 
   static String _formatRfc3339(DateTime dt) {
@@ -407,7 +560,7 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
     return '$year-$month-${day}T$hour:$minute:$second$offsetStr';
   }
 
-  Future<void> addTripIssue({
+  Future<bool> addTripIssue({
     required String description,
     required DateTime occurredAt,
     String? scheduleId,
@@ -426,11 +579,19 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
       'lng': ?lng,
     };
     debugPrint('ScheduleRepository [POST /api/v1/trip-issues] body: $body');
-    await _repository.addTripIssue(body);
+    final savedOffline = await _sendOrQueue(
+      method: 'POST',
+      path: ApiConfig.tripIssuesPath,
+      label: 'Kendala perjalanan: $description',
+      body: body,
+      localId: SyncService.newId(),
+      send: () => _repository.addTripIssue(body),
+    );
     await refresh();
+    return savedOffline;
   }
 
-  Future<void> updateTripIssue({
+  Future<bool> updateTripIssue({
     required String id,
     required String description,
     required DateTime occurredAt,
@@ -444,13 +605,26 @@ class TripDetailNotifier extends StateNotifier<AsyncValue<JadwalPerjalanan>> {
       'lng': ?lng,
     };
     debugPrint('ScheduleRepository [PUT /api/v1/trip-issues/$id] body: $body');
-    await _repository.updateTripIssue(id, body);
+    final savedOffline = await _sendOrQueue(
+      method: 'PUT',
+      path: '${ApiConfig.tripIssuesPath}/$id',
+      label: 'Ubah kendala perjalanan',
+      body: body,
+      send: () => _repository.updateTripIssue(id, body),
+    );
     await refresh();
+    return savedOffline;
   }
 
-  Future<void> deleteTripIssue(String id) async {
-    await _repository.deleteTripIssue(id);
+  Future<bool> deleteTripIssue(String id) async {
+    final savedOffline = await _sendOrQueue(
+      method: 'DELETE',
+      path: '${ApiConfig.tripIssuesPath}/$id',
+      label: 'Hapus kendala perjalanan',
+      send: () => _repository.deleteTripIssue(id),
+    );
     await refresh();
+    return savedOffline;
   }
 
   Future<void> updateSchedule(Map<String, dynamic> body) async {
@@ -467,7 +641,7 @@ final tripDetailNotifierProvider = StateNotifierProvider.autoDispose
     .family<TripDetailNotifier, AsyncValue<JadwalPerjalanan>, JadwalPerjalanan>(
   (ref, initial) {
     final repo = ref.watch(scheduleRepositoryProvider);
-    return TripDetailNotifier(repo, initial);
+    return TripDetailNotifier(repo, initial, ref.watch(syncServiceProvider));
   },
 );
 

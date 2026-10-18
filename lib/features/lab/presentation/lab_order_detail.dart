@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../sync/presentation/sync_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_card.dart';
@@ -272,6 +273,9 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
             filePath: _pickedFile?.path,
             fileBytes: _fileBytes,
           );
+      // Offline: kept in the outbox instead of sent.
+      final savedOffline =
+          (ref.read(syncServiceProvider)?.status.pending ?? 0) > 0;
 
       // Refresh lab order list and medical histories
       unawaited(
@@ -283,9 +287,13 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Hasil pemeriksaan lab berhasil dikirim ke dokter'),
-          backgroundColor: AppColors.green,
+        SnackBar(
+          content: Text(
+            savedOffline
+                ? 'Hasil lab tersimpan di perangkat dan akan dikirim otomatis ke dokter saat koneksi kembali'
+                : 'Hasil pemeriksaan lab berhasil dikirim ke dokter',
+          ),
+          backgroundColor: savedOffline ? AppColors.yellow : AppColors.green,
         ),
       );
     } catch (e) {

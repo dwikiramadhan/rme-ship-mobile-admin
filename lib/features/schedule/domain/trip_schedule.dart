@@ -357,6 +357,21 @@ class ProvisionHistoryItem extends Equatable {
     );
   }
 
+  /// The API's fields, as [ProvisionHistoryItem.fromJson] reads them.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'schedule_code': scheduleCode,
+        'type': type,
+        'fuel_oil': fuelOil,
+        'water': water,
+        'fuel_oil_added': fuelOilAdded,
+        'water_added': waterAdded,
+        'notes': notes,
+        'lat': lat,
+        'lng': lng,
+        'created_at': createdAt.toUtc().toIso8601String(),
+      };
+
   @override
   List<Object?> get props => [
         id,
@@ -426,6 +441,17 @@ class TripIssueItem extends Equatable {
       lng: parseNum(json['lng']),
     );
   }
+
+  /// The API's fields, as [TripIssueItem.fromJson] reads them.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'schedule_id': scheduleId,
+        'description': description,
+        'occurred_at': occurredAt.toUtc().toIso8601String(),
+        'occurred_at_tz': occurredAtTz,
+        'lat': lat,
+        'lng': lng,
+      };
 
   @override
   List<Object?> get props => [

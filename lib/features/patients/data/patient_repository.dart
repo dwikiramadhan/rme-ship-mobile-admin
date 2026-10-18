@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/websocket_service.dart';
+import '../../../core/offline/outbox_entry.dart';
 import '../../../core/offline/sync_service.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../../../core/notifications/in_app_notification_manager.dart';
@@ -1338,25 +1339,41 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       '🚀 [dispensePrescription] POST /api/v1/medical-records/$medRecId/dispense body: $body',
     );
 
-    try {
-      await _api.dispensePrescription(medRecId, body);
-      debugPrint(
-        '✅ [dispensePrescription] Successfully dispensed prescription for medRecId $medRecId',
-      );
-    } catch (e) {
-      debugPrint(
-        '❌ [dispensePrescription] Failed to dispense prescription for medRecId $medRecId: $e',
-      );
-      rethrow;
-    }
-
-    _update(
+    void markDispensed() => _update(
       patientId,
       (p) => p.copyWith(
         resepStatus: ResepStatus.selesai,
         statusPenanganan: 'Selesai',
       ),
     );
+
+    // Offline: kept in the outbox, shown as handed over right away.
+    Future<void> queue() async {
+      final nama = state.where((p) => p.id == patientId).firstOrNull?.nama;
+      await _sync!.enqueue(
+        method: 'POST',
+        path: ApiConfig.medicalRecordDispensePath(medRecId),
+        label: 'Penyerahan obat: ${nama ?? 'pasien'}',
+        body: body,
+      );
+      markDispensed();
+    }
+
+    if (await _mustQueue()) return queue();
+    try {
+      await _api.dispensePrescription(medRecId, body);
+      debugPrint(
+        '✅ [dispensePrescription] Successfully dispensed prescription for medRecId $medRecId',
+      );
+    } on ApiException catch (e) {
+      if (_canQueue(e)) return queue();
+      debugPrint(
+        '❌ [dispensePrescription] Failed to dispense prescription for medRecId $medRecId: $e',
+      );
+      rethrow;
+    }
+
+    markDispensed();
 
     _wsService.send({
       'type': 'prescription_completed',
@@ -1440,47 +1457,82 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       map['lab_personnel_id'] = labPersonnelId;
     }
 
-    if (filePath != null && filePath.isNotEmpty) {
-      final name = fileName ?? filePath.split(Platform.pathSeparator).last;
-      map['file'] = await MultipartFile.fromFile(filePath, filename: name);
-    } else if (fileBytes != null && fileBytes.isNotEmpty) {
-      map['file'] = MultipartFile.fromBytes(
-        fileBytes,
-        filename: fileName ?? 'hasil_lab.pdf',
-      );
+    final hasPath = filePath != null && filePath.isNotEmpty;
+    final hasBytes = fileBytes != null && fileBytes.isNotEmpty;
+
+    void markDone() {
+      final parsedItems = items
+          .map((i) => LabExaminationItem.fromJson(i))
+          .toList();
+      _update(patientId, (p) {
+        final order = p.labOrder;
+        if (order == null) return p;
+        return p.copyWith(
+          labOrder: order.copyWith(
+            status: LabOrderStatus.selesai,
+            hasil: LabHasil(
+              catatanHasil: notes,
+              fileName: fileName,
+              items: parsedItems,
+            ),
+          ),
+          dilihatDokterLab: false,
+        );
+      });
     }
 
-    final formData = FormData.fromMap(map);
+    // Offline: kept in the outbox with a copy of the file.
+    Future<void> queue() async {
+      final sync = _sync!;
+      final nama = state.where((p) => p.id == patientId).firstOrNull?.nama;
+      await sync.enqueue(
+        method: 'POST',
+        path: ApiConfig.medicalRecordLabExaminationsPath(medicalRecordId),
+        label: 'Hasil lab: ${nama ?? 'pasien'}',
+        body: map,
+        files: {
+          if (hasPath)
+            'file': await sync.keepFile(File(filePath), name: fileName)
+          else if (hasBytes)
+            'file': await sync.keepBytes(
+              fileBytes,
+              fileName ?? 'hasil_lab.pdf',
+            ),
+        },
+      );
+      markDone();
+      await _seenStorage.markLabSeen(patientId);
+      await _seenStorage.unmarkDoctorLabSeen(patientId);
+    }
+
+    if (await _mustQueue()) return queue();
+
+    final formData = FormData.fromMap({
+      ...map,
+      if (hasPath)
+        'file': await MultipartFile.fromFile(
+          filePath,
+          filename: fileName ?? filePath.split(Platform.pathSeparator).last,
+        )
+      else if (hasBytes)
+        'file': MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName ?? 'hasil_lab.pdf',
+        ),
+    });
 
     debugPrint(
       '🚀 [submitLabExaminations] POST /api/v1/medical-records/$medicalRecordId/lab-examinations (multipart/form-data) notes: $notes, conclusion: $conclusion, status: $status, items: ${jsonEncode(items)}, file: ${fileName ?? filePath}',
     );
     try {
       await _api.submitLabExaminations(medicalRecordId, formData);
-    } catch (e) {
+    } on ApiException catch (e) {
+      if (_canQueue(e)) return queue();
       debugPrint('⚠️ [submitLabExaminations] API error: $e');
       rethrow;
     }
 
-    final parsedItems = items
-        .map((i) => LabExaminationItem.fromJson(i))
-        .toList();
-    _update(patientId, (p) {
-      final order = p.labOrder;
-      if (order == null) return p;
-      return p.copyWith(
-        labOrder: order.copyWith(
-          status: LabOrderStatus.selesai,
-          hasil: LabHasil(
-            catatanHasil: notes,
-            fileName: fileName,
-            items: parsedItems,
-          ),
-        ),
-        dilihatDokterLab: false,
-      );
-    });
-
+    markDone();
     await _seenStorage.markLabSeen(patientId);
     await _seenStorage.unmarkDoctorLabSeen(patientId);
 
@@ -1932,6 +1984,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     this.statusPenanganan,
     this.userId,
     this.oldestFirst = false,
+    this.queuedVisitIds,
   }) : _api = api ?? PatientApi(),
        super([]) {
     if (autoFetch) {
@@ -1941,6 +1994,21 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
 
   /// Queue order (oldest first) instead of newest first.
   final bool oldestFirst;
+
+  /// The visits already handled on this device whose change still waits in
+  /// the outbox. A queue list (e.g. "Menunggu Obat") hides them: offline its
+  /// pages come from the cache, which still lists them.
+  final Future<Set<String>> Function()? queuedVisitIds;
+
+  /// [fetched] without the visits handled offline, and how many were hidden.
+  Future<(List<MedicalHistory>, int)> _withoutQueued(
+    List<MedicalHistory> fetched,
+  ) async {
+    final queued = await queuedVisitIds?.call() ?? const <String>{};
+    if (queued.isEmpty) return (fetched, 0);
+    final kept = fetched.where((h) => !queued.contains(h.id)).toList();
+    return (kept, fetched.length - kept.length);
+  }
 
   int _byTime(MedicalHistory a, MedicalHistory b) {
     final timeA = a.createdAt ?? a.date ?? '';
@@ -2001,13 +2069,14 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         userId: userId,
         order: oldestFirst ? 'asc' : 'desc',
       );
+      final (data, hidden) = await _withoutQueued(res.data);
       if (seq != _requestSeq) return;
       _currentPage = res.page;
       _totalPages = res.totalPages;
-      _total = res.total;
+      _total = res.total - hidden;
       _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
       if (mounted) {
-        final list = List<MedicalHistory>.from(res.data);
+        final list = List<MedicalHistory>.from(data);
         list.sort(_byTime);
         state = list;
       }
@@ -2037,14 +2106,15 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         userId: userId,
         order: oldestFirst ? 'asc' : 'desc',
       );
+      final (data, hidden) = await _withoutQueued(res.data);
       // The list was reset (search/filter/refresh) while this page loaded.
       if (seq != _requestSeq) return;
       _currentPage = res.page;
       _totalPages = res.totalPages;
-      _total = res.total;
+      _total = res.total - hidden;
       _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
       final existingIds = {for (final m in state) m.id};
-      final newItems = res.data
+      final newItems = data
           .where((m) => !existingIds.contains(m.id))
           .toList();
       final combined = [...state, ...newItems];
@@ -2178,13 +2248,27 @@ final pharmacyPrescriptionHistoryProvider =
       final hasSession = ref.watch(
         authControllerProvider.select((s) => s.session != null),
       );
+      final sync = ref.watch(syncServiceProvider);
       return MedicalHistoryNotifier(
         api: api,
         autoFetch: hasSession,
         statusPenanganan: 'Menunggu Obat',
         oldestFirst: true,
+        queuedVisitIds: () => visitsQueuedFor(sync, 'dispense'),
       );
     });
+
+/// The visits with a `POST /medical-records/{id}/[action]` (e.g.
+/// 'dispense') still waiting in the outbox.
+Future<Set<String>> visitsQueuedFor(SyncService? sync, String action) async {
+  if (sync == null) return const {};
+  final pattern = RegExp('/medical-records/([^/]+)/$action\$');
+  return {
+    for (final entry in await sync.entries())
+      if (entry.status == OutboxStatus.pending && entry.method == 'POST')
+        if (pattern.firstMatch(entry.path) case final match?) match.group(1)!,
+  };
+}
 
 /// Dedicated medical history provider for Lab (Daftar Order Lab) filtered by status_penanganan = 'Menunggu Lab'
 final labOrderHistoryProvider =
@@ -2193,9 +2277,11 @@ final labOrderHistoryProvider =
       final hasSession = ref.watch(
         authControllerProvider.select((s) => s.session != null),
       );
+      final sync = ref.watch(syncServiceProvider);
       return MedicalHistoryNotifier(
         api: api,
         autoFetch: hasSession,
         statusPenanganan: 'Menunggu Lab',
+        queuedVisitIds: () => visitsQueuedFor(sync, 'lab-examinations'),
       );
     });

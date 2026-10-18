@@ -98,8 +98,8 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
       );
       return;
     }
-    final added = await showAddStockSheet(context, shipCode: shipCode);
-    if (!added || !mounted) return;
+    final result = await showAddStockSheet(context, shipCode: shipCode);
+    if (result == null || !mounted) return;
     // Both tabs show the new stock and its history entry.
     unawaited(
       ref
@@ -111,10 +111,15 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
           .read(shipMedicineHistoryProvider(shipCode).notifier)
           .loadInitial(refresh: true),
     );
+    final savedOffline = result == AddStockResult.savedOffline;
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Stok obat berhasil ditambahkan'),
-        backgroundColor: AppColors.green,
+      SnackBar(
+        content: Text(
+          savedOffline
+              ? 'Stok obat tersimpan di perangkat dan akan dikirim otomatis saat koneksi kembali'
+              : 'Stok obat berhasil ditambahkan',
+        ),
+        backgroundColor: savedOffline ? AppColors.yellow : AppColors.green,
       ),
     );
   }

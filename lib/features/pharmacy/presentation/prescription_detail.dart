@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../sync/presentation/sync_providers.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_button.dart';
@@ -127,6 +128,9 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
               dispensedById: dispensedById,
               items: patient.resep,
             );
+        // Offline: kept in the outbox instead of sent.
+        final savedOffline =
+            (ref.read(syncServiceProvider)?.status.pending ?? 0) > 0;
         if (mounted) {
           setState(
             () => _patient = patient.copyWith(
@@ -143,9 +147,13 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Obat telah diserahkan ke pasien'),
-            backgroundColor: AppColors.green,
+          SnackBar(
+            content: Text(
+              savedOffline
+                  ? 'Penyerahan obat tersimpan di perangkat dan akan dikirim otomatis saat koneksi kembali'
+                  : 'Obat telah diserahkan ke pasien',
+            ),
+            backgroundColor: savedOffline ? AppColors.yellow : AppColors.green,
           ),
         );
       } else {

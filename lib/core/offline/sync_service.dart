@@ -123,11 +123,27 @@ class SyncService {
 
   /// Copies [file] into app storage so it is still there when the queue is
   /// sent (picker / camera files can be temporary). Returns the copy's path.
-  Future<String> keepFile(File file) async {
-    final dir = await _filesDir();
-    final name = file.path.split(Platform.pathSeparator).last;
-    final copy = await file.copy('${dir.path}/${newId()}_$name');
+  /// The copy keeps the file's [name] (default: its own), which is the name
+  /// the server receives.
+  Future<String> keepFile(File file, {String? name}) async {
+    final dir = await _newFileDir();
+    final fileName = name ?? file.path.split(Platform.pathSeparator).last;
+    final copy = await file.copy('${dir.path}/$fileName');
     return copy.path;
+  }
+
+  /// Like [keepFile], for a file only held in memory.
+  Future<String> keepBytes(List<int> bytes, String name) async {
+    final dir = await _newFileDir();
+    final copy = await File('${dir.path}/$name').writeAsBytes(bytes);
+    return copy.path;
+  }
+
+  /// A folder of its own per kept file, so files with the same name don't
+  /// overwrite each other.
+  Future<Directory> _newFileDir() async {
+    final dir = await _filesDir();
+    return Directory('${dir.path}/${newId()}').create();
   }
 
   Future<List<OutboxEntry>> entries() async {
@@ -306,9 +322,18 @@ class SyncService {
   }
 
   Future<void> _deleteFiles(OutboxEntry entry) async {
+    if (entry.files.isEmpty) return;
+    final filesDir = (await _filesDir()).path;
     for (final path in entry.files.values) {
       try {
-        await File(path).delete();
+        final file = File(path);
+        // The kept file's own folder (see [_newFileDir]), with the file.
+        final folder = file.parent;
+        if (folder.parent.path == filesDir) {
+          await folder.delete(recursive: true);
+        } else {
+          await file.delete();
+        }
       } catch (_) {}
     }
   }

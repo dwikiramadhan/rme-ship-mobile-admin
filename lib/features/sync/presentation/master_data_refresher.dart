@@ -10,6 +10,7 @@ import '../../environment/presentation/server_connection_controller.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../schedule/data/schedule_repository.dart';
 import 'master_data_status.dart';
+import 'sync_providers.dart';
 
 /// Keeps a recent copy of the master data the forms need offline (the
 /// ship's doctors, the harbors, the ship's medicine stock list) on the
@@ -31,6 +32,13 @@ class MasterDataRefresher {
       _ref.read(portsProvider.future).then((_) {}, onError: (_) {}),
       _downloadShipStocks(),
     ]);
+    _ref.invalidate(masterDataStatusProvider);
+  }
+
+  /// After the outbox sent something: the server's stock now includes what
+  /// was dispensed or added offline, and those entries left the outbox.
+  Future<void> refreshShipStocks() async {
+    await _downloadShipStocks();
     _ref.invalidate(masterDataStatusProvider);
   }
 
@@ -63,5 +71,10 @@ final masterDataRefresherProvider = Provider<MasterDataRefresher>((ref) {
     final loggedIn = ref.read(authControllerProvider).session != null;
     if (connected && previous == false && loggedIn) refresher.refresh();
   });
+  final synced = ref
+      .watch(syncServiceProvider)
+      ?.onSynced
+      .listen((_) => refresher.refreshShipStocks());
+  ref.onDispose(() => synced?.cancel());
   return refresher;
 });

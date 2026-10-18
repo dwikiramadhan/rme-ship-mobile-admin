@@ -253,6 +253,9 @@ class _BenchmarkMedicalHistoryNotifier extends StateNotifier<List<MedicalHistory
   _BenchmarkMedicalHistoryNotifier(super.initial);
 
   @override
+  Future<Set<String>> Function()? get queuedVisitIds => null;
+
+  @override
   bool get isLoading => false;
 
   @override

@@ -5,40 +5,70 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/offline/sync_service.dart';
+import '../../sync/presentation/sync_providers.dart';
 import '../domain/ship_medicine_history.dart';
 import '../domain/ship_medicine_stock.dart';
+import 'ship_stock_list.dart';
 
 class ShipMedicineApi {
-  ShipMedicineApi({Dio? dio}) : _dio = dio ?? DioClient.instance;
+  ShipMedicineApi({Dio? dio, SyncService? sync})
+    : _dio = dio ?? DioClient.instance,
+      _sync = sync,
+      _stocks = ShipStockList(dio ?? DioClient.instance, sync);
 
   final Dio _dio;
+  final SyncService? _sync;
+  final ShipStockList _stocks;
 
   /// Adds [quantity] to the ship's stock of a medicine (the backend creates
   /// the ship's entry for a medicine it doesn't carry yet) and records it in
   /// the stock history: POST /api/v1/ship-medicines.
-  Future<void> addStock({
+  ///
+  /// Offline it is kept in the outbox and sent once the server is reachable;
+  /// returns true then.
+  Future<bool> addStock({
     required String shipCode,
     required String medicineId,
     required int quantity,
+    String medicineName = '',
     String notes = '',
   }) async {
-    try {
-      await _dio.post(
-        ApiConfig.shipMedicinesPath,
-        data: {
-          'ship_code': shipCode.trim(),
-          'medicine_id': medicineId,
-          'stock': quantity,
-          if (notes.trim().isNotEmpty) 'notes': notes.trim(),
-        },
+    final body = {
+      'ship_code': shipCode.trim(),
+      'medicine_id': medicineId,
+      'stock': quantity,
+      if (notes.trim().isNotEmpty) 'notes': notes.trim(),
+    };
+    final sync = _sync;
+    Future<bool> queue() async {
+      await sync!.enqueue(
+        method: 'POST',
+        path: ApiConfig.shipMedicinesPath,
+        label: 'Tambah stok: ${medicineName.isEmpty ? medicineId : medicineName}'
+            ' +$quantity',
+        body: body,
       );
+      return true;
+    }
+
+    // Earlier writes are still waiting: this one goes behind them.
+    if (sync != null && await sync.hasPending()) return queue();
+    try {
+      await _dio.post(ApiConfig.shipMedicinesPath, data: body);
+      return false;
     } on DioException catch (e) {
-      throw DioClient.mapError(e);
+      final error = DioClient.mapError(e);
+      if (sync != null && error.isOffline) return queue();
+      throw error;
     }
   }
 
   /// Fetches paginated ship medicine stocks:
   /// GET /api/v1/ship-medicines/stocks/:ship_code?page=1&limit=15&search=...
+  ///
+  /// Offline, the stock list downloaded to the device is searched instead,
+  /// with the stock dispensed or added offline counted in.
   Future<PaginatedShipMedicineStocks> fetchStocks({
     required String shipCode,
     String search = '',
@@ -49,14 +79,38 @@ class ShipMedicineApi {
       final cleanCode = shipCode.trim();
       final path = ApiConfig.shipMedicineStocksPath(cleanCode);
 
-      final response = await _dio.get(
-        path,
-        queryParameters: {
-          'page': page,
-          'limit': limit,
-          if (search.trim().isNotEmpty) 'search': search.trim(),
-        },
-      );
+      final Response response;
+      try {
+        response = await _dio.get(
+          path,
+          queryParameters: {
+            'page': page,
+            'limit': limit,
+            if (search.trim().isNotEmpty) 'search': search.trim(),
+          },
+        );
+      } on DioException catch (e) {
+        if (e.response != null) rethrow;
+        // No answer from the server.
+        final downloaded = await _searchDownloaded(
+          cleanCode,
+          search: search,
+          page: page,
+          limit: limit,
+        );
+        if (downloaded != null) return downloaded;
+        rethrow;
+      }
+      // An old page from the offline cache: the downloaded list is newer.
+      if (response.extra['fromCache'] == true) {
+        final downloaded = await _searchDownloaded(
+          cleanCode,
+          search: search,
+          page: page,
+          limit: limit,
+        );
+        if (downloaded != null) return downloaded;
+      }
 
       final data = response.data;
       if (data is! Map<String, dynamic>) {
@@ -108,6 +162,26 @@ class ShipMedicineApi {
       debugPrint('ShipMedicineApi fetchStocks error: $e');
       throw ApiException(e.toString());
     }
+  }
+
+  /// Page [page] of the downloaded stock list matching [search]; null when
+  /// the list was never downloaded.
+  Future<PaginatedShipMedicineStocks?> _searchDownloaded(
+    String shipCode, {
+    required String search,
+    required int page,
+    required int limit,
+  }) async {
+    final rows = await _stocks.search(shipCode, search);
+    if (rows == null) return null;
+    final matches = rows.map(ShipMedicineStock.fromJson).toList();
+    return PaginatedShipMedicineStocks(
+      items: matches.skip((page - 1) * limit).take(limit).toList(),
+      total: matches.length,
+      page: page,
+      limit: limit,
+      totalPages: matches.isEmpty ? 1 : (matches.length / limit).ceil(),
+    );
   }
 
   /// Fetches paginated ship medicine histories:
@@ -193,5 +267,5 @@ class ShipMedicineApi {
 }
 
 final shipMedicineApiProvider = Provider<ShipMedicineApi>((ref) {
-  return ShipMedicineApi();
+  return ShipMedicineApi(sync: ref.watch(syncServiceProvider));
 });

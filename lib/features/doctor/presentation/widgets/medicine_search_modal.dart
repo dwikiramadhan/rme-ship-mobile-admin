@@ -13,6 +13,7 @@ class MedicineSearchModal extends ConsumerStatefulWidget {
   const MedicineSearchModal({
     super.key,
     this.shipCode,
+    this.offlineShipCode,
     required this.selectedName,
     required this.onSelect,
     this.onSelectMedicine,
@@ -20,6 +21,10 @@ class MedicineSearchModal extends ConsumerStatefulWidget {
   });
 
   final String? shipCode;
+
+  /// Offline, the master list (no [shipCode]) is searched in this ship's
+  /// stock list on the device.
+  final String? offlineShipCode;
 
   /// Hide the stock badge, e.g. when picking from the master list (no
   /// [shipCode]) where every medicine would read "Habis".
@@ -117,6 +122,7 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
       final api = ref.read(medicinesApiProvider);
       final res = await api.fetchMedicines(
         shipCode: widget.shipCode,
+        offlineShipCode: widget.offlineShipCode,
         query: query,
         page: page,
       );

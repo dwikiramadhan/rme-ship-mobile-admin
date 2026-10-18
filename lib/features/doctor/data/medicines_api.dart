@@ -4,12 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_config.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/offline/sync_service.dart';
+import '../../medicine_stock/data/ship_stock_list.dart';
+import '../../sync/presentation/sync_providers.dart';
 import '../domain/medicine_item.dart';
 
 class MedicinesApi {
-  MedicinesApi({Dio? dio}) : _dio = dio ?? DioClient.instance;
+  MedicinesApi({Dio? dio, SyncService? sync})
+    : _dio = dio ?? DioClient.instance,
+      _stocks = ShipStockList(dio ?? DioClient.instance, sync);
 
   final Dio _dio;
+  final ShipStockList _stocks;
 
   static const _empty = PaginatedMedicines(
     data: [],
@@ -25,9 +31,13 @@ class MedicinesApi {
   /// Otherwise falls back to /api/v1/medicines.
   ///
   /// Offline, a ship's list is searched on the device in the copy saved by
-  /// [downloadShipStocks] (same matching and order as the backend).
+  /// [downloadShipStocks] (same matching and order as the backend, with the
+  /// stock dispensed or added offline counted in). The master list (no
+  /// [shipCode]) is then searched in [offlineShipCode]'s copy, which holds
+  /// every medicine too.
   Future<PaginatedMedicines> fetchMedicines({
     String? shipCode,
+    String? offlineShipCode,
     String query = '',
     int page = 1,
     int limit = 10,
@@ -36,6 +46,7 @@ class MedicinesApi {
     final path = hasShip
         ? ApiConfig.shipMedicineStocksPath(shipCode.trim())
         : ApiConfig.medicinesPath;
+    final offlineShip = (hasShip ? shipCode : offlineShipCode)?.trim() ?? '';
     try {
       final response = await _dio.get(
         path,
@@ -45,11 +56,29 @@ class MedicinesApi {
           if (query.trim().isNotEmpty) 'search': query.trim(),
         },
       );
+      // An old page from the offline cache: the downloaded list is newer.
+      if (response.extra['fromCache'] == true && offlineShip.isNotEmpty) {
+        final downloaded = await _searchDownloaded(
+          offlineShip,
+          query: query,
+          page: page,
+          limit: limit,
+        );
+        if (downloaded != null) return downloaded;
+      }
       return _parsePage(response.data, page: page, limit: limit);
     } on DioException catch (e) {
       // No answer from the server: search the downloaded stock list.
-      if (hasShip && e.response == null) {
-        return _searchDownloaded(path, query: query, page: page, limit: limit);
+      if (offlineShip.isNotEmpty && e.response == null) {
+        final downloaded = await _searchDownloaded(
+          offlineShip,
+          query: query,
+          page: page,
+          limit: limit,
+        );
+        if (downloaded != null) return downloaded;
+        debugPrint('MedicinesApi offline: no stock list on the device');
+        return _empty;
       }
       debugPrint('MedicinesApi fetchMedicines DioException: $e');
       return _empty;
@@ -69,42 +98,24 @@ class MedicinesApi {
     );
   }
 
-  /// Page [page] of the downloaded stock list matching [query] like the
-  /// backend does: in the name or the SKU, ignoring case. The list is kept in
-  /// the backend's order (most stock first, then by name).
-  Future<PaginatedMedicines> _searchDownloaded(
-    String path, {
+  /// Page [page] of the downloaded stock list matching [query]; null when
+  /// the list was never downloaded.
+  Future<PaginatedMedicines?> _searchDownloaded(
+    String shipCode, {
     required String query,
     required int page,
     required int limit,
   }) async {
-    try {
-      // Answered from the offline cache; fails if never downloaded.
-      final response = await _dio.get(
-        path,
-        queryParameters: {'all': 'true'},
-      );
-      final all = _parseItems(_resultOf(response.data));
-      final q = query.trim().toLowerCase();
-      final matches = q.isEmpty
-          ? all
-          : [
-              for (final m in all)
-                if (m.name.toLowerCase().contains(q) ||
-                    m.sku.toLowerCase().contains(q))
-                  m,
-            ];
-      return PaginatedMedicines(
-        data: matches.skip((page - 1) * limit).take(limit).toList(),
-        total: matches.length,
-        page: page,
-        limit: limit,
-        totalPages: matches.isEmpty ? 1 : (matches.length / limit).ceil(),
-      );
-    } catch (e) {
-      debugPrint('MedicinesApi offline search: no stock list on the device');
-      return _empty;
-    }
+    final rows = await _stocks.search(shipCode, query);
+    if (rows == null) return null;
+    final matches = _parseItems(rows);
+    return PaginatedMedicines(
+      data: matches.skip((page - 1) * limit).take(limit).toList(),
+      total: matches.length,
+      page: page,
+      limit: limit,
+      totalPages: matches.isEmpty ? 1 : (matches.length / limit).ceil(),
+    );
   }
 
   static Object? _resultOf(Object? data) =>
@@ -149,4 +160,6 @@ class MedicinesApi {
   }
 }
 
-final medicinesApiProvider = Provider<MedicinesApi>((ref) => MedicinesApi());
+final medicinesApiProvider = Provider<MedicinesApi>(
+  (ref) => MedicinesApi(sync: ref.watch(syncServiceProvider)),
+);

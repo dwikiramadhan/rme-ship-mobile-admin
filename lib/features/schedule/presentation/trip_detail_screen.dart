@@ -31,6 +31,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     super.dispose();
   }
 
+  /// Shown when a logistics change was kept offline instead of sent.
+  static const _savedOfflineMessage =
+      'Tersimpan di perangkat dan akan dikirim otomatis saat koneksi kembali';
+
   void _showTopRightSuccessToast(BuildContext context, String message) {
     _activeToastEntry?.remove();
     _activeToastEntry = null;
@@ -2941,7 +2945,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                                   ? (currentWater + water).toDouble()
                                   : water;
 
-                              await ref
+                              final savedOffline = await ref
                                   .read(
                                     tripDetailNotifierProvider(
                                       widget.item,
@@ -2966,7 +2970,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               if (context.mounted) {
                                 _showTopRightSuccessToast(
                                   context,
-                                  isTambah
+                                  savedOffline
+                                      ? _savedOfflineMessage
+                                      : isTambah
                                       ? 'Penambahan logistik berhasil dicatat'
                                       : 'Sisa logistik berhasil dicatat',
                                 );
@@ -3431,7 +3437,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             });
 
                             try {
-                              await ref
+                              final savedOffline = await ref
                                   .read(
                                     tripDetailNotifierProvider(
                                       widget.item,
@@ -3457,7 +3463,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               if (context.mounted) {
                                 _showTopRightSuccessToast(
                                   context,
-                                  'Catatan logistik berhasil diperbarui',
+                                  savedOffline
+                                      ? _savedOfflineMessage
+                                      : 'Catatan logistik berhasil diperbarui',
                                 );
                               }
                             } catch (e) {
@@ -3913,7 +3921,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           });
 
                           try {
-                            await ref
+                            final savedOffline = await ref
                                 .read(
                                   tripDetailNotifierProvider(
                                     widget.item,
@@ -3936,7 +3944,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             if (context.mounted) {
                               _showTopRightSuccessToast(
                                 context,
-                                'Kendala perjalanan berhasil disimpan',
+                                savedOffline
+                                    ? _savedOfflineMessage
+                                    : 'Kendala perjalanan berhasil disimpan',
                               );
                             }
                           } catch (e) {
@@ -4267,7 +4277,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                           });
 
                           try {
-                            await ref
+                            final savedOffline = await ref
                                 .read(
                                   tripDetailNotifierProvider(
                                     widget.item,
@@ -4288,7 +4298,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                             if (context.mounted) {
                               _showTopRightSuccessToast(
                                 context,
-                                'Kendala perjalanan berhasil diperbarui',
+                                savedOffline
+                                    ? _savedOfflineMessage
+                                    : 'Kendala perjalanan berhasil diperbarui',
                               );
                             }
                           } catch (e) {
