@@ -5,6 +5,10 @@ import 'package:bayan_rme/core/offline/outbox_entry.dart';
 import 'package:bayan_rme/core/offline/sync_service.dart';
 import 'package:bayan_rme/features/patients/data/patient_api.dart';
 import 'package:bayan_rme/features/patients/data/patient_repository.dart';
+import 'package:bayan_rme/features/patients/data/queued_records.dart';
+import 'package:bayan_rme/features/sync/presentation/sync_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:bayan_rme/features/patients/domain/medical_history.dart';
 import 'package:bayan_rme/features/patients/domain/patient.dart';
 import 'package:bayan_rme/features/patients/domain/vitals.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -12,7 +16,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'support/offline_fakes.dart';
 
-const _offline = ApiException('Tidak dapat terhubung ke server.', isOffline: true);
+const _offline = ApiException(
+  'Tidak dapat terhubung ke server.',
+  isOffline: true,
+);
 
 /// A backend that can't be reached, or (once [online]) answers with
 /// [serverPatients]. Counts the writes that reached it.
@@ -20,6 +27,24 @@ class _PatientApi extends PatientApi {
   bool online = false;
   int writes = 0;
   List<Patient> serverPatients = const [];
+  List<MedicalHistory> serverHistory = const [];
+
+  @override
+  Future<PaginatedMedicalHistory> getMedicalHistoryPaginated({
+    int page = 1,
+    int limit = 10,
+    String? search,
+    String? statusPenanganan,
+    String? userId,
+    String sortBy = 'created_at',
+    String order = 'desc',
+  }) async => PaginatedMedicalHistory(
+    data: serverHistory,
+    page: 1,
+    limit: limit,
+    total: serverHistory.length,
+    totalPages: 1,
+  );
 
   Future<void> _write() async {
     if (!online) throw _offline;
@@ -143,30 +168,106 @@ void main() {
     expect(visit.body?['port_id'], 'port-bpn');
   });
 
-  test('back online: sent under the server id, then the list reloads', () async {
+  test(
+    'back online: sent under the server id, then the list reloads',
+    () async {
+      final local = await notifier.addPatient(
+        _patient,
+        shipId: 'ship-1',
+        portId: 'port-bpn',
+      );
+      await sync.syncNow();
+
+      api.serverPatients = [_patient.copyWith(id: 'srv-1')];
+      server.handler = (r) => r.path == '/api/v1/patients'
+          ? (
+              status: 201,
+              body: {
+                'result': {'id': 'srv-1'},
+              },
+            )
+          : (status: 201, body: {});
+      server.seen.clear();
+      await sync.syncNow();
+      await pumpEventQueue();
+
+      expect(server.seen.map((r) => r.path), [
+        '/api/v1/patients',
+        '/api/v1/patients/srv-1/medical-records',
+      ]);
+      expect(store.rows, isEmpty);
+      // The offline copy is replaced by the server's patient.
+      expect(notifier.state.map((p) => p.id), ['srv-1']);
+      expect(notifier.state.map((p) => p.id), isNot(contains(local.id)));
+    },
+  );
+
+  test('offline new patient: detail is shown from the device', () async {
     final local = await notifier.addPatient(
       _patient,
       shipId: 'ship-1',
       portId: 'port-bpn',
     );
-    await sync.syncNow();
+    final container = ProviderContainer(
+      overrides: [
+        syncServiceProvider.overrideWithValue(sync),
+        patientApiProvider.overrideWithValue(api),
+      ],
+    );
+    addTearDown(container.dispose);
 
-    api.serverPatients = [_patient.copyWith(id: 'srv-1')];
-    server.handler = (r) => r.path == '/api/v1/patients'
-        ? (status: 201, body: {'result': {'id': 'srv-1'}})
-        : (status: 201, body: {});
-    server.seen.clear();
-    await sync.syncNow();
-    await pumpEventQueue();
+    final detail = await container.read(patientDetailProvider(local.id).future);
 
-    expect(server.seen.map((r) => r.path), [
-      '/api/v1/patients',
-      '/api/v1/patients/srv-1/medical-records',
-    ]);
-    expect(store.rows, isEmpty);
-    // The offline copy is replaced by the server's patient.
-    expect(notifier.state.map((p) => p.id), ['srv-1']);
-    expect(notifier.state.map((p) => p.id), isNot(contains(local.id)));
+    expect(detail['name'], 'Budi');
+    expect(detail['nik'], '3173051208950007');
+    final [visit] = detail['medical_records'] as List;
+    expect(visit['complaint'], startsWith('Demam'));
+    expect(visit['status_penanganan'], 'Menunggu Dokter');
+  });
+
+  test('offline new patient: the first visit is in the visit list', () async {
+    await notifier.addPatient(_patient, shipId: 'ship-1', portId: 'port-bpn');
+    api.serverHistory = const [
+      MedicalHistory(
+        id: 'rec-old',
+        code: 'R0',
+        patientId: 'srv-1',
+        patientName: 'Ani',
+      ),
+    ];
+    final visits = MedicalHistoryNotifier(
+      api: api,
+      autoFetch: false,
+      queuedVisits: () async => [
+        for (final v in (await QueuedRecords.of(sync)).visits())
+          MedicalHistory.fromApiJson(v),
+      ],
+    );
+    addTearDown(visits.dispose);
+
+    await visits.fetchHistory(refresh: true);
+
+    expect(
+      visits.state.map((h) => h.patientName),
+      containsAll(['Budi', 'Ani']),
+    );
+    final budi = visits.state.firstWhere((h) => h.patientName == 'Budi');
+    expect(budi.statusPenanganan, 'Menunggu Dokter');
+  });
+
+  test('app restarted offline: the new patient is still listed', () async {
+    final local = await notifier.addPatient(
+      _patient,
+      shipId: 'ship-1',
+      portId: 'port-bpn',
+    );
+    final restarted = PatientsNotifier(api: api, sync: sync, autoFetch: false);
+    addTearDown(restarted.dispose);
+
+    await restarted.fetchPatients();
+
+    expect(restarted.state.map((p) => p.id), contains(local.id));
+    expect(restarted.state.first.nama, 'Budi');
   });
 
   test('a list refresh while offline keeps the offline patient', () async {
@@ -194,21 +295,65 @@ void main() {
     ]);
   });
 
-  test("offline: the doctor's exam and the patient's status are kept", () async {
+  test(
+    "offline: the doctor's exam and the patient's status are kept",
+    () async {
+      notifier.upsertPatient(_patient.copyWith(id: 'srv-7'));
+      await notifier.patchMedicalRecord(
+        patientId: 'srv-7',
+        recordId: 'rec-1',
+        body: {'diagnosis': 'A00', 'status_penanganan': 'Menunggu Obat'},
+      );
+
+      expect(store.rows.map((e) => '${e.method} ${e.path}'), [
+        'PATCH /api/v1/patients/srv-7/medical-records/rec-1',
+        'PUT /api/v1/patients/srv-7',
+      ]);
+      expect(store.rows.last.body?['status_penanganan'], 'Menunggu Obat');
+      // Shown right away.
+      expect(notifier.state.single.diagnosa, 'A00');
+      expect(notifier.state.single.statusPenanganan, 'Menunggu Obat');
+    },
+  );
+
+  test("offline exam: lists reloaded from the cache still show it", () async {
+    // The cached lists are from before the exam.
+    api.serverPatients = [
+      _patient.copyWith(id: 'srv-7', statusPenanganan: 'Menunggu Dokter'),
+    ];
+    api.serverHistory = const [
+      MedicalHistory(
+        id: 'rec-1',
+        code: 'R1',
+        patientId: 'srv-7',
+        patientName: 'Budi',
+        statusPenanganan: 'Menunggu Dokter',
+      ),
+    ];
+    final visits = MedicalHistoryNotifier(
+      api: api,
+      autoFetch: false,
+      queuedExams: () => examsQueuedFor(sync),
+    );
+    addTearDown(visits.dispose);
     notifier.upsertPatient(_patient.copyWith(id: 'srv-7'));
+
     await notifier.patchMedicalRecord(
       patientId: 'srv-7',
       recordId: 'rec-1',
-      body: {'diagnosis': 'A00', 'status_penanganan': 'Menunggu Obat'},
+      body: {
+        'diagnosis': 'A09 - Diare',
+        'note': 'Banyak minum',
+        'status_penanganan': 'Menunggu Obat',
+      },
     );
+    await visits.fetchHistory(refresh: true);
+    await notifier.fetchPatients();
 
-    expect(store.rows.map((e) => '${e.method} ${e.path}'), [
-      'PATCH /api/v1/patients/srv-7/medical-records/rec-1',
-      'PUT /api/v1/patients/srv-7',
-    ]);
-    expect(store.rows.last.body?['status_penanganan'], 'Menunggu Obat');
-    // Shown right away.
-    expect(notifier.state.single.diagnosa, 'A00');
+    final visit = visits.state.single;
+    expect(visit.statusPenanganan, 'Menunggu Obat'); // no "Periksa Pasien"
+    expect(visit.diagnosis, 'A09 - Diare');
+    expect(visit.notes, 'Banyak minum');
     expect(notifier.state.single.statusPenanganan, 'Menunggu Obat');
   });
 
@@ -252,11 +397,20 @@ void main() {
     expect(File(upload.files['photo']!).existsSync(), isTrue);
 
     server.handler = (r) => switch (r.path) {
-          '/api/v1/patients/upload-photo' =>
-            (status: 200, body: {'result': {'url': '/uploads/ktp.jpg'}}),
-          '/api/v1/patients' => (status: 201, body: {'result': {'id': 'srv-1'}}),
-          _ => (status: 201, body: {}),
-        };
+      '/api/v1/patients/upload-photo' => (
+        status: 200,
+        body: {
+          'result': {'url': '/uploads/ktp.jpg'},
+        },
+      ),
+      '/api/v1/patients' => (
+        status: 201,
+        body: {
+          'result': {'id': 'srv-1'},
+        },
+      ),
+      _ => (status: 201, body: {}),
+    };
     server.seen.clear();
     await sync.syncNow();
 

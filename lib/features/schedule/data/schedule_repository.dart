@@ -707,6 +707,17 @@ class SchedulesNotifier
     }
   }
 
+  /// Requests the list's first page as it opens (no search, every status),
+  /// only so the offline cache has it; the list shown doesn't change.
+  Future<List<JadwalPerjalanan>> warmCache() async {
+    final result = await _repository.fetchPaginatedSchedules(
+      shipCode: await _getShipCode(),
+      search: '',
+      status: 'Semua',
+    );
+    return result.items;
+  }
+
   Future<void> refresh() async {
     final seq = ++_requestSeq;
     _currentPage = 1;

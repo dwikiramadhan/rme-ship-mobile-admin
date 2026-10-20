@@ -256,6 +256,15 @@ class _BenchmarkMedicalHistoryNotifier extends StateNotifier<List<MedicalHistory
   Future<Set<String>> Function()? get queuedVisitIds => null;
 
   @override
+  Future<Map<String, Map<String, dynamic>>> Function()? get queuedExams => null;
+
+  @override
+  Future<List<MedicalHistory>> Function()? get queuedVisits => null;
+
+  @override
+  Future<void> warmCache() async {}
+
+  @override
   bool get isLoading => false;
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_badge.dart';
 import '../../../core/widgets/app_button.dart';
@@ -36,6 +37,8 @@ class _VisitHistoryScreenState extends ConsumerState<VisitHistoryScreen> {
     final authState = ref.watch(authControllerProvider);
     final user = authState.session?.user;
     final isDoctor = widget.canEdit || user?.role == UserRole.dokter;
+    final unsyncedVisits =
+        ref.watch(unsyncedIdsProvider).valueOrNull?.visits ?? const <String>{};
 
     final effectiveDoctorName = widget.dokterNama.trim().isNotEmpty
         ? widget.dokterNama.trim()
@@ -107,6 +110,7 @@ class _VisitHistoryScreenState extends ConsumerState<VisitHistoryScreen> {
         for (int i = 0; i < riwayat.length; i++)
           MasterListEntry(
             id: riwayat[i].id,
+            unsynced: unsyncedVisits.contains(riwayat[i].id),
             avatarColor: AppColors.purple,
             avatarBg: AppColors.purpleLt,
             initial: riwayat[i].pasienNama.isNotEmpty

@@ -26,6 +26,9 @@ class _FakeSchedulesNotifier extends StateNotifier<AsyncValue<List<JadwalPerjala
   _FakeSchedulesNotifier() : super(const AsyncValue.data([]));
 
   @override
+  Future<List<JadwalPerjalanan>> warmCache() async => const [];
+
+  @override
   Future<void> load({String? search, String? status}) async {}
 
   @override

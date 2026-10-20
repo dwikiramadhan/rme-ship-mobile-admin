@@ -27,8 +27,18 @@ void main() {
 
   setUp(() async {
     server = FakeServerAdapter(
+      // The backend's shapes: the whole list, or a page.
       (r) => r.options.queryParameters['all'] == 'true'
-          ? (status: 200, body: {'result': shipStocks})
+          ? (
+              status: 200,
+              body: {
+                'result': {
+                  'ship_code': 'RSK-1',
+                  'items': shipStocks,
+                  'total': shipStocks.length,
+                },
+              },
+            )
           : (status: 200, body: {'result': {'data': [], 'total': 0}}),
     );
     final dio = fakeDio(server)
@@ -56,6 +66,17 @@ void main() {
     final page2 = await api.fetchMedicines(shipCode: 'RSK-1', page: 2, limit: 3);
     expect(page2.data.map((m) => m.sku), ['OMZ20']);
     expect(page2.totalPages, 2);
+  });
+
+  test("offline: a patient's other ship code uses the device's list", () async {
+    final dio = fakeDio(server)
+      ..interceptors.add(OfflineCacheInterceptor(InMemoryHttpCache()));
+    final api = MedicinesApi(dio: dio, deviceShipCode: () async => 'RSK-1');
+    await api.downloadShipStocks('RSK-1');
+    server.handler = (_) => null;
+
+    final res = await api.fetchMedicines(shipCode: 'KM-LAIN', query: 'amox');
+    expect(res.data.single.sku, 'AMX500');
   });
 
   test('offline without a downloaded list: empty, no crash', () async {

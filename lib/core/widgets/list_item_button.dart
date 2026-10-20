@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../utils/clean_text_helper.dart';
+import 'unsynced_badge.dart';
 
 /// Port of the prototype's `ListButton` — an avatar + title/subtitle row
 /// used in every master list (antrian, pasien, daftar resep, order lab).
@@ -17,6 +18,7 @@ class ListItemButton extends StatelessWidget {
     required this.subtitle,
     this.code,
     this.trailing,
+    this.unsynced = false,
   });
 
   final bool active;
@@ -28,6 +30,9 @@ class ListItemButton extends StatelessWidget {
   final String subtitle;
   final String? code;
   final Widget? trailing;
+
+  /// Shows [UnsyncedBadge]: the change is still on the device.
+  final bool unsynced;
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +111,10 @@ class ListItemButton extends StatelessWidget {
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
+                    if (unsynced) ...[
+                      const SizedBox(height: 4),
+                      const UnsyncedBadge(),
+                    ],
                   ],
                 ),
               ),

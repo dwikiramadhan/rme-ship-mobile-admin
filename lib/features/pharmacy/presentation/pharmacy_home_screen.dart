@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/utils/date_helper.dart';
@@ -185,6 +186,8 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
   }
 
   Widget _buildResep() {
+    final unsyncedVisits =
+        ref.watch(unsyncedIdsProvider).valueOrNull?.visits ?? const <String>{};
     final histories = ref.watch(pharmacyPrescriptionHistoryProvider);
     final notifier = ref.read(pharmacyPrescriptionHistoryProvider.notifier);
 
@@ -223,6 +226,7 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
           final cleanCode = CleanTextHelper.cleanCode(m.code);
           return MasterListEntry(
             id: m.id,
+            unsynced: unsyncedVisits.contains(m.id),
             avatarColor: AppColors.yellow,
             avatarBg: AppColors.yellowLt,
             initial: cleanTitle.isNotEmpty

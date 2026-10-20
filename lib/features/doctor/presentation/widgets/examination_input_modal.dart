@@ -238,11 +238,14 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   }
 
   void _showMedicineSearch(int index) {
+    final user = ref.read(authControllerProvider).session?.user;
     final effectiveShipCode = widget.patient.serviceShipCode?.isNotEmpty == true
         ? widget.patient.serviceShipCode!
         : (widget.history.shipCode?.isNotEmpty == true
               ? widget.history.shipCode!
-              : (ref.read(authControllerProvider).session?.user.shipId ?? ''));
+              : (user?.shipCode?.isNotEmpty == true
+                    ? user!.shipCode!
+                    : (user?.shipId ?? '')));
 
     showModalBottomSheet(
       context: context,

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/widgets/unsynced_badge.dart';
+import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
@@ -346,13 +348,18 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   }
 }
 
-class _PatientCard extends StatelessWidget {
+class _PatientCard extends ConsumerWidget {
   const _PatientCard({super.key, required this.patient});
 
   final Patient patient;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unsynced = ref.watch(
+      unsyncedIdsProvider.select(
+        (ids) => ids.valueOrNull?.patients.contains(patient.id) ?? false,
+      ),
+    );
     final initial = patient.nama.isNotEmpty
         ? patient.nama[0].toUpperCase()
         : '?';
@@ -485,6 +492,10 @@ class _PatientCard extends StatelessWidget {
                               color: AppColors.sub,
                             ),
                           ),
+                        if (unsynced) ...[
+                          const SizedBox(height: 4),
+                          const UnsyncedBadge(),
+                        ],
                       ],
                     ),
                   ),

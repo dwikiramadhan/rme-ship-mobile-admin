@@ -100,8 +100,18 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
     tempDir = await Directory.systemTemp.createTemp('pharmacy_test');
     server = FakeServerAdapter(
+      // The backend's shape for the whole list.
       (r) => r.options.queryParameters['all'] == 'true'
-          ? (status: 200, body: {'result': shipStocks})
+          ? (
+              status: 200,
+              body: {
+                'result': {
+                  'ship_code': 'RSK-1',
+                  'items': shipStocks,
+                  'total': shipStocks.length,
+                },
+              },
+            )
           : (
               status: 200,
               body: {

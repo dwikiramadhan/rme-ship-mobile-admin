@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/clean_text_helper.dart';
 import '../../../core/widgets/app_badge.dart';
@@ -126,6 +127,8 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
   }
 
   Widget _buildOrder(List<MedicalHistory> histories) {
+    final unsyncedVisits =
+        ref.watch(unsyncedIdsProvider).valueOrNull?.visits ?? const <String>{};
     final notifier = ref.read(labOrderHistoryProvider.notifier);
     final displayHistories = histories.where((m) {
       if (_statusFilter == 'SEMUA') return true;
@@ -190,6 +193,7 @@ class _LabHomeScreenState extends ConsumerState<LabHomeScreen> {
             final cleanCode = CleanTextHelper.cleanCode(m.code);
             return MasterListEntry(
               id: m.id,
+              unsynced: unsyncedVisits.contains(m.id),
               avatarColor: AppColors.purple,
               avatarBg: AppColors.purpleLt,
               initial: cleanTitle.isNotEmpty

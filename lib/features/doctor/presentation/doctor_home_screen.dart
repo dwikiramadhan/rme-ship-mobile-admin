@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
 import '../../../core/widgets/app_badge.dart';
@@ -170,6 +171,8 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
   }
 
   Widget _buildRiwayatKunjungan() {
+    final unsyncedVisits =
+        ref.watch(unsyncedIdsProvider).valueOrNull?.visits ?? const <String>{};
     final authState = ref.watch(authControllerProvider);
     final userId = authState.session?.user.id ?? '';
     final historyProvider = userId.isNotEmpty
@@ -219,6 +222,7 @@ class _DoctorHomeScreenState extends ConsumerState<DoctorHomeScreen> {
         for (final m in displayHistories)
           MasterListEntry(
             id: m.id,
+            unsynced: unsyncedVisits.contains(m.id),
             avatarColor: AppColors.blue,
             avatarBg: AppColors.blueLt,
             initial: m.patientName.isNotEmpty

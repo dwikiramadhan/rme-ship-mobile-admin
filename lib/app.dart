@@ -9,6 +9,7 @@ import 'core/theme/app_theme.dart';
 import 'features/notifications/presentation/push_controller.dart';
 import 'features/patients/data/patient_repository.dart';
 import 'features/sync/presentation/master_data_refresher.dart';
+import 'features/sync/presentation/offline_warmup.dart';
 
 class BayanRmeApp extends ConsumerStatefulWidget {
   const BayanRmeApp({super.key});
@@ -47,6 +48,8 @@ class _BayanRmeAppState extends ConsumerState<BayanRmeApp>
     ref.watch(pushControllerProvider);
     // Doctors and harbors kept on the device for offline forms.
     ref.watch(masterDataRefresherProvider);
+    // The role's patient and visit lists, cached for offline use.
+    ref.watch(offlineWarmupProvider);
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
       title: 'RME Bayan',

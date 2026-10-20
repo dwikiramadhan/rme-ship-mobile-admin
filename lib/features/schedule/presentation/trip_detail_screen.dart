@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../core/widgets/unsynced_badge.dart';
+import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/theme/app_colors.dart';
 import '../domain/trip_schedule.dart';
 import 'widgets/edit_schedule_modal.dart';
@@ -1427,6 +1429,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   // ==========================================
   Widget _buildTabPersediaan(JadwalPerjalanan schedule) {
     final provisions = schedule.provisions;
+    final unsynced =
+        ref.watch(unsyncedIdsProvider).valueOrNull?.logistics ??
+        const <String>{};
     // A completed trip's logistics are final: no new or edited records.
     final canRecord = !schedule.isCompleted;
     final latest = provisions.isNotEmpty ? provisions.first : null;
@@ -1587,6 +1592,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         item,
                         isLatest: index == 0,
                         canEdit: canRecord,
+                        unsynced: unsynced.contains(item.id),
                       ),
                     ],
                   ],
@@ -1606,6 +1612,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     ProvisionHistoryItem item, {
     required bool isLatest,
     required bool canEdit,
+    bool unsynced = false,
   }) {
     final dotColor = item.isTambah
         ? const Color(0xFF059669)
@@ -1637,6 +1644,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             color: const Color(0xFF059669),
             background: const Color(0xFFD1FAE5),
           ),
+        if (unsynced) const UnsyncedBadge(),
       ],
     );
     final fuel = _buildProvisionAmount(
@@ -3501,6 +3509,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
   // ==========================================
   Widget _buildTabKendala(JadwalPerjalanan schedule) {
     final issues = schedule.tripIssues;
+    final unsynced =
+        ref.watch(unsyncedIdsProvider).valueOrNull?.logistics ??
+        const <String>{};
 
     return Column(
       children: [
@@ -3578,6 +3589,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                               ],
                             ],
                           ),
+                          if (unsynced.contains(issue.id)) ...[
+                            const SizedBox(height: 6),
+                            const UnsyncedBadge(),
+                          ],
                         ],
                       ),
                     ),

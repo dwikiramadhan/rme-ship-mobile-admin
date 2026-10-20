@@ -4,15 +4,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_config.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/utils/ship_code_helper.dart';
 import '../../../core/offline/sync_service.dart';
 import '../../medicine_stock/data/ship_stock_list.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../domain/medicine_item.dart';
 
 class MedicinesApi {
-  MedicinesApi({Dio? dio, SyncService? sync})
-    : _dio = dio ?? DioClient.instance,
-      _stocks = ShipStockList(dio ?? DioClient.instance, sync);
+  MedicinesApi({
+    Dio? dio,
+    SyncService? sync,
+    Future<String> Function()? deviceShipCode,
+  }) : _dio = dio ?? DioClient.instance,
+       _stocks = ShipStockList(dio ?? DioClient.instance, sync, deviceShipCode);
 
   final Dio _dio;
   final ShipStockList _stocks;
@@ -161,5 +165,8 @@ class MedicinesApi {
 }
 
 final medicinesApiProvider = Provider<MedicinesApi>(
-  (ref) => MedicinesApi(sync: ref.watch(syncServiceProvider)),
+  (ref) => MedicinesApi(
+    sync: ref.watch(syncServiceProvider),
+    deviceShipCode: resolveLocalStorageShipCode,
+  ),
 );

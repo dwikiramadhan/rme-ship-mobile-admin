@@ -23,6 +23,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../auth/domain/user_role.dart';
 import '../../auth/data/session_storage.dart';
 import 'patient_api.dart';
+import 'queued_records.dart';
 import 'seen_notification_storage.dart';
 import '../../../core/utils/ship_code_helper.dart';
 import '../../notifications/domain/notification_rules.dart';
@@ -201,7 +202,10 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
           .where((p) => !existingStateIds.contains(p.id))
           .toList();
 
-      final updatedList = [...brandNew, ...mergedExisting];
+      final updatedList = _withQueuedStatus(
+        [...brandNew, ...mergedExisting],
+        await _queuedPatientStatus(),
+      );
       if (!listEquals(state, updatedList) && mounted) {
         state = updatedList;
       }
@@ -215,6 +219,12 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     _syncedSubscription?.cancel();
     if (_ownsWsService) _wsService.dispose();
     super.dispose();
+  }
+
+  /// Requests the list's first page as the screen opens it (no search),
+  /// only so the offline cache has it; the list shown doesn't change.
+  Future<void> warmCache() async {
+    await _api.getPatientsPaginated(limit: _limit);
   }
 
   /// Fetches patients from GET /api/v1/patients.
@@ -244,6 +254,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
     try {
       await _seenStorage.load();
+      if (refresh) await _restoreOfflinePatients();
 
       if (!refresh) {
         await Future<void>.delayed(const Duration(milliseconds: 350));
@@ -256,6 +267,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         search: effectiveSearch,
         status: status,
       );
+      final queuedStatus = await _queuedPatientStatus();
       if (seq != _requestSeq || !mounted) return;
 
       _currentPage = paginated.page;
@@ -326,8 +338,12 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
             .toList();
         state = [...state, ...newItems];
       }
+      state = _withQueuedStatus(state, queuedStatus);
     } catch (e) {
       debugPrint('fetchPatients error: $e');
+      // Offline without a cached list: still list the patients registered
+      // offline.
+      if (refresh && mounted) state = _withOfflinePatients(state);
     } finally {
       if (refresh) {
         // A newer refresh owns the loading flag now.
@@ -955,6 +971,56 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
 
   /// Re-adds the patients registered offline (not on the server yet) to a
   /// freshly fetched list.
+  /// The handling status of each patient whose update still waits in the
+  /// outbox (e.g. after the doctor's exam offline), by patient id.
+  Future<Map<String, String>> _queuedPatientStatus() async {
+    final sync = _sync;
+    if (sync == null) return const {};
+    const prefix = '${ApiConfig.patientsPath}/';
+    return {
+      for (final e in await sync.entries())
+        if (e.status == OutboxStatus.pending &&
+            e.method == 'PUT' &&
+            e.path.startsWith(prefix) &&
+            !e.path.substring(prefix.length).contains('/') &&
+            e.body?['status_penanganan'] is String)
+          e.path.substring(prefix.length): e.body!['status_penanganan'] as String,
+    };
+  }
+
+  /// [patients] showing the status from [queued] (offline the fetched list
+  /// is the cached one, from before the change).
+  static List<Patient> _withQueuedStatus(
+    List<Patient> patients,
+    Map<String, String> queued,
+  ) {
+    if (queued.isEmpty) return patients;
+    return [
+      for (final p in patients)
+        queued[p.id] == null
+            ? p
+            : p.copyWith(statusPenanganan: queued[p.id]),
+    ];
+  }
+
+  /// The patients registered offline, read back from the outbox (kept on
+  /// the device), e.g. when the app was restarted before they were sent.
+  Future<void> _restoreOfflinePatients() async {
+    final sync = _sync;
+    if (sync == null) return;
+    for (final entry in await sync.entries()) {
+      final body = entry.body;
+      if (entry.status != OutboxStatus.pending ||
+          entry.method != 'POST' ||
+          entry.path != ApiConfig.patientsPath ||
+          body == null ||
+          _offlinePatients.containsKey(entry.id)) {
+        continue;
+      }
+      _offlinePatients[entry.id] = Patient.fromApiJson(body);
+    }
+  }
+
   List<Patient> _withOfflinePatients(List<Patient> fetched) {
     if (_offlinePatients.isEmpty) return fetched;
     final ids = {for (final p in fetched) p.id};
@@ -1915,22 +1981,39 @@ final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {
 final patientDetailProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
       final api = ref.watch(patientApiProvider);
+      final queued = await QueuedRecords.of(ref.watch(syncServiceProvider));
+      final queuedVisits = queued.visitsOf(id);
+      // Registered offline: not on the server yet, shown from the device.
+      final newPatient = queued.patients[id];
+      if (newPatient != null) {
+        return {...newPatient, 'medical_records': queuedVisits};
+      }
+
       // Fetch detail and medical records in parallel.
       final recordsFuture = api.getMedicalRecords(id);
       unawaited(recordsFuture.then((_) {}, onError: (_) {}));
-      final detail = await api.getPatientDetailRaw(id);
+      var detail = await api.getPatientDetailRaw(id);
       // Also fetch medical records in case they are separated
       try {
         final records = await recordsFuture;
         if (records.isNotEmpty) {
           final existing = detail['medical_records'];
           if (existing == null || (existing is List && existing.isEmpty)) {
-            final merged = Map<String, dynamic>.from(detail);
-            merged['medical_records'] = records;
-            return merged;
+            detail = {...detail, 'medical_records': records};
           }
         }
       } catch (_) {}
+      // Visits added offline, not on the server (or in its cached copy) yet.
+      if (queuedVisits.isNotEmpty) {
+        final records = detail['medical_records'];
+        detail = {
+          ...detail,
+          'medical_records': [
+            ...queuedVisits,
+            if (records is List) ...records,
+          ],
+        };
+      }
       return detail;
     });
 
@@ -1942,7 +2025,11 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     this.userId,
     this.oldestFirst = false,
     this.queuedVisitIds,
+    this.queuedExams,
+    this.queuedVisits,
   }) : _api = api ?? PatientApi(),
+       _defaultStatus = statusPenanganan,
+       _defaultUserId = userId,
        super([]) {
     if (autoFetch) {
       Future.microtask(() => fetchHistory());
@@ -1952,19 +2039,86 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   /// Queue order (oldest first) instead of newest first.
   final bool oldestFirst;
 
+  // The list as it opens, before any filter the user picks.
+  final String? _defaultStatus;
+  final String? _defaultUserId;
+
+  /// Requests the list's first page as it opens (its own filter, no search),
+  /// only so the offline cache has it; the list shown doesn't change.
+  Future<void> warmCache() async {
+    await _api.getMedicalHistoryPaginated(
+      limit: _limit,
+      search: '',
+      statusPenanganan: _defaultStatus,
+      userId: _defaultUserId,
+      order: oldestFirst ? 'asc' : 'desc',
+    );
+  }
+
   /// The visits already handled on this device whose change still waits in
   /// the outbox. A queue list (e.g. "Menunggu Obat") hides them: offline its
   /// pages come from the cache, which still lists them.
   final Future<Set<String>> Function()? queuedVisitIds;
 
-  /// [fetched] without the visits handled offline, and how many were hidden.
-  Future<(List<MedicalHistory>, int)> _withoutQueued(
+  /// The doctor's exams still waiting in the outbox, by visit (see
+  /// [examsQueuedFor]). Shown in the list right away: offline its pages
+  /// come from the cache, from before the exam.
+  final Future<Map<String, Map<String, dynamic>>> Function()? queuedExams;
+
+  /// The visits registered offline, not on the server yet: listed on top
+  /// when they fit the list's filter (see [_queuedVisitsShown]).
+  final Future<List<MedicalHistory>> Function()? queuedVisits;
+
+  /// The [queuedVisits] this list shows: not already in [fetched], with the
+  /// list's status, and matching the search. Lists of one user's visits
+  /// leave them out (the server decides whose visit it is).
+  Future<List<MedicalHistory>> _queuedVisitsShown(
     List<MedicalHistory> fetched,
   ) async {
-    final queued = await queuedVisitIds?.call() ?? const <String>{};
-    if (queued.isEmpty) return (fetched, 0);
-    final kept = fetched.where((h) => !queued.contains(h.id)).toList();
+    if (queuedVisits == null || userId != null) return const [];
+    final ids = {for (final h in fetched) h.id};
+    final search = _currentSearch.toLowerCase();
+    return [
+      for (final h in await queuedVisits!())
+        if (!ids.contains(h.id) &&
+            (statusPenanganan == null ||
+                h.statusPenanganan == statusPenanganan) &&
+            (search.isEmpty || h.patientName.toLowerCase().contains(search)))
+          h,
+    ];
+  }
+
+  /// [fetched] with the changes still in the outbox: visits handled offline
+  /// hidden ([queuedVisitIds]), exams applied ([queuedExams]). Also returns
+  /// how many were hidden.
+  Future<(List<MedicalHistory>, int)> _withQueued(
+    List<MedicalHistory> fetched,
+  ) async {
+    final hidden = await queuedVisitIds?.call() ?? const <String>{};
+    final exams = await queuedExams?.call() ?? const {};
+    if (hidden.isEmpty && exams.isEmpty) return (fetched, 0);
+    final kept = [
+      for (final h in fetched)
+        if (!hidden.contains(h.id))
+          exams[h.id] == null ? h : _withExam(h, exams[h.id]!),
+    ];
     return (kept, fetched.length - kept.length);
+  }
+
+  /// [h] after the doctor's exam [exam] (the PATCH body), as
+  /// [updateHistoryStatus] shows it.
+  static MedicalHistory _withExam(MedicalHistory h, Map<String, dynamic> exam) {
+    String? text(String key) {
+      final value = exam[key]?.toString().trim();
+      return (value == null || value.isEmpty) ? null : value;
+    }
+
+    return h.copyWith(
+      statusPenanganan: text('status_penanganan') ?? h.statusPenanganan,
+      diagnosis: text('diagnosis') ?? h.diagnosis,
+      treatment: text('treatment') ?? h.treatment,
+      notes: exam.containsKey('note') ? exam['note']?.toString() : h.notes,
+    );
   }
 
   int _byTime(MedicalHistory a, MedicalHistory b) {
@@ -2026,14 +2180,15 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         userId: userId,
         order: oldestFirst ? 'asc' : 'desc',
       );
-      final (data, hidden) = await _withoutQueued(res.data);
+      final (data, hidden) = await _withQueued(res.data);
+      final offline = await _queuedVisitsShown(data);
       if (seq != _requestSeq) return;
       _currentPage = res.page;
       _totalPages = res.totalPages;
-      _total = res.total - hidden;
+      _total = res.total - hidden + offline.length;
       _hasMore = res.page < res.totalPages && res.data.isNotEmpty;
       if (mounted) {
-        final list = List<MedicalHistory>.from(data);
+        final list = [...offline, ...data];
         list.sort(_byTime);
         state = list;
       }
@@ -2063,7 +2218,7 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         userId: userId,
         order: oldestFirst ? 'asc' : 'desc',
       );
-      final (data, hidden) = await _withoutQueued(res.data);
+      final (data, hidden) = await _withQueued(res.data);
       // The list was reset (search/filter/refresh) while this page loaded.
       if (seq != _requestSeq) return;
       _currentPage = res.page;
@@ -2172,10 +2327,13 @@ final medicalHistoryProvider =
           );
         }),
       );
+      final sync = ref.watch(syncServiceProvider);
       return MedicalHistoryNotifier(
         api: api,
         autoFetch: hasSession,
         userId: userId,
+        queuedExams: () => examsQueuedFor(sync),
+        queuedVisits: () => _queuedVisitHistories(ref),
       );
     });
 
@@ -2188,10 +2346,12 @@ final medicalHistoryByUserProvider = StateNotifierProvider.family<
   final hasSession = ref.watch(
     authControllerProvider.select((s) => s.session != null),
   );
+  final sync = ref.watch(syncServiceProvider);
   return MedicalHistoryNotifier(
     api: api,
     autoFetch: hasSession,
     userId: userId,
+    queuedExams: () => examsQueuedFor(sync),
   );
 });
 
@@ -2212,11 +2372,52 @@ final pharmacyPrescriptionHistoryProvider =
         statusPenanganan: 'Menunggu Obat',
         oldestFirst: true,
         queuedVisitIds: () => visitsQueuedFor(sync, 'dispense'),
+        queuedExams: () => examsQueuedFor(sync),
       );
     });
 
 /// The visits with a `POST /medical-records/{id}/[action]` (e.g.
 /// 'dispense') still waiting in the outbox.
+/// The visits registered offline (see [QueuedRecords]), with their patient
+/// and doctor filled in from what the device knows.
+Future<List<MedicalHistory>> _queuedVisitHistories(Ref ref) async {
+  final queued = await QueuedRecords.of(ref.read(syncServiceProvider));
+  if (queued.visits().isEmpty) return const [];
+  final patients = ref.read(patientsProvider);
+  final doctors = ref.read(doctorsProvider).valueOrNull ?? const <Doctor>[];
+  return [
+    for (final visit in queued.visits(
+      patient: (id) =>
+          patients.where((p) => p.id == id).firstOrNull?.toCreatePatientJson(),
+      doctor: (id) => switch (doctors.where((d) => d.id == id).firstOrNull) {
+        final d? => {'id': d.id, 'name': d.nama, 'sip': ?d.sip},
+        null => null,
+      },
+    ))
+      MedicalHistory.fromApiJson(visit),
+  ];
+}
+
+/// The doctor's exams (`PATCH /patients/{id}/medical-records/{record}`)
+/// still waiting in the outbox: each visit's fields, later exams on top.
+Future<Map<String, Map<String, dynamic>>> examsQueuedFor(
+  SyncService? sync,
+) async {
+  if (sync == null) return const {};
+  final pattern = RegExp(r'/patients/[^/]+/medical-records/([^/]+)$');
+  final exams = <String, Map<String, dynamic>>{};
+  for (final entry in await sync.entries()) {
+    if (entry.status != OutboxStatus.pending || entry.method != 'PATCH') {
+      continue;
+    }
+    final recordId = pattern.firstMatch(entry.path)?.group(1);
+    if (recordId != null) {
+      exams[recordId] = {...?exams[recordId], ...?entry.body};
+    }
+  }
+  return exams;
+}
+
 Future<Set<String>> visitsQueuedFor(SyncService? sync, String action) async {
   if (sync == null) return const {};
   final pattern = RegExp('/medical-records/([^/]+)/$action\$');
@@ -2240,5 +2441,6 @@ final labOrderHistoryProvider =
         autoFetch: hasSession,
         statusPenanganan: 'Menunggu Lab',
         queuedVisitIds: () => visitsQueuedFor(sync, 'lab-examinations'),
+        queuedExams: () => examsQueuedFor(sync),
       );
     });

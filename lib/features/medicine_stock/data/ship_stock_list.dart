@@ -9,35 +9,34 @@ import '../../../core/offline/sync_service.dart';
 /// reached. Medicines dispensed and stock added while offline still wait in
 /// the outbox; they are counted in, so the list shows what is on board now.
 class ShipStockList {
-  ShipStockList(this._dio, [this._sync]);
+  ShipStockList(this._dio, [this._sync, this._deviceShipCode]);
 
   final Dio _dio;
   final SyncService? _sync;
 
+  /// The ship this device belongs to, whose list is downloaded at login.
+  final Future<String> Function()? _deviceShipCode;
+
   /// The rows matching [query] like the backend does (in the medicine's
   /// name or SKU, ignoring case), most stock first, then by name. Null when
   /// the list was never downloaded.
+  ///
+  /// Without [shipCode]'s own list (e.g. a patient served under another
+  /// code), the device's ship list is searched: every ship lists the same
+  /// medicines, only the stock may differ.
   Future<List<Map<String, dynamic>>?> search(
     String shipCode,
     String query,
   ) async {
-    final List rows;
-    try {
-      // Answered from the offline cache.
-      final response = await _dio.get(
-        ApiConfig.shipMedicineStocksPath(shipCode.trim()),
-        queryParameters: {'all': 'true'},
-      );
-      final data = response.data;
-      final result = data is Map ? data['result'] ?? data['data'] : null;
-      rows = switch (result) {
-        {'data': final List list} => list,
-        final List list => list,
-        _ => const [],
-      };
-    } on DioException {
-      return null;
+    var rows = await _downloaded(shipCode);
+    if (rows == null) {
+      final deviceShip = (await _deviceShipCode?.call())?.trim() ?? '';
+      if (deviceShip.isNotEmpty && _key(deviceShip) != _key(shipCode)) {
+        rows = await _downloaded(deviceShip);
+        if (rows != null) shipCode = deviceShip;
+      }
     }
+    if (rows == null) return null;
 
     final changes = await _pendingChanges(shipCode);
     final q = query.trim().toLowerCase();
@@ -57,6 +56,29 @@ class ShipStockList {
       });
     }
     return matches;
+  }
+
+  /// [shipCode]'s whole list as downloaded, or null when it isn't on the
+  /// device.
+  Future<List?> _downloaded(String shipCode) async {
+    try {
+      // Answered from the offline cache.
+      final response = await _dio.get(
+        ApiConfig.shipMedicineStocksPath(shipCode.trim()),
+        queryParameters: {'all': 'true'},
+      );
+      final data = response.data;
+      final result = data is Map ? data['result'] ?? data['data'] : null;
+      // `?all=true` answers {ship_code, items, total}; a page {data, …}.
+      return switch (result) {
+        {'items': final List list} => list,
+        {'data': final List list} => list,
+        final List list => list,
+        _ => const [],
+      };
+    } on DioException {
+      return null;
+    }
   }
 
   /// Stock waiting in the outbox, per medicine id (stock added) or SKU

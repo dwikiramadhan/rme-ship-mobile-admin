@@ -22,6 +22,7 @@ class MasterListEntry {
     this.code,
     this.badge,
     this.detailTitle,
+    this.unsynced = false,
   });
 
   final String id;
@@ -35,6 +36,9 @@ class MasterListEntry {
 
   /// Title shown on the phone detail page's app bar; defaults to [title].
   final String? detailTitle;
+
+  /// Marked "Belum sync": the change is still on the device.
+  final bool unsynced;
 }
 
 /// Shared list+detail pattern used by every role's main screen (Antrian,
@@ -248,6 +252,7 @@ class _ResponsiveMasterDetailState extends State<ResponsiveMasterDetail> {
                 code: entry.code,
                 subtitle: entry.subtitle,
                 trailing: entry.badge,
+                unsynced: entry.unsynced,
                 onTap: () {
                   widget.onEntrySelected?.call(entry.id);
                   if (tablet) {

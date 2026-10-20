@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -89,27 +87,6 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     // Lab info (from lab_examination)
     final labAttachmentUrl = history.labAttachmentUrl;
 
-    // Debug dump only — pretty-printing rawJson on every rebuild is costly.
-    if (kDebugMode) {
-      debugPrint(
-        '══════════════════════════════════════════════════════════════',
-      );
-      debugPrint(
-        '📋 [MedicalHistoryDetailView] Data History (ID: ${history.id}, Code: ${history.code}):',
-      );
-      debugPrint('   Patient: ${history.patientName} (${history.patientId})');
-      debugPrint('   Status: ${history.statusPenanganan}');
-      debugPrint('   Lab Attachment URL: $labAttachmentUrl');
-      debugPrint('   Raw JSON:');
-      try {
-        debugPrint(const JsonEncoder.withIndent('  ').convert(history.rawJson));
-      } catch (_) {
-        debugPrint('${history.rawJson}');
-      }
-      debugPrint(
-        '══════════════════════════════════════════════════════════════',
-      );
-    }
     final labExam = history.labExamination;
     final labItems = history.labExaminationItems;
     final labCode = history.labExaminationCode;
