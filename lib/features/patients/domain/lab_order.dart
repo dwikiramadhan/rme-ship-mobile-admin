@@ -75,6 +75,7 @@ class LabOrder extends Equatable {
     this.catatan = '',
     this.status = LabOrderStatus.baru,
     this.hasil,
+    this.requiresFasting = false,
   });
 
   final String id;
@@ -83,12 +84,16 @@ class LabOrder extends Equatable {
   final LabOrderStatus status;
   final LabHasil? hasil;
 
+  /// A requested test needs the patient to fast (see `LabTestType`).
+  final bool requiresFasting;
+
   LabOrder copyWith({
     String? id,
     String? jenis,
     String? catatan,
     LabOrderStatus? status,
     LabHasil? hasil,
+    bool? requiresFasting,
   }) {
     return LabOrder(
       id: id ?? this.id,
@@ -96,11 +101,12 @@ class LabOrder extends Equatable {
       catatan: catatan ?? this.catatan,
       status: status ?? this.status,
       hasil: hasil ?? this.hasil,
+      requiresFasting: requiresFasting ?? this.requiresFasting,
     );
   }
 
   @override
-  List<Object?> get props => [id, jenis, catatan, status, hasil];
+  List<Object?> get props => [id, jenis, catatan, status, hasil, requiresFasting];
 }
 
 /// `lab_order` payload for PATCH /patients/:id/medical-records/:recordId: the
@@ -108,4 +114,5 @@ class LabOrder extends Equatable {
 Map<String, dynamic> labOrderRequestJson(LabOrder order) => {
   'requested_test': order.jenis,
   'notes': order.catatan,
+  'requires_fasting': order.requiresFasting,
 };

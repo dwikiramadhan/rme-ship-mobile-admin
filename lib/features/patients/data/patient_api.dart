@@ -7,6 +7,7 @@ import '../../../core/network/api_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../domain/doctor.dart';
+import '../domain/lab_test_type.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
 
@@ -302,6 +303,22 @@ class PatientApi {
     }
   }
 
+  /// The lab request form's tests (GET /api/v1/lab-tests), in form order.
+  Future<List<LabTestType>> getLabTests() async {
+    try {
+      final response = await _dio.get(ApiConfig.labTestsPath);
+      final data = response.data;
+      final result = data is Map<String, dynamic> ? data['result'] : null;
+      return [
+        if (result is List)
+          for (final json in result.whereType<Map<String, dynamic>>())
+            LabTestType.fromJson(json),
+      ];
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
   /// Fetches paginated medical history from GET /api/v1/medical-history
   /// Example: /api/v1/medical-history?page=1&limit=10&sort_by=created_at&order=desc
   Future<PaginatedMedicalHistory> getMedicalHistoryPaginated({
@@ -310,6 +327,8 @@ class PatientApi {
     String? search,
     String? statusPenanganan,
     String? userId,
+    bool includePendingPrescriptions = false,
+    bool includeReferred = false,
     String sortBy = 'created_at',
     String order = 'desc',
   }) async {
@@ -326,8 +345,14 @@ class PatientApi {
       if (statusPenanganan != null && statusPenanganan.trim().isNotEmpty) {
         queryParams['status_penanganan'] = statusPenanganan.trim();
       }
+      if (includePendingPrescriptions) {
+        queryParams['include_pending_prescriptions'] = true;
+      }
       if (userId != null && userId.trim().isNotEmpty) {
         queryParams['user_id'] = userId.trim();
+        // Also the visits this doctor referred to another doctor (history
+        // only; a queue leaves them out).
+        if (includeReferred) queryParams['include_referred'] = true;
       }
 
       final response = await _dio.get(

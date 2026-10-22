@@ -23,7 +23,10 @@ import '../../sync/presentation/offline_data_card.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
+import '../../patients/domain/poli.dart';
 import '../../schedule/domain/trip_schedule.dart';
+import '../../schedule/presentation/widgets/current_port_info.dart';
+import '../../schedule/presentation/widgets/poli_umum_note.dart';
 
 /// Form Input Kunjungan Baru / Tambah Riwayat Kunjungan
 /// Memungkinkan perawat atau dokter mencatat kunjungan rekam medis baru untuk pasien terdaftar:
@@ -60,8 +63,15 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
 
   // Doctor & Poliklinik
   String? _selectedDoctorId;
-  String _poliCode = 'UMUM';
-  String? _portId;
+  String _poliCode = poliUmumCode;
+
+  bool get _isCurrentUserDoctor =>
+      ref.read(authControllerProvider).session?.user.role == UserRole.dokter;
+
+  /// Poli Umum needs no assigned doctor (every doctor on the ongoing trip is
+  /// told); a doctor registering a visit still examines it themselves.
+  bool _poliUmumFor(bool isCurrentUserDoctor) =>
+      !isCurrentUserDoctor && isPoliUmum(_poliCode);
 
   // Complaint
   final _keluhanUtama = TextEditingController();
@@ -83,15 +93,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
 
   bool _saving = false;
   String? _errorMessage;
-
-  static const _poliOptions = [
-    AppSelectOption(value: 'UMUM', label: 'Poli Umum'),
-    AppSelectOption(value: 'GIGI', label: 'Poli Gigi'),
-    AppSelectOption(value: 'MATA', label: 'Poli Mata'),
-    AppSelectOption(value: 'ANAK', label: 'Poli Anak'),
-    AppSelectOption(value: 'KANDUNGAN', label: 'Poli Kandungan'),
-    AppSelectOption(value: 'BEDAH', label: 'Poli Bedah'),
-  ];
 
   @override
   void initState() {
@@ -181,18 +182,34 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
       return;
     }
 
-    final effectiveDoctorId = _selectedDoctorId;
-    if (effectiveDoctorId == null || effectiveDoctorId.isEmpty) {
+    if ([
+      _sistolik,
+      _diastolik,
+      _nadi,
+      _suhu,
+    ].any((c) => c.text.trim().isEmpty)) {
+      setState(
+        () => _errorMessage = 'Tekanan darah, nadi, dan suhu wajib diisi.',
+      );
+      return;
+    }
+
+    final poliUmum = _poliUmumFor(_isCurrentUserDoctor);
+    final effectiveDoctorId = poliUmum ? null : _selectedDoctorId;
+    if (!poliUmum && (effectiveDoctorId == null || effectiveDoctorId.isEmpty)) {
       setState(() => _errorMessage = 'Dokter pemeriksa wajib dipilih.');
       return;
     }
 
-    final portId = _portId;
+    // The harbor is where the ongoing trip is, not picked by hand.
+    String? portId;
+    try {
+      portId = (await ref.read(currentPortProvider.future))?.portId;
+    } catch (_) {}
     if (portId == null) {
-      setState(() => _errorMessage = 'Pelabuhan wajib dipilih.');
+      if (mounted) setState(() => _errorMessage = noCurrentPortMessage);
       return;
     }
-
 
     // The backend needs the ship's id (a UUID), so there is no fallback.
     final effectiveShipId = await resolveActiveShipId(ref);
@@ -345,9 +362,11 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
     final currentUser = authState.session?.user;
     final isCurrentUserDoctor = currentUser?.role == UserRole.dokter;
 
-    // From the server, or offline from the copy kept on the device; never a
-    // placeholder list (see patient_form.dart).
-    final doctorsAsync = ref.watch(doctorsProvider);
+    // A visit is assigned to a doctor on the ongoing trip (see
+    // patient_form.dart); a doctor registering it is found in the directory.
+    final doctorsAsync = isCurrentUserDoctor
+        ? ref.watch(doctorsProvider)
+        : ref.watch(tripDoctorsProvider);
     final List<Doctor> doctorList = doctorsAsync.valueOrNull ?? const [];
 
     // If current user is doctor and doctor not yet selected, pre-fill doctor
@@ -369,8 +388,9 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
       _selectedDoctorId = myDoctor?.id;
     }
 
-    final selectedDoctor =
-        doctorList.where((d) => d.id == _selectedDoctorId).firstOrNull;
+    final selectedDoctor = doctorList
+        .where((d) => d.id == _selectedDoctorId)
+        .firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -467,7 +487,8 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                       selectedDoctor,
                       doctorList,
                       isCurrentUserDoctor,
-                      doctorsMissing: doctorsAsync.hasValue && doctorList.isEmpty,
+                      doctorsMissing:
+                          doctorsAsync.hasValue && doctorList.isEmpty,
                     ),
                   ],
                 );
@@ -822,27 +843,6 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
   // ==========================================
   // Section: Poliklinik & Dokter Pemeriksa
   // ==========================================
-  Widget _buildPortSelect() {
-    final ports = ref.watch(portsProvider);
-    return AppSelect<String>(
-      labelFontSize: 11,
-      fontSize: 12,
-      label: 'Pelabuhan',
-      required: true,
-      value: _portId,
-      hint: ports.isLoading
-          ? 'Memuat pelabuhan...'
-          : ports.hasError
-          ? 'Gagal memuat pelabuhan'
-          : 'Pilih pelabuhan...',
-      options: [
-        for (final port in ports.valueOrNull ?? const <PortItem>[])
-          AppSelectOption(value: port.id, label: port.name),
-      ],
-      onChanged: (val) => setState(() => _portId = val),
-    );
-  }
-
   Widget _buildDoctorAndPoliCard(
     Doctor? selectedDoctor,
     List<Doctor> doctorList,
@@ -890,7 +890,12 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
             label: 'Poliklinik Tujuan',
             required: true,
             value: _poliCode,
-            options: _poliOptions,
+            options: [
+              for (final poli
+                  in ref.watch(poliklinikOptionsProvider).valueOrNull ??
+                      defaultPoliklinik)
+                AppSelectOption(value: poli.code, label: poli.name),
+            ],
             onChanged: (val) {
               if (val != null) setState(() => _poliCode = val);
             },
@@ -898,114 +903,123 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           const SizedBox(height: 14),
 
           // Harbor of this visit (port_id, required by the backend).
-          _buildPortSelect(),
+          const CurrentPortInfo(labelFontSize: 11),
           const SizedBox(height: 14),
 
-          // Dokter Pemeriksa Selector
-          const AppFieldLabel(
-            fontSize: 11,
-            label: 'Dokter Pemeriksa',
-            required: true,
-          ),
-          const SizedBox(height: 5),
-          InkWell(
-            onTap: () => _showDoctorModal(doctorList),
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: AppColors.card2,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.blueLt,
-                      borderRadius: BorderRadius.circular(8),
+          if (_poliUmumFor(isCurrentUserDoctor))
+            PoliUmumDoctorsNote(doctorCount: doctorList.length)
+          else ...[
+            // Dokter Pemeriksa Selector
+            const AppFieldLabel(
+              fontSize: 11,
+              label: 'Dokter Pemeriksa',
+              required: true,
+            ),
+            const SizedBox(height: 5),
+            InkWell(
+              onTap: () => _showDoctorModal(doctorList),
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.card2,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.blueLt,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        LucideIcons.user,
+                        size: 18,
+                        color: AppColors.blue,
+                      ),
                     ),
-                    child: const Icon(
-                      LucideIcons.user,
-                      size: 18,
-                      color: AppColors.blue,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                selectedDoctor?.nama ?? 'Pilih Dokter...',
-                                style: const TextStyle(
-                                  fontSize: 12.0,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.text,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (isCurrentUserDoctor &&
-                                selectedDoctor?.id == _selectedDoctorId)
-                              Container(
-                                margin: const EdgeInsets.only(left: 6),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 1.5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.greenLt,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Akun Anda',
-                                  style: TextStyle(
-                                    fontSize: 9.5,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  selectedDoctor?.nama ?? 'Pilih Dokter...',
+                                  style: const TextStyle(
+                                    fontSize: 12.0,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.green,
+                                    color: AppColors.text,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (isCurrentUserDoctor &&
+                                  selectedDoctor?.id == _selectedDoctorId)
+                                Container(
+                                  margin: const EdgeInsets.only(left: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 1.5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.greenLt,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text(
+                                    'Akun Anda',
+                                    style: TextStyle(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.green,
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          selectedDoctor != null
-                              ? '${selectedDoctor.spesialisasi} • ${selectedDoctor.availability ?? (selectedDoctor.online ? "Online" : "Offline")}'
-                              : 'Klik untuk memilih dokter dari armada kapal',
-                          style: const TextStyle(
-                            fontSize: 11.0,
-                            color: AppColors.sub,
+                            ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 2),
+                          Text(
+                            selectedDoctor != null
+                                ? '${selectedDoctor.spesialisasi} • ${selectedDoctor.availability ?? (selectedDoctor.online ? "Online" : "Offline")}'
+                                : 'Klik untuk memilih dokter dari armada kapal',
+                            style: const TextStyle(
+                              fontSize: 11.0,
+                              color: AppColors.sub,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    LucideIcons.chevronRight,
-                    size: 16,
-                    color: AppColors.sub,
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    const Icon(
+                      LucideIcons.chevronRight,
+                      size: 16,
+                      color: AppColors.sub,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          if (doctorsMissing) ...[
-            const SizedBox(height: 6),
-            const Text(
-              doctorsUnavailableMessage,
-              style: TextStyle(fontSize: 10.5, color: AppColors.red),
-            ),
+            if (doctorsMissing) ...[
+              const SizedBox(height: 6),
+              Text(
+                isCurrentUserDoctor
+                    ? doctorsUnavailableMessage
+                    : noTripDoctorsMessage,
+                style: const TextStyle(fontSize: 10.5, color: AppColors.red),
+              ),
+            ],
+            if (isCurrentUserDoctor) const DoctorsStaleNote(),
           ],
-          const DoctorsStaleNote(),
         ],
       ),
     );
@@ -1128,7 +1142,11 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
           const SizedBox(height: 14),
 
           // Tekanan Darah (Sistolik & Diastolik)
-          const AppFieldLabel(fontSize: 11, label: 'Tekanan Darah (TD) - mmHg'),
+          const AppFieldLabel(
+            fontSize: 11,
+            label: 'Tekanan Darah (TD) - mmHg',
+            required: true,
+          ),
           const SizedBox(height: 5),
           Row(
             children: [
@@ -1195,6 +1213,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   labelFontSize: 11,
                   fontSize: 12,
                   label: 'Denyut Nadi (bpm)',
+                  required: true,
                   controller: _nadi,
                   numbersOnly: true,
                   keyboardType: TextInputType.number,
@@ -1207,6 +1226,7 @@ class _TambahKunjunganScreenState extends ConsumerState<TambahKunjunganScreen> {
                   labelFontSize: 11,
                   fontSize: 12,
                   label: 'Suhu Tubuh (°C)',
+                  required: true,
                   controller: _suhu,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,

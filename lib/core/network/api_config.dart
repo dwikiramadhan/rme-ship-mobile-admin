@@ -148,6 +148,7 @@ class ApiConfig {
   static const String portsPath = '/api/v1/ports';
   static const String crewsPath = '/api/v1/crews';
   static const String poliklinikPath = '/api/v1/poliklinik';
+  static const String labTestsPath = '/api/v1/lab-tests';
   static const String devicesPath = '/api/v1/devices';
 }
 

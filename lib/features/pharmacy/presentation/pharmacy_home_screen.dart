@@ -193,12 +193,14 @@ class _PharmacyHomeScreenState extends ConsumerState<PharmacyHomeScreen> {
 
     final displayHistories = histories.where((m) {
       final status = m.statusPenanganan ?? m.status;
+      // A prescription given with a lab referral is dispensed while the
+      // patient is still at the lab.
       if (_statusFilter == 'Menunggu Obat') {
-        return status == 'Menunggu Obat';
+        return m.waitingForPharmacy;
       } else if (_statusFilter == 'Selesai') {
         return status == 'Selesai';
       }
-      return status == 'Menunggu Obat' ||
+      return m.waitingForPharmacy ||
           status == 'Selesai' ||
           (status != null && status.toLowerCase().contains('obat')) ||
           (status != null && status.toLowerCase().contains('selesai'));

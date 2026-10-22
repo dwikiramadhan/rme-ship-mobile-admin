@@ -15,8 +15,10 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../doctor/data/icd10_api.dart';
 import '../../doctor/data/icd9_api.dart';
 import '../../doctor/presentation/widgets/examination_input_modal.dart';
+import '../../history/presentation/edit_visit_screen.dart';
 import '../data/patient_repository.dart';
 import '../domain/dispensed_medicine.dart';
+import '../domain/doctor_referral.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
 import '../domain/vitals.dart';
@@ -66,6 +68,9 @@ class MedicalHistoryDetailView extends ConsumerWidget {
         (history.diagnosis?.trim().isNotEmpty ?? false) ||
         (history.diagnosisDetail?.trim().isNotEmpty ?? false);
     final isDiagnosed = !isMenungguDokter && hasDiagnosis;
+    final referrals = referralsOf(history.rawJson);
+    // Referred to another doctor by this doctor: view only.
+    final referredAway = isReferredAway(history.rawJson, userId);
 
     final hasTreatment =
         (history.treatment?.trim().isNotEmpty ?? false) ||
@@ -404,6 +409,16 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                   padding: EdgeInsets.symmetric(vertical: 14),
                   child: Divider(height: 1, color: AppColors.border),
                 ),
+
+                if (referrals.isNotEmpty) ...[
+                  _buildSectionTitle('Riwayat Rujukan Dokter'),
+                  const SizedBox(height: 10),
+                  for (final r in referrals) _ReferralTile(referral: r),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 14),
+                    child: Divider(height: 1, color: AppColors.border),
+                  ),
+                ],
 
                 // Hasil Pemeriksaan Klinis
                 _buildSectionTitle('Hasil Pemeriksaan & Catatan Medis'),
@@ -770,7 +785,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                   const SizedBox(height: 16),
 
                   // Button 1: Doctor Examination / Medical Record Form (Hanya jika belum didiagnosa)
-                  if (isDoctor && !isDiagnosed) ...[
+                  if (isDoctor && !isDiagnosed && !referredAway) ...[
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
@@ -804,6 +819,36 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                               ? 'Tinjau Hasil Lab & Lanjutkan Pemeriksaan'
                               : 'Periksa Pasien / Input Rekam Medis',
                           style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // Still waiting for the doctor: the nurse can edit the visit.
+                  if (!isDoctor &&
+                      isMenungguDokter &&
+                      canEditVisits(userRole)) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => openEditVisit(context, history),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.blue,
+                          side: const BorderSide(color: AppColors.blue),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(LucideIcons.pencil, size: 15),
+                        label: const Text(
+                          'Edit Kunjungan',
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0,
@@ -1540,6 +1585,60 @@ class _DispensedMedicineRow extends StatelessWidget {
             style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
+              color: AppColors.text,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One referral between doctors: who to whom, when, and why.
+class _ReferralTile extends StatelessWidget {
+  const _ReferralTile({required this.referral});
+
+  final DoctorReferral referral;
+
+  @override
+  Widget build(BuildContext context) {
+    final at = referral.createdAt;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F9FF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFBAE6FD), width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${referral.fromName} → ${referral.toName}',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+              letterSpacing: 0,
+            ),
+          ),
+          if (at != null)
+            Text(
+              DateHelper.formatDateTime(at.toIso8601String()),
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: AppColors.sub,
+                letterSpacing: 0,
+              ),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            referral.reason,
+            style: const TextStyle(
+              fontSize: 11.5,
               color: AppColors.text,
               letterSpacing: 0,
             ),

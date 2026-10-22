@@ -14,7 +14,9 @@ import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/vital_tile.dart';
 import '../../patients/data/patient_repository.dart';
+import '../../patients/domain/clinical_notes.dart';
 import '../../patients/domain/lab_order.dart';
+import '../../patients/domain/lab_test_type.dart';
 import '../../patients/domain/medical_history.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/domain/vitals.dart';
@@ -38,6 +40,9 @@ class _LabItemForm {
        statusCtrl = TextEditingController(text: status),
        notesCtrl = TextEditingController(text: notes);
 
+  /// The picked lab test (master `GET /lab-tests`), or [_otherTest] when the
+  /// analyst types the name; '' = none picked yet.
+  String labTestId = '';
   final TextEditingController testNameCtrl;
   final TextEditingController testCategoryCtrl;
   final TextEditingController resultValueCtrl;
@@ -57,8 +62,28 @@ class _LabItemForm {
   }
 }
 
-/// Port of the prototype's `LabOrderDetail` — input the result (notes +
-/// examination items + an optional file attachment) and send it back to the requesting doctor.
+/// Dropdown value for a test that isn't in the master list.
+const _otherTest = '__other__';
+
+/// A picked result document.
+typedef LabDocument = ({String name, Uint8List bytes, String? path});
+
+/// Picks the lab result document (PDF/JPG/PNG); null when cancelled.
+/// Tests swap in a fake.
+final labDocumentPickerProvider = Provider<Future<LabDocument?> Function()>(
+  (ref) => () async {
+    final file = await FilePicker.pickFile(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+    if (file == null) return null;
+    return (name: file.name, bytes: await file.readAsBytes(), path: file.path);
+  },
+);
+
+/// Port of the prototype's `LabOrderDetail` — input the result (the result
+/// document, notes, and optional per-test values) and send it back to the
+/// requesting doctor.
 class LabOrderDetail extends ConsumerStatefulWidget {
   const LabOrderDetail({super.key, required this.patientId, this.medRecId});
 
@@ -73,7 +98,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   final _generalNotesCtrl = TextEditingController();
   final _conclusionCtrl = TextEditingController();
   final List<_LabItemForm> _items = [];
-  PlatformFile? _pickedFile;
+  String? _filePath;
   Uint8List? _fileBytes;
   String? _fileName;
   bool _saving = false;
@@ -94,7 +119,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
       _generalNotesCtrl.clear();
       _conclusionCtrl.clear();
       _fileName = null;
-      _pickedFile = null;
+      _filePath = null;
       _fileBytes = null;
       _load();
     }
@@ -126,11 +151,8 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     setState(() => _loading = false);
   }
 
-  void _initItems(LabOrder? order) {
-    if (_items.isEmpty) {
-      _items.add(_LabItemForm());
-    }
-  }
+  // Per-test values are optional: the result document holds the full result.
+  void _initItems(LabOrder? order) {}
 
   void _addItem() {
     setState(() {
@@ -138,12 +160,30 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     });
   }
 
+  /// Row [index] now reports [labTestId]: name and category from the master.
+  void _pickTest(int index, String labTestId, List<LabTestType> tests) {
+    final item = _items[index];
+    final test = tests.where((t) => t.id == labTestId).firstOrNull;
+    setState(() {
+      item.labTestId = labTestId;
+      item.testNameCtrl.text = test?.name ?? '';
+      item.testCategoryCtrl.text = labTestId == _otherTest
+          ? kLabOtherCategory
+          : (test?.category ?? '');
+    });
+  }
+
   void _removeItem(int index) {
-    if (_items.length <= 1) return;
     setState(() {
       final removed = _items.removeAt(index);
       removed.dispose();
     });
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.red),
+    );
   }
 
   @override
@@ -158,15 +198,11 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
 
   Future<void> _pickFile() async {
     try {
-      final file = await FilePicker.pickFile(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      );
+      final file = await ref.read(labDocumentPickerProvider)();
       if (file != null) {
-        final bytes = await file.readAsBytes();
         setState(() {
-          _pickedFile = file;
-          _fileBytes = bytes;
+          _filePath = file.path;
+          _fileBytes = file.bytes;
           _fileName = file.name;
         });
       }
@@ -176,6 +212,22 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   }
 
   Future<void> _submit(Patient patient) async {
+    if (_fileName == null) {
+      _showError('Dokumen hasil lab wajib diunggah');
+      return;
+    }
+    bool filled(_LabItemForm it) => [
+      it.testNameCtrl,
+      it.resultValueCtrl,
+      it.unitCtrl,
+      it.referenceRangeCtrl,
+      it.notesCtrl,
+    ].any((c) => c.text.trim().isNotEmpty);
+    if (_items.any((it) => filled(it) && it.testNameCtrl.text.trim().isEmpty)) {
+      _showError('Pilih pemeriksaan di setiap baris hasil yang diisi');
+      return;
+    }
+
     final validItems = _items
         .where((it) => it.testNameCtrl.text.trim().isNotEmpty)
         .map(
@@ -196,18 +248,6 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
           },
         )
         .toList();
-
-    if (validItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Harap masukkan minimal 1 nama parameter pemeriksaan lab',
-          ),
-          backgroundColor: AppColors.red,
-        ),
-      );
-      return;
-    }
 
     final generalNotes = _generalNotesCtrl.text.trim().isNotEmpty
         ? _generalNotesCtrl.text.trim()
@@ -270,7 +310,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
             conclusion: _conclusionCtrl.text.trim(),
             items: validItems,
             fileName: _fileName,
-            filePath: _pickedFile?.path,
+            filePath: _filePath,
             fileBytes: _fileBytes,
           );
       // Offline: kept in the outbox instead of sent.
@@ -311,6 +351,8 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
 
   @override
   Widget build(BuildContext context) {
+    final labTests =
+        ref.watch(labTestsProvider).valueOrNull ?? const <LabTestType>[];
     // Select only the entries this pane shows so list-wide updates
     // (WS polls, paging) don't rebuild it.
     MedicalHistory? findHistory(List<MedicalHistory> list) =>
@@ -401,6 +443,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
             children: [
               DoctorExamSummary(
                 patient: examPatient,
+                examResult: doctorExamResult(medHistory?.notes),
                 beforeDiagnosis: (referral != null || showNoteBox)
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -644,7 +687,20 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                   ),
                 ),
               ] else ...[
-                // Parameter Form List
+                const Text(
+                  'Hasil per Pemeriksaan (opsional)',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'Hasil lengkap ada di dokumen lampiran. Isi bila ingin mencatat nilai tiap pemeriksaan.',
+                  style: TextStyle(fontSize: 10.5, color: AppColors.sub),
+                ),
+                const SizedBox(height: 8),
                 for (int i = 0; i < _items.length; i++) ...[
                   Container(
                     margin: const EdgeInsets.only(bottom: 10),
@@ -661,7 +717,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Parameter #${i + 1}',
+                              'Pemeriksaan #${i + 1}',
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -669,8 +725,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                                 letterSpacing: 0.3,
                               ),
                             ),
-                            if (_items.length > 1)
-                              InkWell(
+                            InkWell(
                                 onTap: () => _removeItem(i),
                                 borderRadius: BorderRadius.circular(6),
                                 child: const Padding(
@@ -685,35 +740,24 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              flex: 3,
-                              child: AppTextField(
-                                label: 'Nama Tes / Parameter',
-                                required: true,
-                                controller: _items[i].testNameCtrl,
-                                labelFontSize: 11,
-                                fontSize: 11.5,
-                                placeholder: 'cth: Hemoglobin',
-                                onChanged: (_) => setState(() {}),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 2,
-                              child: AppTextField(
-                                label: 'Kategori',
-                                controller: _items[i].testCategoryCtrl,
-                                labelFontSize: 11,
-                                fontSize: 11.5,
-                                placeholder: 'cth: Hematologi',
-                                onChanged: (_) => setState(() {}),
-                              ),
-                            ),
-                          ],
+                        _LabTestPicker(
+                          tests: labTests,
+                          value: _items[i].labTestId,
+                          category: _items[i].testCategoryCtrl.text,
+                          onChanged: (id) => _pickTest(i, id, labTests),
                         ),
+                        if (_items[i].labTestId == _otherTest) ...[
+                          const SizedBox(height: 8),
+                          AppTextField(
+                            label: 'Nama Pemeriksaan',
+                            required: true,
+                            controller: _items[i].testNameCtrl,
+                            labelFontSize: 11,
+                            fontSize: 11.5,
+                            placeholder: 'cth: Rontgen Thorax',
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -722,7 +766,6 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                               flex: 3,
                               child: AppTextField(
                                 label: 'Hasil / Nilai Tes',
-                                required: true,
                                 controller: _items[i].resultValueCtrl,
                                 labelFontSize: 11,
                                 fontSize: 11.5,
@@ -776,7 +819,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                         ),
                         const SizedBox(height: 8),
                         AppTextField(
-                          label: 'Catatan Parameter (opsional)',
+                          label: 'Catatan (opsional)',
                           controller: _items[i].notesCtrl,
                           labelFontSize: 11,
                           fontSize: 11.5,
@@ -794,7 +837,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                     onPressed: _addItem,
                     icon: const Icon(LucideIcons.plus, size: 14),
                     label: const Text(
-                      'Tambah Parameter Pemeriksaan',
+                      'Tambah Hasil Pemeriksaan',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -836,8 +879,16 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                 ),
                 const SizedBox(height: 11),
 
-                const Text(
-                  'Lampiran File (opsional)',
+                const Text.rich(
+                  TextSpan(
+                    text: 'Dokumen Hasil Lab',
+                    children: [
+                      TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: AppColors.red),
+                      ),
+                    ],
+                  ),
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -885,7 +936,8 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                             onTap: () {
                               setState(() {
                                 _fileName = null;
-                                _pickedFile = null;
+                                _filePath = null;
+                                _fileBytes = null;
                               });
                             },
                             borderRadius: BorderRadius.circular(12),
@@ -918,11 +970,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                   full: true,
                   loading: _saving,
                   loadingLabel: 'Mengirim...',
-                  onPressed:
-                      (_items.any(
-                            (it) => it.testNameCtrl.text.trim().isNotEmpty,
-                          ) &&
-                          !_saving)
+                  onPressed: (_fileName != null && !_saving)
                       ? () => _submit(patient)
                       : null,
                 ),
@@ -1021,6 +1069,17 @@ class _LabRequestBox extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           _LabRequestField(label: 'Jenis Pemeriksaan', value: order.jenis),
+          if (order.requiresFasting) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'Pasien perlu puasa sebelum pengambilan sampel',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.orange,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           _LabRequestField(label: 'Catatan untuk Analis', value: note),
         ],
@@ -1263,4 +1322,233 @@ class _VitalValues {
 
 extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
+}
+
+/// "Jenis Pemeriksaan": opens [_LabTestSearchSheet] to search the master lab
+/// tests (or pick "Lainnya" for one that isn't listed). The category follows
+/// the picked test.
+class _LabTestPicker extends StatelessWidget {
+  const _LabTestPicker({
+    required this.tests,
+    required this.value,
+    required this.category,
+    required this.onChanged,
+  });
+
+  final List<LabTestType> tests;
+  final String value;
+  final String category;
+  final ValueChanged<String> onChanged;
+
+  void _open(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _LabTestSearchSheet(
+        tests: tests,
+        selectedId: value,
+        onSelect: (id) {
+          Navigator.of(sheetContext).pop();
+          onChanged(id);
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = tests.where((t) => t.id == value).firstOrNull;
+    final label = value == _otherTest
+        ? 'Lainnya (ketik manual)'
+        : (selected?.name ?? '');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text.rich(
+          TextSpan(
+            text: 'Jenis Pemeriksaan',
+            children: [
+              TextSpan(
+                text: ' *',
+                style: TextStyle(color: AppColors.red),
+              ),
+            ],
+          ),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        const SizedBox(height: 5),
+        InkWell(
+          onTap: () => _open(context),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label.isEmpty ? 'Pilih pemeriksaan...' : label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: label.isEmpty ? AppColors.sub : AppColors.text,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  LucideIcons.chevronDown,
+                  size: 14,
+                  color: AppColors.sub,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (value.isNotEmpty && value != _otherTest) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Kategori: ${category.isEmpty ? '-' : category}',
+            style: const TextStyle(fontSize: 10.5, color: AppColors.sub),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Bottom sheet: search the lab tests by name or category, listed under
+/// their category, plus "Lainnya (ketik manual)".
+class _LabTestSearchSheet extends StatefulWidget {
+  const _LabTestSearchSheet({
+    required this.tests,
+    required this.selectedId,
+    required this.onSelect,
+  });
+
+  final List<LabTestType> tests;
+  final String selectedId;
+  final ValueChanged<String> onSelect;
+
+  @override
+  State<_LabTestSearchSheet> createState() => _LabTestSearchSheetState();
+}
+
+class _LabTestSearchSheetState extends State<_LabTestSearchSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final groups = groupLabTests(filterLabTests(widget.tests, _query));
+    Widget option(String id, String label) => InkWell(
+      onTap: () => widget.onSelect(id),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+        color: id == widget.selectedId ? AppColors.skyLt : null,
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.text),
+        ),
+      ),
+    );
+
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.85,
+      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(18, 16, 18, 8),
+            child: Text(
+              'Pilih Jenis Pemeriksaan',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+            child: TextField(
+              autofocus: true,
+              onChanged: (v) => setState(() => _query = v),
+              style: const TextStyle(fontSize: 12),
+              decoration: InputDecoration(
+                hintText: 'Cari pemeriksaan atau kategori...',
+                hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.sub),
+                prefixIcon: const Icon(
+                  LucideIcons.search,
+                  size: 16,
+                  color: AppColors.sub,
+                ),
+                isDense: true,
+                filled: true,
+                fillColor: AppColors.inputBg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 1, color: AppColors.border),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                if (groups.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(18),
+                    child: Text(
+                      'Pemeriksaan tidak ditemukan',
+                      style: TextStyle(fontSize: 12, color: AppColors.sub),
+                    ),
+                  ),
+                for (final (category, items) in groups) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
+                    child: Text(
+                      category,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.skyBlue,
+                      ),
+                    ),
+                  ),
+                  for (final t in items) option(t.id, t.name),
+                ],
+                const Divider(height: 1, color: AppColors.border),
+                option(_otherTest, 'Lainnya (ketik manual)'),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

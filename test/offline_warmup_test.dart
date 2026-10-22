@@ -33,6 +33,8 @@ class _RecordingApi extends PatientApi {
     String? search,
     String? statusPenanganan,
     String? userId,
+    bool includePendingPrescriptions = false,
+    bool includeReferred = false,
     String sortBy = 'created_at',
     String order = 'desc',
   }) async {

@@ -75,16 +75,6 @@ const List<String> kObatList = [
   'Cetirizine 10mg',
 ];
 
-const List<String> kJenisLab = [
-  'Darah Lengkap',
-  'Urinalisis',
-  'Rontgen Thorax',
-  'EKG',
-  'Gula Darah Sewaktu',
-  'Fungsi Hati',
-  'Fungsi Ginjal',
-];
-
 const List<String> kAlasanGantiObat = [
   'Stok habis',
   'Kadaluarsa',

@@ -43,6 +43,10 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
   /// visit, and drops the patients not on it.
   Patient? _patient;
 
+  /// Every medicine of this visit was already dispensed (while the patient
+  /// was at the lab); nothing is left to hand over.
+  bool _allDispensed = false;
+
   @override
   void initState() {
     super.initState();
@@ -63,12 +67,26 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
       _loading = true;
       _visit = null;
       _patient = null;
+      _allDispensed = false;
     });
     final fromQueue = _takeFromQueue();
     await Future.wait([
       if (!fromQueue) _fetchPatient(),
       Future.delayed(const Duration(milliseconds: 250)),
     ]);
+    // Medicine already dispensed (while the patient was at the lab) isn't
+    // handed over again.
+    final patient = _patient;
+    if (patient != null) {
+      _allDispensed =
+          patient.resep.isNotEmpty && patient.resep.every((r) => r.dispensed);
+      _patient = patient.copyWith(
+        resep: [
+          for (final r in patient.resep)
+            if (!r.dispensed) r,
+        ],
+      );
+    }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -289,7 +307,8 @@ class _PrescriptionDetailState extends ConsumerState<PrescriptionDetail> {
     );
     final isSelesai =
         patient.statusPenanganan == 'Selesai' ||
-        patient.resepStatus == ResepStatus.selesai;
+        patient.resepStatus == ResepStatus.selesai ||
+        _allDispensed;
 
     // No extra letter spacing anywhere on this page (the theme adds some).
     return DefaultTextStyle.merge(

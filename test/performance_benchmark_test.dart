@@ -262,6 +262,12 @@ class _BenchmarkMedicalHistoryNotifier extends StateNotifier<List<MedicalHistory
   Future<List<MedicalHistory>> Function()? get queuedVisits => null;
 
   @override
+  bool get includePendingPrescriptions => false;
+
+  @override
+  bool get includeReferred => false;
+
+  @override
   Future<void> warmCache() async {}
 
   @override

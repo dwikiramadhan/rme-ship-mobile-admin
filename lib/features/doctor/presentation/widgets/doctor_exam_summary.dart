@@ -18,10 +18,15 @@ class DoctorExamSummary extends StatelessWidget {
     required this.patient,
     this.headerAction,
     this.beforeDiagnosis,
+    this.examResult,
     this.onViewLabDocument,
   });
 
   final Patient patient;
+
+  /// The doctor's "Hasil Pemeriksaan" (see `doctorExamResult`); hidden when
+  /// null or empty.
+  final String? examResult;
 
   /// Optional widget next to the status badge (e.g. the doctor's "Ubah").
   final Widget? headerAction;
@@ -88,6 +93,20 @@ class DoctorExamSummary extends StatelessWidget {
         const SizedBox(height: 12),
         if (beforeDiagnosis != null) ...[
           beforeDiagnosis!,
+          const SizedBox(height: 10),
+        ],
+        if (examResult?.trim().isNotEmpty == true) ...[
+          ExamSection(
+            label: 'Hasil Pemeriksaan',
+            child: Text(
+              examResult!.trim(),
+              style: const TextStyle(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.text,
+              ),
+            ),
+          ),
           const SizedBox(height: 10),
         ],
         ExamDiagnosisDetail(diagnosa: p.diagnosa, tindakan: p.tindakan),

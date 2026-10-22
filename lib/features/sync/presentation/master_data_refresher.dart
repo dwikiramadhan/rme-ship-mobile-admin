@@ -13,7 +13,7 @@ import 'master_data_status.dart';
 import 'sync_providers.dart';
 
 /// Keeps a recent copy of the master data the forms need offline (the
-/// ship's doctors, the harbors, the ship's medicine stock list) on the
+/// ship's doctors, the harbors, the lab tests, the ship's medicine stock list) on the
 /// device: downloaded right after login and again each time the server is
 /// reachable again, so the offline cache (`masterDataPaths`) has it even if
 /// no form was opened while online.
@@ -26,10 +26,12 @@ class MasterDataRefresher {
   Future<void> refresh() async {
     _ref.invalidate(doctorsProvider);
     _ref.invalidate(portsProvider);
+    _ref.invalidate(labTestsProvider);
     // Errors are handled where the lists are shown.
     await Future.wait([
       _ref.read(doctorsProvider.future).then((_) {}, onError: (_) {}),
       _ref.read(portsProvider.future).then((_) {}, onError: (_) {}),
+      _ref.read(labTestsProvider.future).then((_) {}, onError: (_) {}),
       _downloadShipStocks(),
     ]);
     _ref.invalidate(masterDataStatusProvider);

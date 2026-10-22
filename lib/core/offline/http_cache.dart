@@ -14,6 +14,7 @@ const List<String> masterDataPaths = [
   ApiConfig.medicalPersonnelPath,
   ApiConfig.portsPath,
   ApiConfig.shipMedicineStocksPathPrefix,
+  ApiConfig.labTestsPath,
 ];
 
 /// Whether cache [key] (a path + query) is master data: it starts with one

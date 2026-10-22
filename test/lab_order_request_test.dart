@@ -9,6 +9,7 @@ void main() {
     expect(labOrderRequestJson(order), {
       'requested_test': 'Darah Lengkap',
       'notes': 'Puasa 8 jam',
+      'requires_fasting': false,
     });
   });
 

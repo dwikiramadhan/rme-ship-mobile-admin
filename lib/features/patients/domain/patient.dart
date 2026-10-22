@@ -531,7 +531,10 @@ class Patient extends Equatable {
       keluhan = 'Pemeriksaan umum';
     }
 
-    final String? statusPenanganan = json['status_penanganan']?.toString();
+    // The patient list gives the latest visit's status (and id) instead.
+    final String? statusPenanganan =
+        (json['status_penanganan'] ?? json['latest_status_penanganan'])
+            ?.toString();
     final String registerNo = CleanTextHelper.cleanCode(
       json['register_no'] ??
           json['code'] ??
@@ -566,6 +569,7 @@ class Patient extends Equatable {
         (json['medical_record_id'] ??
                 json['medicalRecordId'] ??
                 json['med_rec_id'] ??
+                json['latest_medical_record_id'] ??
                 (json['medical_record'] is Map
                     ? json['medical_record']['id']
                     : null) ??

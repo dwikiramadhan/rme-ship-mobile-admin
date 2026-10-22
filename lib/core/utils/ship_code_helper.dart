@@ -13,7 +13,8 @@ Future<String> resolveLocalStorageShipCode([dynamic ref]) async {
   // 1. Direct FlutterSecureStorage keys
   try {
     const storage = FlutterSecureStorage();
-    final direct = await storage.read(key: 'ship_code') ??
+    final direct =
+        await storage.read(key: 'ship_code') ??
         await storage.read(key: 'shipCode') ??
         await storage.read(key: 'bayan_rme.active_environment_code') ??
         await storage.read(key: 'bayan_rme.active_environment_ship_id') ??
@@ -75,8 +76,13 @@ Future<String> resolveLocalStorageShipCode([dynamic ref]) async {
 }
 
 /// The active ship's id (a UUID), which the backend requires on every new
-/// visit. Null when no ship is set on this device.
+/// visit: the logged-in user's ship first, then the ship set on this device.
+/// Null when there is none.
 Future<String?> resolveActiveShipId(WidgetRef ref) async {
+  final sessionShipId = ref.read(authControllerProvider).session?.user.shipId;
+  if (sessionShipId != null && sessionShipId.trim().isNotEmpty) {
+    return sessionShipId.trim();
+  }
   try {
     final stored = await ref.read(environmentStorageProvider).getShipId();
     if (stored != null && stored.trim().isNotEmpty) return stored.trim();

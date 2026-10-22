@@ -10,6 +10,7 @@ import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/status_filter_button.dart';
 import '../../history/presentation/add_visit_screen.dart';
+import '../../history/presentation/edit_visit_screen.dart';
 import '../../medicine_stock/presentation/medicine_stock_screen.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/medical_history.dart';
@@ -187,7 +188,25 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
             title: m.patientName,
             code: m.code,
             subtitle: _formatHistorySubtitle(m),
-            badge: _historyStatusBadge(m.statusPenanganan),
+            badge: isWaitingForDoctor(m.statusPenanganan)
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _historyStatusBadge(m.statusPenanganan),
+                      // Still waiting for the doctor: the visit can be edited.
+                      IconButton(
+                        tooltip: 'Edit Kunjungan',
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(
+                          LucideIcons.pencil,
+                          size: 16,
+                          color: AppColors.blue,
+                        ),
+                        onPressed: () => openEditVisit(context, m),
+                      ),
+                    ],
+                  )
+                : _historyStatusBadge(m.statusPenanganan),
           ),
       ],
       detailBuilder: (context, id) {

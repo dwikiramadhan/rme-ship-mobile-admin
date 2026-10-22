@@ -13,6 +13,9 @@ import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/screen_header.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../history/presentation/edit_visit_screen.dart';
+import '../../nurse/presentation/patient_form.dart';
 import '../data/patient_repository.dart';
 import '../domain/patient.dart';
 import 'patient_detail_screen.dart';
@@ -369,6 +372,12 @@ class _PatientCard extends ConsumerWidget {
         ? const Color(0xFF2563EB)
         : const Color(0xFFE11D48);
 
+    // While the latest visit still waits for the doctor, the nurse can edit
+    // the patient's identity.
+    final canEditPatient =
+        canEditVisits(ref.watch(authControllerProvider).session?.user.role) &&
+        isWaitingForDoctor(patient.statusPenanganan);
+
     final displayDate = patient.createdAt != null
         ? formatDateTime(patient.createdAt)
         : (patient.lastVisit != null && patient.lastVisit!.isNotEmpty
@@ -630,6 +639,13 @@ class _PatientCard extends ConsumerWidget {
                   labelWidth: 42,
                   maxLines: 2,
                 ),
+              if (canEditPatient) ...[
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _EditPatientButton(patient: patient),
+                ),
+              ],
             ],
           ),
         ),
@@ -760,6 +776,84 @@ class _PatientCard extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Opens the patient's identity (the full patient form) to edit, from the
+/// patient's details as the detail screen loads them.
+class _EditPatientButton extends ConsumerStatefulWidget {
+  const _EditPatientButton({required this.patient});
+
+  final Patient patient;
+
+  @override
+  ConsumerState<_EditPatientButton> createState() => _EditPatientButtonState();
+}
+
+class _EditPatientButtonState extends ConsumerState<_EditPatientButton> {
+  bool _loading = false;
+
+  Future<void> _open() async {
+    setState(() => _loading = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final data = await ref.read(
+        patientDetailProvider(widget.patient.id).future,
+      );
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          // The form is a plain body widget, so a pushed page needs its own
+          // Scaffold (see patient_detail_screen.dart).
+          builder: (routeContext) => Scaffold(
+            backgroundColor: AppColors.bg,
+            body: SafeArea(
+              child: PatientForm(
+                initialPatient: Patient.fromApiJson(data),
+                onBack: () => Navigator.of(routeContext).pop(),
+                onSaved: () {
+                  Navigator.of(routeContext).pop();
+                  // PatientForm already refreshes patients & history.
+                  ref.invalidate(patientDetailProvider(widget.patient.id));
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Gagal membuka data pasien: $e'),
+          backgroundColor: AppColors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: _loading ? null : _open,
+      style: TextButton.styleFrom(
+        foregroundColor: AppColors.blue,
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+      ),
+      icon: _loading
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(LucideIcons.pencil, size: 14),
+      label: const Text(
+        'Edit Pasien',
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }

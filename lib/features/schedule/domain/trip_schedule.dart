@@ -549,6 +549,18 @@ class JadwalPerjalanan extends Equatable {
   bool get isCompleted => tripStatus == TripStatus.completed;
   bool get isCancelled => tripStatus == TripStatus.cancelled;
 
+  /// Where the ship is at [now]: the last stop it has arrived at (also while
+  /// sailing on to the next one), or the first stop before it reaches any.
+  ScheduleStop? currentStop(DateTime now) {
+    final ordered = [...stops]
+      ..sort((a, b) => a.stopOrder.compareTo(b.stopOrder));
+    if (ordered.isEmpty) return null;
+    final arrived = ordered.where(
+      (s) => s.arrival != null && !s.arrival!.isAfter(now),
+    );
+    return arrived.isNotEmpty ? arrived.last : ordered.first;
+  }
+
   JadwalPerjalanan copyWith({
     String? id,
     String? code,
@@ -1002,6 +1014,18 @@ class PaginatedCrewResult {
   final int limit;
   final bool hasMore;
 }
+
+/// Used when the clinic list can't be loaded (codes as on the server).
+const List<PoliklinikItem> defaultPoliklinik = [
+  PoliklinikItem(id: 'UMUM', code: 'UMUM', name: 'Poli Umum'),
+  PoliklinikItem(id: 'GIGI', code: 'GIGI', name: 'Poli Gigi'),
+  PoliklinikItem(id: 'KIA', code: 'KIA', name: 'Poli KIA / Anak'),
+  PoliklinikItem(id: 'MATA', code: 'MATA', name: 'Poli Mata'),
+  PoliklinikItem(id: 'OBGYN', code: 'OBGYN', name: 'Poli Obstetri & Ginekologi'),
+  PoliklinikItem(id: 'PDALAM', code: 'PDALAM', name: 'Poli Penyakit Dalam'),
+  PoliklinikItem(id: 'THT', code: 'THT', name: 'Poli THT'),
+  PoliklinikItem(id: 'BEDAH', code: 'BEDAH', name: 'Poli Bedah'),
+];
 
 class PoliklinikItem extends Equatable {
   const PoliklinikItem({

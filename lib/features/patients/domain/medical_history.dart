@@ -3,6 +3,7 @@ import '../../../core/utils/diagnosis_helper.dart';
 import 'dispensed_medicine.dart';
 import 'lab_order.dart';
 import 'patient.dart';
+import 'pending_prescription.dart';
 import 'prescription_item.dart';
 import 'vitals.dart';
 
@@ -664,12 +665,22 @@ class MedicalHistory {
       jenis: test,
       catatan: exam['doctor_notes']?.toString().trim() ?? '',
       status: hasOwnLabResults ? LabOrderStatus.selesai : LabOrderStatus.baru,
+      requiresFasting: exam['requires_fasting'] == true,
     );
   }
 
   /// Whether this visit's own lab examination has results (items or a
   /// document). Unlike [labExaminationItems] / [labAttachmentUrl] this never
   /// falls back to the patient's latest lab, which may be another visit's.
+  /// Still has medicine the pharmacy hasn't dispensed (see
+  /// [hasPendingPrescription]).
+  bool get prescriptionPending => hasPendingPrescription(rawJson);
+
+  /// Medicine to dispense: "Menunggu Obat", or a prescription given with a
+  /// lab referral that the pharmacy hasn't dispensed yet.
+  bool get waitingForPharmacy =>
+      (statusPenanganan ?? status) == 'Menunggu Obat' || prescriptionPending;
+
   /// Medicines handed to the patient (the pharmacy's dispenses, including
   /// substitutions; the prescription itself before anything is dispensed).
   List<DispensedMedicine> get dispensedMedicines =>

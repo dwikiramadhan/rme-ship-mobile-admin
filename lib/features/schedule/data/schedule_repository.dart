@@ -8,6 +8,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/offline/outbox_entry.dart';
 import '../../../core/offline/sync_service.dart';
 import '../../../core/utils/ship_code_helper.dart';
+import '../../patients/domain/doctor.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../domain/trip_schedule.dart';
 import 'schedule_api.dart';
@@ -270,6 +271,54 @@ final portsProvider = FutureProvider<List<PortItem>>((ref) async {
 final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
   final api = ref.watch(scheduleApiProvider);
   return ScheduleRepository(api);
+});
+
+/// The ongoing trip of this ship when a visit form opens. Null when no trip
+/// is under way.
+final ongoingTripProvider =
+    FutureProvider.autoDispose<JadwalPerjalanan?>((ref) async {
+  final shipCode = await resolveLocalStorageShipCode(ref);
+  if (shipCode.isEmpty) return null;
+  // Same request as the schedule list, so it also works offline.
+  final result = await ref
+      .watch(scheduleRepositoryProvider)
+      .fetchPaginatedSchedules(shipCode: shipCode, search: '', status: 'Semua');
+  return result.items.where((t) => t.isOngoing).firstOrNull;
+});
+
+/// The harbor a new visit is recorded at: where the ongoing trip is when the
+/// form opens. Null when no trip is under way.
+final currentPortProvider =
+    FutureProvider.autoDispose<ScheduleStop?>((ref) async {
+  final trip = await ref.watch(ongoingTripProvider.future);
+  final stop = trip?.currentStop(DateTime.now());
+  return stop == null || stop.portId.isEmpty ? null : stop;
+});
+
+/// The doctors on the ongoing trip: the ones a visit outside Poli Umum can
+/// be assigned to, and the ones told about a Poli Umum visit.
+final tripDoctorsProvider =
+    FutureProvider.autoDispose<List<Doctor>>((ref) async {
+  final trip = await ref.watch(ongoingTripProvider.future);
+  return [
+    for (final d in trip?.doctorStaff ?? const <SchedulePersonnelItem>[])
+      if (d.id.isNotEmpty)
+        Doctor(id: d.id, nama: d.name, spesialisasi: d.specialization, online: true),
+  ];
+});
+
+/// The clinics a visit can go to, from GET /api/v1/poliklinik; the standard
+/// list when the server can't be reached.
+final poliklinikOptionsProvider =
+    FutureProvider<List<PoliklinikItem>>((ref) async {
+  try {
+    final result = await ref
+        .watch(scheduleRepositoryProvider)
+        .fetchPoliklinik(limit: 200);
+    final items = result.items.where((p) => p.code.isNotEmpty).toList();
+    if (items.isNotEmpty) return items;
+  } catch (_) {}
+  return defaultPoliklinik;
 });
 
 /// Provides stable counter data fetched from GET /api/v1/schedules/ship/:shipCode/counter.

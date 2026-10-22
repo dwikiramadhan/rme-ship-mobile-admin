@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../core/utils/clean_text_helper.dart';
+import 'pending_prescription.dart';
 
 class ObatPenggantian extends Equatable {
   const ObatPenggantian({
@@ -32,6 +33,7 @@ class ResepItem extends Equatable {
     this.satuan,
     this.unitOfMeasurement,
     this.penggantian,
+    this.dispensed = false,
   });
 
   final String? id;
@@ -43,6 +45,9 @@ class ResepItem extends Equatable {
   final String? satuan;
   final String? unitOfMeasurement;
   final ObatPenggantian? penggantian;
+
+  /// Already dispensed by the pharmacy (e.g. while the patient was at the lab).
+  final bool dispensed;
 
   factory ResepItem.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'] ??
@@ -140,6 +145,7 @@ class ResepItem extends Equatable {
       satuan: unitOfMeasurement,
       unitOfMeasurement: unitOfMeasurement,
       penggantian: penggantian,
+      dispensed: json['dispensed'] == true || isDispensedPrescription(json),
     );
   }
 
@@ -161,6 +167,7 @@ class ResepItem extends Equatable {
             if (penggantian!.notes != null) 'notes': penggantian!.notes,
             if (penggantian!.sku != null) 'sku': penggantian!.sku,
           },
+        if (dispensed) 'dispensed': true,
       };
 
   ResepItem copyWith({
@@ -173,6 +180,7 @@ class ResepItem extends Equatable {
     String? satuan,
     String? unitOfMeasurement,
     ObatPenggantian? penggantian,
+    bool? dispensed,
   }) {
     return ResepItem(
       id: id ?? this.id,
@@ -184,12 +192,13 @@ class ResepItem extends Equatable {
       satuan: satuan ?? this.satuan,
       unitOfMeasurement: unitOfMeasurement ?? this.unitOfMeasurement,
       penggantian: penggantian ?? this.penggantian,
+      dispensed: dispensed ?? this.dispensed,
     );
   }
 
   @override
   List<Object?> get props =>
-      [id, obat, dosis, instruksi, sku, jumlah, satuan, unitOfMeasurement, penggantian];
+      [id, obat, dosis, instruksi, sku, jumlah, satuan, unitOfMeasurement, penggantian, dispensed];
 }
 
 List<ResepItem> parseResepString(String text) {

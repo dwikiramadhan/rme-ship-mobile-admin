@@ -15,14 +15,17 @@ import '../../../core/widgets/app_select.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/widgets/circle_icon_button.dart';
 import '../../../core/utils/ship_code_helper.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../../patients/data/patient_repository.dart';
-import '../../sync/presentation/offline_data_card.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../../patients/data/region_api.dart';
 import '../../patients/domain/doctor.dart';
 import '../../patients/domain/patient.dart';
+import '../../patients/domain/poli.dart';
 import '../../patients/domain/vitals.dart';
 import '../../schedule/domain/trip_schedule.dart';
+import '../../schedule/presentation/widgets/current_port_info.dart';
+import '../../schedule/presentation/widgets/poli_umum_note.dart';
 
 /// Patient intake & edit form with Material UI v3 aesthetics:
 /// - DOB datepicker with auto age calculation
@@ -74,7 +77,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   Gender? _jk;
   String? _bloodType;
   String? _dokterId;
-  String? _portId;
+  String _poliCode = poliUmumCode;
   String? _hubunganWali;
   bool _saving = false;
 
@@ -120,8 +123,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   void initState() {
     super.initState();
     _isFormValidNotifier = ValueNotifier<bool>(_valid);
-    _nama.addListener(_updateValidState);
-    _keluhanUtama.addListener(_updateValidState);
+    for (final c in [_nama, _keluhanUtama, ..._requiredVitals]) {
+      c.addListener(_updateValidState);
+    }
     _initData();
   }
 
@@ -335,8 +339,9 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
   @override
   void dispose() {
-    _nama.removeListener(_updateValidState);
-    _keluhanUtama.removeListener(_updateValidState);
+    for (final c in [_nama, _keluhanUtama, ..._requiredVitals]) {
+      c.removeListener(_updateValidState);
+    }
     _isFormValidNotifier.dispose();
     for (final c in [
       _nama,
@@ -359,32 +364,43 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     super.dispose();
   }
 
+  /// Blood pressure, pulse and temperature: required in the triage.
+  List<TextEditingController> get _requiredVitals => [_td, _nadi, _suhu];
+
   /// Editing only touches patient data; a new patient also needs the
-  /// triage (complaint + doctor) for its first visit.
+  /// triage (complaint, vitals, doctor) for its first visit.
   bool get _valid =>
       _nama.text.trim().isNotEmpty &&
       _jk != null &&
       _dob != null &&
       (widget.isEdit ||
           (_keluhanUtama.text.trim().isNotEmpty &&
-              _dokterId != null &&
-              _portId != null));
+              _requiredVitals.every((c) => c.text.trim().isNotEmpty) &&
+              (isPoliUmum(_poliCode) || _dokterId != null)));
 
   Future<void> _save() async {
     if (!_valid) return;
     setState(() => _saving = true);
 
-    // A new patient's first visit needs the ship; check it before anything
-    // (photo, patient) is saved.
+    // A new patient's first visit needs the ship and the harbor; check them
+    // before anything (photo, patient) is saved.
     String? shipId;
+    String? portId;
     if (widget.initialPatient == null) {
       shipId = await resolveActiveShipId(ref);
-      if (shipId == null) {
+      if (shipId != null) {
+        try {
+          portId = (await ref.read(currentPortProvider.future))?.portId;
+        } catch (_) {}
+      }
+      if (shipId == null || portId == null) {
         if (!mounted) return;
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(noActiveShipMessage),
+          SnackBar(
+            content: Text(
+              shipId == null ? noActiveShipMessage : noCurrentPortMessage,
+            ),
             backgroundColor: AppColors.red,
           ),
         );
@@ -475,7 +491,16 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
       final normalizedBlood = Patient.normalizeBloodType(_bloodType);
 
+      // The service ship is the logged-in nurse's ship.
       String? activeShipCode = widget.initialPatient?.serviceShipCode;
+      if (activeShipCode == null || activeShipCode.isEmpty) {
+        activeShipCode = ref
+            .read(authControllerProvider)
+            .session
+            ?.user
+            .shipCode
+            ?.trim();
+      }
       if (activeShipCode == null || activeShipCode.isEmpty) {
         try {
           final resolved = await resolveLocalStorageShipCode(ref);
@@ -551,12 +576,14 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                   frekuensiNapas: _rr.text.trim(),
                   spo2: _spo2.text.trim(),
                 ),
-                assignedDokterId: _dokterId!,
+                // Poli Umum: no doctor; the first one to examine takes it.
+                assignedDokterId: isPoliUmum(_poliCode) ? '' : _dokterId!,
+                poliCode: _poliCode,
                 waktuMasuk: waktu,
                 updatedAt: DateTime.now(),
               ),
               shipId: shipId!,
-              portId: _portId!,
+              portId: portId!,
             );
       }
 
@@ -647,10 +674,10 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
   @override
   Widget build(BuildContext context) {
-    // The ship's doctors: from the server, or offline from the copy kept on
-    // the device. Never a placeholder list — a visit for a doctor who isn't
-    // on this ship would be rejected (or misassigned) once it syncs.
-    final doctorsAsync = ref.watch(doctorsProvider);
+    // The doctors on the ongoing trip (also offline, from the kept schedule
+    // list). Never a placeholder list — a visit for a doctor who isn't on
+    // this trip would be misassigned once it syncs.
+    final doctorsAsync = ref.watch(tripDoctorsProvider);
     final List<Doctor> doctorList = doctorsAsync.valueOrNull ?? const [];
     // No doctor is preselected for a new patient; a choice that is no longer
     // in the list (e.g. after the server list loads) has to be made again.
@@ -846,134 +873,135 @@ class _PatientFormState extends ConsumerState<PatientForm> {
         children: [
           _buildSectionHeader(
             icon: LucideIcons.stethoscope,
-            title: 'DOKTER PEMERIKSA',
+            title: 'POLIKLINIK & DOKTER PEMERIKSA',
           ),
           const SizedBox(height: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const AppFieldLabel(
-                label: 'Assign ke Dokter',
-                required: true,
-                fontSize: 10.5,
-              ),
-              const SizedBox(height: 5),
-              GestureDetector(
-                onTap: () => _showDoctorSearchModal(doctors),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 11,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.inputBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: _dokterId != null
-                          ? AppColors.blue.withValues(alpha: 0.5)
-                          : AppColors.border,
+          _buildPoliSelect(),
+          const SizedBox(height: 12),
+          if (isPoliUmum(_poliCode))
+            PoliUmumDoctorsNote(doctorCount: doctors.length, loading: loading)
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const AppFieldLabel(
+                  label: 'Assign ke Dokter',
+                  required: true,
+                  fontSize: 10.5,
+                ),
+                const SizedBox(height: 5),
+                GestureDetector(
+                  onTap: () => _showDoctorSearchModal(doctors),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 11,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.inputBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _dokterId != null
+                            ? AppColors.blue.withValues(alpha: 0.5)
+                            : AppColors.border,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: _dokterId != null
+                                ? AppColors.blueLt
+                                : AppColors.border.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            LucideIcons.stethoscope,
+                            size: 16,
+                            color: _dokterId != null
+                                ? AppColors.blue
+                                : AppColors.sub,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: selectedDoc != null
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      selectedDoc.nama,
+                                      style: const TextStyle(
+                                        fontSize: 11.0,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      selectedDoc.spesialisasi,
+                                      style: const TextStyle(
+                                        fontSize: 9.0,
+                                        color: AppColors.sub,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Text(
+                                  loading
+                                      ? 'Memuat daftar dokter...'
+                                      : 'Pilih dokter pemeriksa...',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: AppColors.sub,
+                                  ),
+                                ),
+                        ),
+                        const Icon(
+                          LucideIcons.chevronDown,
+                          size: 16,
+                          color: AppColors.sub,
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: _dokterId != null
-                              ? AppColors.blueLt
-                              : AppColors.border.withValues(alpha: 0.5),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          LucideIcons.stethoscope,
-                          size: 16,
-                          color: _dokterId != null
-                              ? AppColors.blue
-                              : AppColors.sub,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: selectedDoc != null
-                            ? Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    selectedDoc.nama,
-                                    style: const TextStyle(
-                                      fontSize: 11.0,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.text,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    selectedDoc.spesialisasi,
-                                    style: const TextStyle(
-                                      fontSize: 9.0,
-                                      color: AppColors.sub,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Text(
-                                loading
-                                    ? 'Memuat daftar dokter...'
-                                    : 'Pilih dokter pemeriksa...',
-                                style: const TextStyle(
-                                  fontSize: 10.5,
-                                  color: AppColors.sub,
-                                ),
-                              ),
-                      ),
-                      const Icon(
-                        LucideIcons.chevronDown,
-                        size: 16,
-                        color: AppColors.sub,
-                      ),
-                    ],
+                ),
+                if (!loading && doctors.isEmpty) ...[
+                  const SizedBox(height: 6),
+                  const Text(
+                    noTripDoctorsMessage,
+                    style: TextStyle(fontSize: 10, color: AppColors.red),
                   ),
-                ),
-              ),
-              if (!loading && doctors.isEmpty) ...[
-                const SizedBox(height: 6),
-                const Text(
-                  doctorsUnavailableMessage,
-                  style: TextStyle(fontSize: 10, color: AppColors.red),
-                ),
+                ],
               ],
-              const DoctorsStaleNote(),
-            ],
-          ),
+            ),
           const SizedBox(height: 12),
-          _buildPortSelect(),
+          const CurrentPortInfo(labelFontSize: 10.5, fontSize: 11),
         ],
       ),
     );
   }
 
-  /// Harbor of the first visit (`port_id`, required by the backend).
-  Widget _buildPortSelect() {
-    final ports = ref.watch(portsProvider);
+  /// Clinic of the first visit; Poli Umum needs no assigned doctor.
+  Widget _buildPoliSelect() {
+    final options =
+        ref.watch(poliklinikOptionsProvider).valueOrNull ?? defaultPoliklinik;
     return AppSelect<String>(
-      label: 'Pelabuhan',
+      label: 'Poliklinik Tujuan',
       required: true,
-      value: _portId,
+      value: _poliCode,
       fontSize: 11.0,
       labelFontSize: 10.5,
-      hint: ports.isLoading
-          ? 'Memuat pelabuhan...'
-          : ports.hasError
-          ? 'Gagal memuat pelabuhan'
-          : 'Pilih pelabuhan...',
       options: [
-        for (final port in ports.valueOrNull ?? const <PortItem>[])
-          AppSelectOption(value: port.id, label: port.name),
+        for (final poli in options)
+          AppSelectOption(value: poli.code, label: poli.name),
       ],
       onChanged: (v) {
-        setState(() => _portId = v);
+        if (v == null) return;
+        setState(() => _poliCode = v);
         _updateValidState();
       },
     );
@@ -1756,6 +1784,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               Expanded(
                 child: AppTextField(
                   label: 'Tekanan Darah',
+                  required: true,
                   controller: _td,
                   fontSize: 11.0,
                   labelFontSize: 10.5,
@@ -1766,6 +1795,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               Expanded(
                 child: AppTextField(
                   label: 'Nadi',
+                  required: true,
                   controller: _nadi,
                   fontSize: 11.0,
                   labelFontSize: 10.5,
@@ -1785,6 +1815,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
               Expanded(
                 child: AppTextField(
                   label: 'Suhu Tubuh',
+                  required: true,
                   controller: _suhu,
                   fontSize: 11.0,
                   labelFontSize: 10.5,

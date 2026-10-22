@@ -15,8 +15,11 @@ import '../../../core/notifications/in_app_notification_manager.dart';
 import '../../../core/notifications/in_app_notification_model.dart';
 import '../domain/doctor.dart';
 import '../domain/lab_order.dart';
+import '../domain/lab_test_type.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
+import '../domain/pending_prescription.dart';
+import '../domain/poli.dart';
 import '../domain/prescription_item.dart';
 import '../domain/vitals.dart';
 import '../../auth/presentation/auth_controller.dart';
@@ -742,7 +745,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       photoUrl: patient.photoUrl,
       serviceShipCode: effectiveShipCode,
     );
-    final visitBody = patient.assignedDokterId.isNotEmpty
+    // Poli Umum needs no doctor: the first one to examine takes the visit.
+    final visitBody =
+        patient.assignedDokterId.isNotEmpty || isPoliUmum(patient.poliCode)
         ? _firstVisitBody(
             patient,
             shipId: shipId,
@@ -897,7 +902,11 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     }
 
     return {
-      'doctor_id': patient.assignedDokterId,
+      'doctor_id': patient.assignedDokterId.isNotEmpty
+          ? patient.assignedDokterId
+          : null,
+      if (patient.poliCode != null && patient.poliCode!.isNotEmpty)
+        'poli_code': patient.poliCode,
       'ship_id': shipId,
       if (effectiveShipCode != null && effectiveShipCode.isNotEmpty) ...{
         'ship_code': effectiveShipCode,
@@ -1202,6 +1211,31 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     _update(id, (p) => p.copyWith(dilihatLab: true));
   }
 
+  /// The nurse's edit of a visit still waiting for the doctor (clinic,
+  /// doctor, complaint, vitals): PATCH /patients/:id/medical-records/:record,
+  /// kept in the outbox while offline. The handling status is left as is.
+  Future<void> updateVisit({
+    required String patientId,
+    required String recordId,
+    required Map<String, dynamic> body,
+  }) async {
+    final path = '${_medicalRecordsPath(patientId)}/$recordId';
+    final nama = state.where((p) => p.id == patientId).firstOrNull?.nama;
+    Future<void> queue() => _sync!.enqueue(
+      method: 'PATCH',
+      path: path,
+      label: 'Edit kunjungan: ${nama ?? 'pasien'}',
+      body: body,
+    );
+    if (await _mustQueue()) return queue();
+    try {
+      await _api.patchMedicalRecord(patientId, recordId, body);
+    } on ApiException catch (e) {
+      if (!_canQueue(e)) rethrow;
+      await queue();
+    }
+  }
+
   /// Patches a patient's medical record via PATCH /api/v1/patients/:id/medical-records/:recordId
   Future<void> patchMedicalRecord({
     required String patientId,
@@ -1212,6 +1246,10 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
   }) async {
     final statusPenanganan =
         body['status_penanganan']?.toString() ?? 'Menunggu Obat';
+    // Referred: the other doctor takes the patient over.
+    final referredTo = body['referral'] is Map
+        ? (body['referral'] as Map)['to_doctor_id']?.toString()
+        : null;
 
     await _seenStorage.markDoctorSeen(patientId);
     if (statusPenanganan == 'Menunggu Lab' || labOrder != null) {
@@ -1230,6 +1268,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
         resep: resep ?? p.resep,
         resepStatus: ResepStatus.baru,
         labOrder: labOrder ?? p.labOrder,
+        assignedDokterId: referredTo ?? p.assignedDokterId,
         dilihatDokter: true,
       ),
     );
@@ -1773,6 +1812,7 @@ class NotificationsNotifier extends StateNotifier<List<Patient>> {
         limit: 50,
         statusPenanganan: status,
         userId: userId,
+        includePendingPrescriptions: currentRole == UserRole.pharmacy,
       );
       if (!mounted || seq != _fetchSeq) return;
 
@@ -1977,6 +2017,17 @@ final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {
   }
 });
 
+/// The lab request form's tests. Offline, the last list kept on the device
+/// is used (see `masterDataPaths`); empty when there is none yet.
+final labTestsProvider = FutureProvider<List<LabTestType>>((ref) async {
+  try {
+    return await ref.watch(patientApiProvider).getLabTests();
+  } catch (e) {
+    debugPrint('labTestsProvider error: $e');
+    return [];
+  }
+});
+
 /// Fetches full patient details directly from GET /api/v1/patients/:id
 final patientDetailProvider =
     FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
@@ -2024,6 +2075,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
     this.statusPenanganan,
     this.userId,
     this.oldestFirst = false,
+    this.includePendingPrescriptions = false,
+    this.includeReferred = false,
     this.queuedVisitIds,
     this.queuedExams,
     this.queuedVisits,
@@ -2039,6 +2092,16 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
   /// Queue order (oldest first) instead of newest first.
   final bool oldestFirst;
 
+  /// The pharmacy queue: "Menunggu Obat" also lists the visits with medicine
+  /// still to dispense (a prescription given with a lab referral).
+  final bool includePendingPrescriptions;
+
+  /// A doctor's history: also the visits they referred to another doctor.
+  final bool includeReferred;
+
+  bool _withPending(String? status) =>
+      includePendingPrescriptions && includesPharmacyQueue(status);
+
   // The list as it opens, before any filter the user picks.
   final String? _defaultStatus;
   final String? _defaultUserId;
@@ -2051,6 +2114,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
       search: '',
       statusPenanganan: _defaultStatus,
       userId: _defaultUserId,
+      includePendingPrescriptions: _withPending(_defaultStatus),
+      includeReferred: includeReferred,
       order: oldestFirst ? 'asc' : 'desc',
     );
   }
@@ -2115,6 +2180,9 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
 
     return h.copyWith(
       statusPenanganan: text('status_penanganan') ?? h.statusPenanganan,
+      // A nurse's edit of a visit still waiting for the doctor.
+      complaint: text('complaint') ?? h.complaint,
+      poliCode: text('poli_code') ?? h.poliCode,
       diagnosis: text('diagnosis') ?? h.diagnosis,
       treatment: text('treatment') ?? h.treatment,
       notes: exam.containsKey('note') ? exam['note']?.toString() : h.notes,
@@ -2178,6 +2246,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
         userId: userId,
+        includePendingPrescriptions: _withPending(statusPenanganan),
+        includeReferred: includeReferred,
         order: oldestFirst ? 'asc' : 'desc',
       );
       final (data, hidden) = await _withQueued(res.data);
@@ -2216,6 +2286,8 @@ class MedicalHistoryNotifier extends StateNotifier<List<MedicalHistory>> {
         search: _currentSearch,
         statusPenanganan: statusPenanganan,
         userId: userId,
+        includePendingPrescriptions: _withPending(statusPenanganan),
+        includeReferred: includeReferred,
         order: oldestFirst ? 'asc' : 'desc',
       );
       final (data, hidden) = await _withQueued(res.data);
@@ -2351,6 +2423,7 @@ final medicalHistoryByUserProvider = StateNotifierProvider.family<
     api: api,
     autoFetch: hasSession,
     userId: userId,
+    includeReferred: true,
     queuedExams: () => examsQueuedFor(sync),
   );
 });
@@ -2358,7 +2431,8 @@ final medicalHistoryByUserProvider = StateNotifierProvider.family<
 /// Alias for backwards compatibility
 final medicalHistoryByDoctorProvider = medicalHistoryByUserProvider;
 
-/// Dedicated medical history provider for Pharmacy (Antrian Resep) filtered by status_penanganan = 'Menunggu Obat'
+/// Dedicated medical history provider for Pharmacy (Antrian Resep) filtered by status_penanganan = 'Menunggu Obat',
+/// plus the visits with a prescription given with a lab referral.
 final pharmacyPrescriptionHistoryProvider =
     StateNotifierProvider<MedicalHistoryNotifier, List<MedicalHistory>>((ref) {
       final api = ref.watch(patientApiProvider);
@@ -2371,6 +2445,7 @@ final pharmacyPrescriptionHistoryProvider =
         autoFetch: hasSession,
         statusPenanganan: 'Menunggu Obat',
         oldestFirst: true,
+        includePendingPrescriptions: true,
         queuedVisitIds: () => visitsQueuedFor(sync, 'dispense'),
         queuedExams: () => examsQueuedFor(sync),
       );

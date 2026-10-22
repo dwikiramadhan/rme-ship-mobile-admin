@@ -1,8 +1,8 @@
 import 'package:bayan_rme/core/offline/http_cache.dart';
 import 'package:bayan_rme/features/nurse/presentation/patient_form.dart';
-import 'package:bayan_rme/features/patients/data/patient_repository.dart';
 import 'package:bayan_rme/features/patients/data/region_api.dart';
 import 'package:bayan_rme/features/schedule/domain/trip_schedule.dart';
+import 'package:bayan_rme/features/schedule/presentation/widgets/poli_umum_note.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -78,7 +78,7 @@ void main() {
     expect(() => dio.get<dynamic>('/api/v1/patients'), throwsA(isA<DioException>()));
   });
 
-  testWidgets('no doctors on the device: says so, offers no placeholder doctors', (
+  testWidgets('no doctors on the trip: says so, offers no placeholder doctors', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(640, 3200);
@@ -89,7 +89,10 @@ void main() {
       ProviderScope(
         overrides: [
           wilayahApiProvider.overrideWithValue(_EmptyWilayahApi()),
-          doctorsProvider.overrideWith((ref) async => const []),
+          tripDoctorsProvider.overrideWith((ref) async => const []),
+          poliklinikOptionsProvider.overrideWith(
+            (ref) async => defaultPoliklinik,
+          ),
           portsProvider.overrideWith((ref) async => const <PortItem>[]),
         ],
         child: MaterialApp(
@@ -99,7 +102,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(doctorsUnavailableMessage), findsOneWidget);
+    // Outside Poli Umum a doctor from the ongoing trip has to be picked.
+    await tester.tap(find.text('Poli Umum').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Poli Gigi').last);
+    await tester.pumpAndSettle();
+    expect(find.text(noTripDoctorsMessage), findsOneWidget);
 
     await tester.tap(find.text('Pilih dokter pemeriksa...'));
     await tester.pumpAndSettle();
