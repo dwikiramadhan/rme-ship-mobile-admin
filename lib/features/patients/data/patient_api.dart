@@ -7,6 +7,7 @@ import '../../../core/network/api_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../domain/doctor.dart';
+import '../domain/lab_parameter.dart';
 import '../domain/lab_test_type.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
@@ -304,6 +305,22 @@ class PatientApi {
   }
 
   /// The lab request form's tests (GET /api/v1/lab-tests), in form order.
+  /// The lab result form rows (master `GET /lab-parameters`).
+  Future<List<LabParameter>> getLabParameters() async {
+    try {
+      final response = await _dio.get(ApiConfig.labParametersPath);
+      final data = response.data;
+      final result = data is Map<String, dynamic> ? data['result'] : null;
+      return [
+        if (result is List)
+          for (final json in result.whereType<Map<String, dynamic>>())
+            LabParameter.fromJson(json),
+      ];
+    } on DioException catch (e) {
+      throw DioClient.mapError(e);
+    }
+  }
+
   Future<List<LabTestType>> getLabTests() async {
     try {
       final response = await _dio.get(ApiConfig.labTestsPath);

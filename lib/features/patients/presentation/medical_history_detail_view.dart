@@ -15,6 +15,7 @@ import '../../auth/presentation/auth_controller.dart';
 import '../../doctor/data/icd10_api.dart';
 import '../../doctor/data/icd9_api.dart';
 import '../../doctor/presentation/widgets/examination_input_modal.dart';
+import '../../lab/presentation/widgets/lab_result_table.dart';
 import '../../history/presentation/edit_visit_screen.dart';
 import '../data/patient_repository.dart';
 import '../domain/dispensed_medicine.dart';
@@ -94,6 +95,7 @@ class MedicalHistoryDetailView extends ConsumerWidget {
 
     final labExam = history.labExamination;
     final labItems = history.labExaminationItems;
+    final labExamId = labExam?['id']?.toString() ?? '';
     final labCode = history.labExaminationCode;
 
     final String labJenisText = labCode != null && labCode.isNotEmpty
@@ -531,94 +533,16 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                                   // Parameter pemeriksaan lab (lab_examination.items)
                                   if (labItems.isNotEmpty) ...[
                                     const SizedBox(height: 8),
-                                    for (final item in labItems)
-                                      Container(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 6,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFF8FAFC),
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFFE2E8F0),
-                                            width: 0.8,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    item.testName,
-                                                    style: const TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      color: AppColors.text,
-                                                      letterSpacing: 0,
-                                                    ),
-                                                  ),
-                                                  if (item
-                                                      .testCategory
-                                                      .isNotEmpty) ...[
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      item.testCategory,
-                                                      style: const TextStyle(
-                                                        fontSize: 10.5,
-                                                        color: AppColors.sub,
-                                                        letterSpacing: 0,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ],
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
-                                              children: [
-                                                Text(
-                                                  item.notes.isNotEmpty
-                                                      ? item.notes
-                                                      : (item.unit.isNotEmpty
-                                                            ? '- ${item.unit}'
-                                                            : '—'),
-                                                  style: const TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFF0284C7),
-                                                    letterSpacing: 0,
-                                                  ),
-                                                ),
-                                                if (item
-                                                    .referenceRange
-                                                    .isNotEmpty) ...[
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    'Rujukan: ${item.referenceRange}',
-                                                    style: const TextStyle(
-                                                      fontSize: 10,
-                                                      color: AppColors.sub,
-                                                      letterSpacing: 0,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                    LabResultTable(items: labItems),
+                                  ],
+                                  if (labExamId.isNotEmpty &&
+                                      (labItems.isNotEmpty ||
+                                          (labAttachmentUrl?.isNotEmpty ??
+                                              false))) ...[
+                                    const SizedBox(height: 8),
+                                    LabResultPdfButton(
+                                      labExaminationId: labExamId,
+                                    ),
                                   ],
 
                                   if (labAttachmentUrl != null &&

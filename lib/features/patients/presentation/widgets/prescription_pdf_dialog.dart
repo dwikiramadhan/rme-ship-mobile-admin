@@ -22,22 +22,25 @@ typedef PrescriptionPdfSaver =
 
 /// The PDF is rendered by the backend (same layout as the web admin's
 /// "Download Resep"), behind JWT, so it goes through the app's Dio client.
-Future<PrescriptionPdfFile> _downloadWithAuth(String medicalRecordId) async {
+Future<PrescriptionPdfFile> _downloadWithAuth(
+  String path,
+  String fallbackName,
+) async {
   final res = await DioClient.instance.get<List<int>>(
-    ApiConfig.medicalRecordPrescriptionPdfPath(medicalRecordId),
+    path,
     options: Options(responseType: ResponseType.bytes),
   );
   return (
     bytes: Uint8List.fromList(res.data ?? const []),
     fileName:
         prescriptionFileName(res.headers.value('content-disposition')) ??
-        'resep-$medicalRecordId.pdf',
+        fallbackName,
   );
 }
 
 Future<bool> _saveWithPicker(String fileName, Uint8List bytes) async {
   final uri = await FilePicker.saveFile(
-    dialogTitle: 'Simpan Resep',
+    dialogTitle: 'Simpan PDF',
     fileName: fileName,
     bytes: bytes,
     mimeType: 'application/pdf',
@@ -76,15 +79,58 @@ Future<void> showPrescriptionPdfDialog(
   );
 }
 
+/// Shows the "Hasil Pemeriksaan Laboratorium" PDF of a lab examination
+/// (`GET /lab-examinations/:id/pdf`) with a button to save it.
+Future<void> showLabResultPdfDialog(
+  BuildContext context, {
+  required String labExaminationId,
+  PrescriptionPdfLoader? loader,
+  PrescriptionPdfSaver? saver,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => PrescriptionPdfDialog(
+      medicalRecordId: labExaminationId,
+      path: ApiConfig.labExaminationPdfPath(labExaminationId),
+      title: 'Hasil Pemeriksaan Lab',
+      noun: 'hasil lab',
+      fileStem: 'hasil-lab',
+      icon: LucideIcons.flaskConical,
+      loader: loader,
+      saver: saver,
+    ),
+  );
+}
+
+/// A backend-rendered PDF (the prescription by default, or [path]) with a
+/// button to save it.
 class PrescriptionPdfDialog extends StatefulWidget {
   const PrescriptionPdfDialog({
     super.key,
     required this.medicalRecordId,
+    this.path,
+    this.title = 'Resep Obat',
+    this.noun = 'resep',
+    this.fileStem = 'resep',
+    this.icon = LucideIcons.pill,
     this.loader,
     this.saver,
   });
 
+  /// The id the PDF belongs to (a lab examination id when [path] is a lab
+  /// result).
   final String medicalRecordId;
+
+  /// Download path; default the prescription of [medicalRecordId].
+  final String? path;
+  final String title;
+
+  /// Used in the messages, e.g. "Resep tersimpan".
+  final String noun;
+
+  /// File name prefix when the server sends none.
+  final String fileStem;
+  final IconData icon;
 
   /// Override the download / save (tests).
   final PrescriptionPdfLoader? loader;
@@ -101,12 +147,20 @@ class _PrescriptionPdfDialogState extends State<PrescriptionPdfDialog> {
   /// Loader for [LabDocumentViewer]: keeps the downloaded file so the same
   /// bytes can be saved without downloading again.
   Future<({Uint8List bytes, String? contentType})> _load(String _) async {
-    final file = await (widget.loader ?? _downloadWithAuth)(
+    final file = await (widget.loader ??
+        (id) => _downloadWithAuth(_path, '${widget.fileStem}-$id.pdf'))(
       widget.medicalRecordId,
     );
     if (mounted) setState(() => _file = file);
     return (bytes: file.bytes, contentType: 'application/pdf');
   }
+
+  String get _path =>
+      widget.path ??
+      ApiConfig.medicalRecordPrescriptionPdfPath(widget.medicalRecordId);
+
+  String get _nounCapitalized =>
+      widget.noun[0].toUpperCase() + widget.noun.substring(1);
 
   Future<void> _save() async {
     final file = _file;
@@ -120,12 +174,14 @@ class _PrescriptionPdfDialogState extends State<PrescriptionPdfDialog> {
       );
       if (saved) {
         messenger.showSnackBar(
-          SnackBar(content: Text('Resep tersimpan: ${file.fileName}')),
+          SnackBar(
+            content: Text('$_nounCapitalized tersimpan: ${file.fileName}'),
+          ),
         );
       }
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Gagal menyimpan resep: $e')),
+        SnackBar(content: Text('Gagal menyimpan ${widget.noun}: $e')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -162,8 +218,8 @@ class _PrescriptionPdfDialogState extends State<PrescriptionPdfDialog> {
                       color: AppColors.greenLt,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
-                      LucideIcons.pill,
+                    child: Icon(
+                      widget.icon,
                       size: 16,
                       color: AppColors.green,
                     ),
@@ -173,9 +229,9 @@ class _PrescriptionPdfDialogState extends State<PrescriptionPdfDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Resep Obat',
-                          style: TextStyle(
+                        Text(
+                          widget.title,
+                          style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.text,
@@ -183,7 +239,7 @@ class _PrescriptionPdfDialogState extends State<PrescriptionPdfDialog> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          file?.fileName ?? 'Memuat resep...',
+                          file?.fileName ?? 'Memuat ${widget.noun}...',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -239,10 +295,8 @@ class _PrescriptionPdfDialogState extends State<PrescriptionPdfDialog> {
             SizedBox(
               height: MediaQuery.sizeOf(context).height * 0.72,
               child: LabDocumentViewer(
-                url: ApiConfig.medicalRecordPrescriptionPdfPath(
-                  widget.medicalRecordId,
-                ),
-                fileName: 'resep.pdf',
+                url: _path,
+                fileName: '${widget.fileStem}.pdf',
                 loader: _load,
               ),
             ),

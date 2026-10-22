@@ -9,13 +9,26 @@ import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/theme/app_colors.dart';
 import '../domain/trip_schedule.dart';
 import 'widgets/edit_schedule_modal.dart';
+import 'widgets/poli_layanan_section.dart';
 import '../../../core/utils/capitalize_first_formatter.dart';
 import '../../../core/utils/date_helper.dart';
 
 class TripDetailScreen extends ConsumerStatefulWidget {
-  const TripDetailScreen({super.key, required this.item});
+  const TripDetailScreen({
+    super.key,
+    required this.item,
+    this.readOnly = false,
+    this.canEditClinics = false,
+  });
 
   final JadwalPerjalanan item;
+
+  /// View only (Koordinator): the trip, its logistics and issues can't be
+  /// changed.
+  final bool readOnly;
+
+  /// Shows "Atur Poli" to change the trip's clinic schedule (Koordinator).
+  final bool canEditClinics;
 
   @override
   ConsumerState<TripDetailScreen> createState() => _TripDetailScreenState();
@@ -115,6 +128,10 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     }
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
+
+  /// A completed trip can no longer be changed, nor can a read-only one.
+  bool _canEdit(JadwalPerjalanan schedule) =>
+      !widget.readOnly && !schedule.isCompleted;
 
   void _editSchedule(BuildContext context, JadwalPerjalanan item) {
     EditScheduleModal.show(
@@ -564,6 +581,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   emptyText: 'Belum ada perawat yang ditugaskan',
                 ),
                 const SizedBox(height: 14),
+                _buildCoordinatorCard(schedule),
+                const SizedBox(height: 14),
                 _buildCrewCard(schedule),
               ],
             ),
@@ -612,8 +631,24 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           emptyText: 'Belum ada perawat yang ditugaskan',
         ),
         const SizedBox(height: 14),
+        _buildCoordinatorCard(schedule),
+        const SizedBox(height: 14),
         _buildCrewCard(schedule),
       ],
+    );
+  }
+
+  Widget _buildCoordinatorCard(JadwalPerjalanan schedule) {
+    return _buildPersonnelCard(
+      title: 'KOORDINATOR',
+      icon: LucideIcons.userCog,
+      iconColor: AppColors.blue,
+      badgeBg: AppColors.blueLt,
+      badgeColor: AppColors.blue,
+      items: schedule.coordinatorStaff,
+      avatarBg: AppColors.blueLt,
+      avatarTextColor: AppColors.blue,
+      emptyText: 'Belum ada koordinator yang ditugaskan',
     );
   }
 
@@ -655,8 +690,44 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 ),
               ),
               const Spacer(),
-              // A completed trip can no longer be changed.
-              if (!schedule.isCompleted)
+              if (widget.canEditClinics && schedule.clinicsEditable)
+                InkWell(
+                  onTap: () => editScheduleClinics(context, ref, schedule),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.orangeLt,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.orange.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          LucideIcons.building2,
+                          size: 13,
+                          color: AppColors.orange,
+                        ),
+                        SizedBox(width: 5),
+                        Text(
+                          'Atur Poli',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_canEdit(schedule))
                 InkWell(
                   onTap: () => _editSchedule(context, schedule),
                   borderRadius: BorderRadius.circular(8),
@@ -1433,7 +1504,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         ref.watch(unsyncedIdsProvider).valueOrNull?.logistics ??
         const <String>{};
     // A completed trip's logistics are final: no new or edited records.
-    final canRecord = !schedule.isCompleted;
+    final canRecord = _canEdit(schedule);
     final latest = provisions.isNotEmpty ? provisions.first : null;
 
     final latestFuel = latest != null
@@ -3596,7 +3667,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                         ],
                       ),
                     ),
-                    if (!schedule.isCompleted)
+                    if (_canEdit(schedule))
                       IconButton(
                         icon: const Icon(
                           LucideIcons.pencil,
@@ -3613,7 +3684,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             },
           ),
         // A completed trip is closed: no new issues.
-        if (!schedule.isCompleted) ...[
+        if (_canEdit(schedule)) ...[
           const SizedBox(height: 14),
 
           // Dashed "+ Tambah Kendala" Button

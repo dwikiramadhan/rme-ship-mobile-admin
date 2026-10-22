@@ -272,6 +272,28 @@ class ScheduleApi {
     }
   }
 
+  /// The trips the logged-in user is assigned to, newest first, via
+  /// GET /api/v1/schedules/assigned (not paginated).
+  Future<List<JadwalPerjalanan>> getAssignedSchedules() async {
+    try {
+      final response = await _dio.get(ApiConfig.assignedSchedulesPath);
+      final data = response.data;
+      final result = data is Map<String, dynamic>
+          ? data['result'] ?? data['data']
+          : data;
+      if (result is! List) {
+        throw const ApiException('Format data jadwal tidak valid.');
+      }
+      return result
+          .whereType<Map<String, dynamic>>()
+          .map(JadwalPerjalanan.fromApiJson)
+          .toList();
+    } on DioException catch (e) {
+      debugPrint('ScheduleApi getAssignedSchedules error: $e');
+      throw DioClient.mapError(e);
+    }
+  }
+
   /// Fetches schedules list via GET /api/v1/schedules
   Future<List<JadwalPerjalanan>> getSchedules({String? shipId}) async {
     if (shipId != null && shipId.isNotEmpty) {

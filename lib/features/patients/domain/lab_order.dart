@@ -9,13 +9,28 @@ class LabExaminationItem extends Equatable {
     required this.unit,
     required this.referenceRange,
     this.notes = '',
+    this.resultValue = '',
+    this.status = '',
+    this.labParameterId = '',
   });
 
   final String testName;
   final String testCategory;
   final String unit;
   final String referenceRange;
+
+  /// The result to show (the result value, or the notes when there's none).
   final String notes;
+  final String resultValue;
+
+  /// Normal, Tinggi, Rendah or Abnormal (set by the backend for form rows).
+  final String status;
+
+  /// The lab result form row (`GET /lab-parameters`); '' for other tests.
+  final String labParameterId;
+
+  /// Outside the reference range.
+  bool get flagged => status.isNotEmpty && status.toLowerCase() != 'normal';
 
   Map<String, dynamic> toJson() => {
     'test_name': testName,
@@ -40,6 +55,9 @@ class LabExaminationItem extends Equatable {
       referenceRange:
           (json['reference_range'] ?? json['normal_range'] ?? '').toString(),
       notes: rawNotes,
+      resultValue: json['result_value']?.toString().trim() ?? '',
+      status: json['status']?.toString().trim() ?? '',
+      labParameterId: json['lab_parameter_id']?.toString() ?? '',
     );
   }
 
@@ -50,6 +68,9 @@ class LabExaminationItem extends Equatable {
     unit,
     referenceRange,
     notes,
+    resultValue,
+    status,
+    labParameterId,
   ];
 }
 

@@ -15,6 +15,7 @@ import '../../../patients/data/patient_repository.dart';
 import '../../../patients/domain/clinical_notes.dart';
 import '../../../patients/domain/doctor.dart';
 import '../../../patients/domain/doctor_referral.dart';
+import '../../../lab/presentation/widgets/lab_result_table.dart';
 import '../../../patients/domain/lab_order.dart';
 import '../../../patients/domain/lab_test_type.dart';
 import '../../../patients/domain/medical_history.dart';
@@ -2045,9 +2046,11 @@ class _LabResultSummary extends StatelessWidget {
     final items = [
       if (exam['items'] is List)
         for (final it in exam['items'] as List)
-          if (it is Map) Map<String, dynamic>.from(it),
+          if (it is Map)
+            LabExaminationItem.fromJson(Map<String, dynamic>.from(it)),
     ];
     final attachment = '${exam['attachment_url'] ?? ''}'.trim();
+    final examId = '${exam['id'] ?? ''}'.trim();
     final requested = history.requestedLabOrder?.jenis ?? '';
 
     return Container(
@@ -2103,7 +2106,7 @@ class _LabResultSummary extends StatelessWidget {
           ],
           if (items.isNotEmpty) ...[
             const SizedBox(height: 8),
-            for (final it in items) _LabResultRow(item: it),
+            LabResultTable(items: items),
           ] else if (attachment.isNotEmpty) ...[
             const SizedBox(height: 6),
             const Text(
@@ -2111,80 +2114,11 @@ class _LabResultSummary extends StatelessWidget {
               style: TextStyle(fontSize: 11.5, color: AppColors.sub),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _LabResultRow extends StatelessWidget {
-  const _LabResultRow({required this.item});
-
-  final Map<String, dynamic> item;
-
-  @override
-  Widget build(BuildContext context) {
-    String field(String key) => '${item[key] ?? ''}'.trim();
-    final value = [
-      field('result_value'),
-      field('unit'),
-    ].where((s) => s.isNotEmpty).join(' ');
-    final range = field('reference_range');
-    final status = field('status');
-    final abnormal = status.isNotEmpty && status.toLowerCase() != 'normal';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  field('test_name'),
-                  style: const TextStyle(fontSize: 12.5, color: AppColors.text),
-                ),
-                if (range.isNotEmpty)
-                  Text(
-                    'Rujukan: $range',
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      color: AppColors.sub,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value.isNotEmpty ? value : '—',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.text,
-                ),
-              ),
-              if (status.isNotEmpty)
-                Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: abnormal ? AppColors.red : AppColors.green,
-                  ),
-                ),
-            ],
-          ),
+          if (examId.isNotEmpty &&
+              (items.isNotEmpty || attachment.isNotEmpty)) ...[
+            const SizedBox(height: 8),
+            LabResultPdfButton(labExaminationId: examId),
+          ],
         ],
       ),
     );

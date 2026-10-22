@@ -16,17 +16,20 @@ import '../../../core/widgets/vital_tile.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/clinical_notes.dart';
 import '../../patients/domain/lab_order.dart';
+import '../../patients/domain/lab_parameter.dart';
 import '../../patients/domain/lab_test_type.dart';
 import '../../patients/domain/medical_history.dart';
 import '../../patients/domain/patient.dart';
 import '../../patients/domain/vitals.dart';
 import '../../doctor/presentation/widgets/doctor_exam_summary.dart';
 import '../../patients/presentation/patient_info_card.dart';
+import 'widgets/lab_result_table.dart';
 
+/// A test outside the lab result form, typed by the analyst.
 class _LabItemForm {
   _LabItemForm({
     String testName = '',
-    String testCategory = '',
+    String testCategory = kLabOtherCategory,
     String resultValue = '',
     String unit = '',
     String referenceRange = '',
@@ -40,9 +43,6 @@ class _LabItemForm {
        statusCtrl = TextEditingController(text: status),
        notesCtrl = TextEditingController(text: notes);
 
-  /// The picked lab test (master `GET /lab-tests`), or [_otherTest] when the
-  /// analyst types the name; '' = none picked yet.
-  String labTestId = '';
   final TextEditingController testNameCtrl;
   final TextEditingController testCategoryCtrl;
   final TextEditingController resultValueCtrl;
@@ -62,8 +62,9 @@ class _LabItemForm {
   }
 }
 
-/// Dropdown value for a test that isn't in the master list.
-const _otherTest = '__other__';
+/// Client check before sending, worded as the backend's.
+const kLabResultRequired =
+    'Isi hasil pemeriksaan atau unggah lampiran file hasilnya.';
 
 /// A picked result document.
 typedef LabDocument = ({String name, Uint8List bytes, String? path});
@@ -81,9 +82,9 @@ final labDocumentPickerProvider = Provider<Future<LabDocument?> Function()>(
   },
 );
 
-/// Port of the prototype's `LabOrderDetail` — input the result (the result
-/// document, notes, and optional per-test values) and send it back to the
-/// requesting doctor.
+/// Port of the prototype's `LabOrderDetail` — input the result on the lab
+/// result form (the requested tests' rows, other rows on demand, tests typed
+/// by hand) and/or the result document, and send it back to the doctor.
 class LabOrderDetail extends ConsumerStatefulWidget {
   const LabOrderDetail({super.key, required this.patientId, this.medRecId});
 
@@ -98,6 +99,17 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   final _generalNotesCtrl = TextEditingController();
   final _conclusionCtrl = TextEditingController();
   final List<_LabItemForm> _items = [];
+
+  /// Result per lab result form row (`lab_parameter_id`): text rows by
+  /// controller, choice rows by value.
+  final Map<String, TextEditingController> _resultCtrls = {};
+  final Map<String, String> _choices = {};
+
+  /// Form rows added beyond the requested tests.
+  final Set<String> _extraParamIds = {};
+
+  /// "Jam datang sampel" (today), optional.
+  TimeOfDay? _sampleTime;
   String? _filePath;
   Uint8List? _fileBytes;
   String? _fileName;
@@ -116,6 +128,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     if (oldWidget.patientId != widget.patientId ||
         oldWidget.medRecId != widget.medRecId) {
       _items.clear();
+      _clearResults();
       _generalNotesCtrl.clear();
       _conclusionCtrl.clear();
       _fileName = null;
@@ -151,8 +164,27 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     setState(() => _loading = false);
   }
 
-  // Per-test values are optional: the result document holds the full result.
+  // The form starts from the requested tests' rows (see build).
   void _initItems(LabOrder? order) {}
+
+  void _clearResults() {
+    for (final c in _resultCtrls.values) {
+      c.dispose();
+    }
+    _resultCtrls.clear();
+    _choices.clear();
+    _extraParamIds.clear();
+    _sampleTime = null;
+  }
+
+  TextEditingController _resultCtrl(String parameterId) =>
+      _resultCtrls.putIfAbsent(parameterId, TextEditingController.new);
+
+  /// What was entered per form row.
+  Map<String, String> get _results => {
+    for (final e in _resultCtrls.entries) e.key: e.value.text,
+    ..._choices,
+  };
 
   void _addItem() {
     setState(() {
@@ -160,17 +192,67 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     });
   }
 
-  /// Row [index] now reports [labTestId]: name and category from the master.
-  void _pickTest(int index, String labTestId, List<LabTestType> tests) {
-    final item = _items[index];
-    final test = tests.where((t) => t.id == labTestId).firstOrNull;
-    setState(() {
-      item.labTestId = labTestId;
-      item.testNameCtrl.text = test?.name ?? '';
-      item.testCategoryCtrl.text = labTestId == _otherTest
-          ? kLabOtherCategory
-          : (test?.category ?? '');
-    });
+  void _addParameter(String id) => setState(() => _extraParamIds.add(id));
+
+  void _removeParameter(String id) => setState(() {
+    _extraParamIds.remove(id);
+    _resultCtrls.remove(id)?.dispose();
+    _choices.remove(id);
+  });
+
+  Future<void> _pickSampleTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _sampleTime ?? TimeOfDay.now(),
+    );
+    if (picked != null) setState(() => _sampleTime = picked);
+  }
+
+  /// [_sampleTime] today, as sent to the server.
+  String? get _sampleReceivedAt {
+    final t = _sampleTime;
+    if (t == null) return null;
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, t.hour, t.minute)
+        .toUtc()
+        .toIso8601String();
+  }
+
+  bool _filled(_LabItemForm it) => [
+    it.testNameCtrl,
+    it.resultValueCtrl,
+    it.unitCtrl,
+    it.referenceRangeCtrl,
+    it.notesCtrl,
+  ].any((c) => c.text.trim().isNotEmpty);
+
+  /// Something to send: a result on the form or a document.
+  bool get _hasResult =>
+      _results.values.any((v) => v.trim().isNotEmpty) ||
+      _items.any((it) => it.resultValueCtrl.text.trim().isNotEmpty);
+
+  /// Adds a form row that isn't on the form yet.
+  void _openParameterSheet(
+    List<LabParameter> parameters,
+    List<LabParameter> onForm,
+  ) {
+    final shown = {for (final p in onForm) p.id};
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _LabParameterSearchSheet(
+        parameters: [
+          for (final p in parameters)
+            if (!shown.contains(p.id)) p,
+        ],
+        onSelect: (id) {
+          Navigator.of(sheetContext).pop();
+          _addParameter(id);
+        },
+      ),
+    );
   }
 
   void _removeItem(int index) {
@@ -193,6 +275,9 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     for (final it in _items) {
       it.dispose();
     }
+    for (final c in _resultCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -211,24 +296,26 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
     }
   }
 
-  Future<void> _submit(Patient patient) async {
-    if (_fileName == null) {
-      _showError('Dokumen hasil lab wajib diunggah');
+  Future<void> _submit(
+    Patient patient,
+    List<LabParameter> formRows,
+    String Function(LabParameter) reference,
+  ) async {
+    if (_fileName == null && !_hasResult) {
+      _showError(kLabResultRequired);
       return;
     }
-    bool filled(_LabItemForm it) => [
-      it.testNameCtrl,
-      it.resultValueCtrl,
-      it.unitCtrl,
-      it.referenceRangeCtrl,
-      it.notesCtrl,
-    ].any((c) => c.text.trim().isNotEmpty);
-    if (_items.any((it) => filled(it) && it.testNameCtrl.text.trim().isEmpty)) {
-      _showError('Pilih pemeriksaan di setiap baris hasil yang diisi');
+    if (_items.any((it) => _filled(it) && it.testNameCtrl.text.trim().isEmpty)) {
+      _showError('Isi nama pemeriksaan di setiap pemeriksaan lain yang diisi');
       return;
     }
 
-    final validItems = _items
+    final formItems = labParameterItems(
+      formRows,
+      _results,
+      reference: reference,
+    );
+    final otherItems = _items
         .where((it) => it.testNameCtrl.text.trim().isNotEmpty)
         .map(
           (it) => {
@@ -248,6 +335,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
           },
         )
         .toList();
+    final validItems = [...formItems, ...otherItems];
 
     final generalNotes = _generalNotesCtrl.text.trim().isNotEmpty
         ? _generalNotesCtrl.text.trim()
@@ -309,6 +397,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
             notes: generalNotes,
             conclusion: _conclusionCtrl.text.trim(),
             items: validItems,
+            sampleReceivedAt: _sampleReceivedAt,
             fileName: _fileName,
             filePath: _filePath,
             fileBytes: _fileBytes,
@@ -353,6 +442,8 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
   Widget build(BuildContext context) {
     final labTests =
         ref.watch(labTestsProvider).valueOrNull ?? const <LabTestType>[];
+    final parameters =
+        ref.watch(labParametersProvider).valueOrNull ?? const <LabParameter>[];
     // Select only the entries this pane shows so list-wide updates
     // (WS polls, paging) don't rebuild it.
     MedicalHistory? findHistory(List<MedicalHistory> list) =>
@@ -414,6 +505,29 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
 
     // Ensure items are initialized if opened freshly
     _initItems(order);
+
+    // The lab result form: the requested tests' rows, then rows added.
+    final requested = requestedParameters(
+      parameters,
+      requestedLabTestIds(order.jenis, labTests),
+    );
+    final requestedIds = {for (final p in requested) p.id};
+    final formRows = [
+      ...requested,
+      for (final p in parameters)
+        if (_extraParamIds.contains(p.id) && !requestedIds.contains(p.id)) p,
+    ];
+    final dob =
+        DateTime.tryParse(patient.dob ?? '') ??
+        (patient.umur > 0
+            ? DateTime.now().subtract(Duration(days: patient.umur * 365))
+            : null);
+    String reference(LabParameter p) =>
+        patientReference(p, gender: patient.jk.label, dob: dob);
+    final resultItems = (medHistory?.labExaminationItems.isNotEmpty == true)
+        ? medHistory!.labExaminationItems
+        : (order.hasil?.items ?? const <LabExaminationItem>[]);
+    final labExamId = medHistory?.labExamination?['id']?.toString() ?? '';
 
     // Doctor's examination for the selected record (not whichever visit
     // patientsProvider last loaded), with the lab order resolved above.
@@ -513,7 +627,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        '${_items.length} parameter',
+                        '${formRows.length + _items.length} parameter',
                         style: const TextStyle(
                           fontSize: 10.5,
                           color: AppColors.skyBlue,
@@ -540,80 +654,16 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                   ),
                   const SizedBox(height: 8),
                 ],
-                if (order.hasil?.items != null &&
-                    order.hasil!.items.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  const Text(
-                    'PARAMETER PEMERIKSAAN',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.sub,
-                    ),
+                if (resultItems.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  LabResultTable(items: resultItems),
+                ],
+                if (labExamId.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: LabResultPdfButton(labExaminationId: labExamId),
                   ),
-                  const SizedBox(height: 6),
-                  for (final item in order.hasil!.items)
-                    Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.card2,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.testName,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.text,
-                                  ),
-                                ),
-                                if (item.testCategory.isNotEmpty)
-                                  Text(
-                                    item.testCategory,
-                                    style: const TextStyle(
-                                      fontSize: 10.5,
-                                      color: AppColors.sub,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                item.notes.isNotEmpty
-                                    ? item.notes
-                                    : (item.unit.isNotEmpty
-                                          ? '- ${item.unit}'
-                                          : '—'),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.purple,
-                                ),
-                              ),
-                              if (item.referenceRange.isNotEmpty)
-                                Text(
-                                  'Rujukan: ${item.referenceRange} ${item.unit}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.sub,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
                 ],
                 if (medHistory?.labExamination?['conclusion']?.toString().trim().isNotEmpty == true) ...[
                   const SizedBox(height: 8),
@@ -688,7 +738,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                 ),
               ] else ...[
                 const Text(
-                  'Hasil per Pemeriksaan (opsional)',
+                  'Formulir Hasil Pemeriksaan',
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
@@ -697,13 +747,50 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                 ),
                 const SizedBox(height: 2),
                 const Text(
-                  'Hasil lengkap ada di dokumen lampiran. Isi bila ingin mencatat nilai tiap pemeriksaan.',
+                  'Tinggi/Rendah ditandai otomatis dari nilai rujukan pasien. '
+                  'Dokumen hasil opsional bila hasil sudah diisi.',
                   style: TextStyle(fontSize: 10.5, color: AppColors.sub),
                 ),
                 const SizedBox(height: 8),
+                _SampleTimeField(
+                  time: _sampleTime,
+                  onTap: _pickSampleTime,
+                  onClear: () => setState(() => _sampleTime = null),
+                ),
+                const SizedBox(height: 10),
+                if (formRows.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'Tes yang diminta tidak ada di formulir. Tambahkan '
+                      'parameter dari formulir atau ketik pemeriksaan lain.',
+                      style: TextStyle(fontSize: 10.5, color: AppColors.sub),
+                    ),
+                  ),
+                for (final (heading, rows) in groupLabParameters(formRows)) ...[
+                  _FormHeading(title: heading),
+                  for (final p in rows)
+                    _ParameterRow(
+                      parameter: p,
+                      reference: reference(p),
+                      controller: p.isSelect ? null : _resultCtrl(p.id),
+                      choice: _choices[p.id],
+                      onChoice: (v) => setState(() {
+                        if (v == null || v.isEmpty) {
+                          _choices.remove(p.id);
+                        } else {
+                          _choices[p.id] = v;
+                        }
+                      }),
+                      onChanged: () => setState(() {}),
+                      onRemove: requestedIds.contains(p.id)
+                          ? null
+                          : () => _removeParameter(p.id),
+                    ),
+                ],
                 for (int i = 0; i < _items.length; i++) ...[
                   Container(
-                    margin: const EdgeInsets.only(bottom: 10),
+                    margin: const EdgeInsets.only(bottom: 10, top: 4),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: AppColors.card2,
@@ -717,7 +804,7 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              'Pemeriksaan #${i + 1}',
+                              'Pemeriksaan Lain #${i + 1}',
                               style: const TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -726,38 +813,29 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                               ),
                             ),
                             InkWell(
-                                onTap: () => _removeItem(i),
-                                borderRadius: BorderRadius.circular(6),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(4),
-                                  child: Icon(
-                                    LucideIcons.trash2,
-                                    size: 14,
-                                    color: AppColors.red,
-                                  ),
+                              onTap: () => _removeItem(i),
+                              borderRadius: BorderRadius.circular(6),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(
+                                  LucideIcons.trash2,
+                                  size: 14,
+                                  color: AppColors.red,
                                 ),
                               ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 8),
-                        _LabTestPicker(
-                          tests: labTests,
-                          value: _items[i].labTestId,
-                          category: _items[i].testCategoryCtrl.text,
-                          onChanged: (id) => _pickTest(i, id, labTests),
+                        AppTextField(
+                          label: 'Nama Pemeriksaan',
+                          required: true,
+                          controller: _items[i].testNameCtrl,
+                          labelFontSize: 11,
+                          fontSize: 11.5,
+                          placeholder: 'cth: Rontgen Thorax',
+                          onChanged: (_) => setState(() {}),
                         ),
-                        if (_items[i].labTestId == _otherTest) ...[
-                          const SizedBox(height: 8),
-                          AppTextField(
-                            label: 'Nama Pemeriksaan',
-                            required: true,
-                            controller: _items[i].testNameCtrl,
-                            labelFontSize: 11,
-                            fontSize: 11.5,
-                            placeholder: 'cth: Rontgen Thorax',
-                            onChanged: (_) => setState(() {}),
-                          ),
-                        ],
                         const SizedBox(height: 8),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -823,34 +901,46 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                           controller: _items[i].notesCtrl,
                           labelFontSize: 11,
                           fontSize: 11.5,
-                          placeholder:
-                              'cth: Sampel darah kapiler',
+                          placeholder: 'cth: Sampel darah kapiler',
                           onChanged: (_) => setState(() {}),
                         ),
                       ],
                     ),
                   ),
                 ],
-
-                Center(
-                  child: TextButton.icon(
-                    onPressed: _addItem,
-                    icon: const Icon(LucideIcons.plus, size: 14),
-                    label: const Text(
-                      'Tambah Hasil Pemeriksaan',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _openParameterSheet(parameters, formRows),
+                      icon: const Icon(LucideIcons.plus, size: 14),
+                      label: const Text(
+                        'Tambah parameter lain',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.skyBlue,
                       ),
                     ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.skyBlue,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
+                    TextButton.icon(
+                      onPressed: _addItem,
+                      icon: const Icon(LucideIcons.pencil, size: 14),
+                      label: const Text(
+                        'Pemeriksaan lain (ketik manual)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.skyBlue,
                       ),
                     ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 12),
 
@@ -884,8 +974,11 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                     text: 'Dokumen Hasil Lab',
                     children: [
                       TextSpan(
-                        text: ' *',
-                        style: TextStyle(color: AppColors.red),
+                        text: ' (opsional bila hasil diisi)',
+                        style: TextStyle(
+                          color: AppColors.sub,
+                          fontWeight: FontWeight.w400,
+                        ),
                       ),
                     ],
                   ),
@@ -970,8 +1063,8 @@ class _LabOrderDetailState extends ConsumerState<LabOrderDetail> {
                   full: true,
                   loading: _saving,
                   loadingLabel: 'Mengirim...',
-                  onPressed: (_fileName != null && !_saving)
-                      ? () => _submit(patient)
+                  onPressed: (!_saving && (_fileName != null || _hasResult))
+                      ? () => _submit(patient, formRows, reference)
                       : null,
                 ),
               ],
@@ -1324,144 +1417,232 @@ extension _FirstOrNull<T> on Iterable<T> {
   T? get firstOrNull => isEmpty ? null : first;
 }
 
-/// "Jenis Pemeriksaan": opens [_LabTestSearchSheet] to search the master lab
-/// tests (or pick "Lainnya" for one that isn't listed). The category follows
-/// the picked test.
-class _LabTestPicker extends StatelessWidget {
-  const _LabTestPicker({
-    required this.tests,
-    required this.value,
-    required this.category,
+/// A heading of the lab result form, e.g. "Kimia Klinik / Gula Darah".
+class _FormHeading extends StatelessWidget {
+  const _FormHeading({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 6, bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.skyLt,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: AppColors.skyBlue,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+}
+
+/// One row of the lab result form: name, the result (typed, or picked
+/// from the row's options), unit, and the patient's reference range.
+class _ParameterRow extends StatelessWidget {
+  const _ParameterRow({
+    required this.parameter,
+    required this.reference,
+    required this.controller,
+    required this.choice,
+    required this.onChoice,
     required this.onChanged,
+    this.onRemove,
   });
 
-  final List<LabTestType> tests;
-  final String value;
-  final String category;
-  final ValueChanged<String> onChanged;
+  final LabParameter parameter;
+  final String reference;
 
-  void _open(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => _LabTestSearchSheet(
-        tests: tests,
-        selectedId: value,
-        onSelect: (id) {
-          Navigator.of(sheetContext).pop();
-          onChanged(id);
-        },
+  /// The result field of a text row; null for a choice row.
+  final TextEditingController? controller;
+  final String? choice;
+  final ValueChanged<String?> onChoice;
+  final VoidCallback onChanged;
+
+  /// Set for rows added beyond the requested tests.
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = parameter;
+    final input = p.isSelect
+        ? DropdownButtonFormField<String>(
+            key: ValueKey('lab-param-${p.id}'),
+            initialValue: choice,
+            isExpanded: true,
+            hint: const Text(
+              'Pilih hasil',
+              style: TextStyle(fontSize: 11.5, color: AppColors.sub),
+            ),
+            style: const TextStyle(fontSize: 11.5, color: AppColors.text),
+            decoration: _inputDecoration,
+            items: [
+              const DropdownMenuItem(value: '', child: Text('-')),
+              for (final o in p.options)
+                DropdownMenuItem(value: o, child: Text(o)),
+            ],
+            onChanged: onChoice,
+          )
+        : TextField(
+            key: ValueKey('lab-param-${p.id}'),
+            controller: controller,
+            onChanged: (_) => onChanged(),
+            style: const TextStyle(fontSize: 11.5, color: AppColors.text),
+            decoration: _inputDecoration.copyWith(hintText: 'Hasil'),
+          );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  p.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                if (reference.isNotEmpty)
+                  Text(
+                    'Rujukan: $reference',
+                    style: const TextStyle(fontSize: 10, color: AppColors.sub),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(flex: 3, child: input),
+          SizedBox(
+            width: 56,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 6),
+              child: Text(
+                p.unit,
+                style: const TextStyle(fontSize: 10.5, color: AppColors.sub),
+              ),
+            ),
+          ),
+          if (onRemove != null)
+            InkWell(
+              onTap: onRemove,
+              borderRadius: BorderRadius.circular(6),
+              child: const Padding(
+                padding: EdgeInsets.all(4),
+                child: Icon(LucideIcons.x, size: 14, color: AppColors.red),
+              ),
+            ),
+        ],
       ),
     );
   }
 
+  static final _inputDecoration = InputDecoration(
+    isDense: true,
+    filled: true,
+    fillColor: Colors.white,
+    hintStyle: const TextStyle(fontSize: 11, color: AppColors.sub),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: AppColors.border),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: AppColors.skyBlue),
+    ),
+  );
+}
+
+/// "Jam datang sampel": when the lab received the sample (today).
+class _SampleTimeField extends StatelessWidget {
+  const _SampleTimeField({
+    required this.time,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  final TimeOfDay? time;
+  final VoidCallback onTap;
+  final VoidCallback onClear;
+
   @override
   Widget build(BuildContext context) {
-    final selected = tests.where((t) => t.id == value).firstOrNull;
-    final label = value == _otherTest
-        ? 'Lainnya (ketik manual)'
-        : (selected?.name ?? '');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final t = time;
+    final label = t == null
+        ? 'Pilih jam (opsional)'
+        : '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+    return Row(
       children: [
-        const Text.rich(
-          TextSpan(
-            text: 'Jenis Pemeriksaan',
-            children: [
-              TextSpan(
-                text: ' *',
-                style: TextStyle(color: AppColors.red),
-              ),
-            ],
-          ),
+        const Text(
+          'Jam Datang Sampel',
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 11.5,
             fontWeight: FontWeight.w600,
             color: AppColors.text,
           ),
         ),
-        const SizedBox(height: 5),
-        InkWell(
-          onTap: () => _open(context),
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label.isEmpty ? 'Pilih pemeriksaan...' : label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: label.isEmpty ? AppColors.sub : AppColors.text,
-                    ),
-                  ),
-                ),
-                const Icon(
-                  LucideIcons.chevronDown,
-                  size: 14,
-                  color: AppColors.sub,
-                ),
-              ],
-            ),
+        const SizedBox(width: 10),
+        OutlinedButton.icon(
+          onPressed: onTap,
+          icon: const Icon(LucideIcons.clock, size: 13),
+          label: Text(label, style: const TextStyle(fontSize: 11.5)),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: t == null ? AppColors.sub : AppColors.text,
+            side: const BorderSide(color: AppColors.border),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
-        if (value.isNotEmpty && value != _otherTest) ...[
-          const SizedBox(height: 4),
-          Text(
-            'Kategori: ${category.isEmpty ? '-' : category}',
-            style: const TextStyle(fontSize: 10.5, color: AppColors.sub),
+        if (t != null)
+          IconButton(
+            onPressed: onClear,
+            icon: const Icon(LucideIcons.x, size: 14, color: AppColors.red),
+            visualDensity: VisualDensity.compact,
           ),
-        ],
       ],
     );
   }
 }
 
-/// Bottom sheet: search the lab tests by name or category, listed under
-/// their category, plus "Lainnya (ketik manual)".
-class _LabTestSearchSheet extends StatefulWidget {
-  const _LabTestSearchSheet({
-    required this.tests,
-    required this.selectedId,
+/// Bottom sheet: search the lab result form rows not on the form yet, by
+/// name or heading.
+class _LabParameterSearchSheet extends StatefulWidget {
+  const _LabParameterSearchSheet({
+    required this.parameters,
     required this.onSelect,
   });
 
-  final List<LabTestType> tests;
-  final String selectedId;
+  final List<LabParameter> parameters;
   final ValueChanged<String> onSelect;
 
   @override
-  State<_LabTestSearchSheet> createState() => _LabTestSearchSheetState();
+  State<_LabParameterSearchSheet> createState() =>
+      _LabParameterSearchSheetState();
 }
 
-class _LabTestSearchSheetState extends State<_LabTestSearchSheet> {
+class _LabParameterSearchSheetState extends State<_LabParameterSearchSheet> {
   String _query = '';
 
   @override
   Widget build(BuildContext context) {
-    final groups = groupLabTests(filterLabTests(widget.tests, _query));
-    Widget option(String id, String label) => InkWell(
-      onTap: () => widget.onSelect(id),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-        color: id == widget.selectedId ? AppColors.skyLt : null,
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: AppColors.text),
-        ),
-      ),
+    final groups = groupLabParameters(
+      filterLabParameters(widget.parameters, _query),
     );
-
     return Container(
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.85,
@@ -1478,7 +1659,7 @@ class _LabTestSearchSheetState extends State<_LabTestSearchSheet> {
           const Padding(
             padding: EdgeInsets.fromLTRB(18, 16, 18, 8),
             child: Text(
-              'Pilih Jenis Pemeriksaan',
+              'Tambah Parameter Pemeriksaan',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
@@ -1493,7 +1674,7 @@ class _LabTestSearchSheetState extends State<_LabTestSearchSheet> {
               onChanged: (v) => setState(() => _query = v),
               style: const TextStyle(fontSize: 12),
               decoration: InputDecoration(
-                hintText: 'Cari pemeriksaan atau kategori...',
+                hintText: 'Cari parameter atau bagian...',
                 hintStyle: const TextStyle(fontSize: 11.5, color: AppColors.sub),
                 prefixIcon: const Icon(
                   LucideIcons.search,
@@ -1523,15 +1704,15 @@ class _LabTestSearchSheetState extends State<_LabTestSearchSheet> {
                   const Padding(
                     padding: EdgeInsets.all(18),
                     child: Text(
-                      'Pemeriksaan tidak ditemukan',
+                      'Parameter tidak ditemukan',
                       style: TextStyle(fontSize: 12, color: AppColors.sub),
                     ),
                   ),
-                for (final (category, items) in groups) ...[
+                for (final (heading, items) in groups) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
                     child: Text(
-                      category,
+                      heading,
                       style: const TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
@@ -1539,10 +1720,25 @@ class _LabTestSearchSheetState extends State<_LabTestSearchSheet> {
                       ),
                     ),
                   ),
-                  for (final t in items) option(t.id, t.name),
+                  for (final p in items)
+                    InkWell(
+                      onTap: () => widget.onSelect(p.id),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 11,
+                        ),
+                        child: Text(
+                          p.name,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
-                const Divider(height: 1, color: AppColors.border),
-                option(_otherTest, 'Lainnya (ketik manual)'),
                 const SizedBox(height: 12),
               ],
             ),

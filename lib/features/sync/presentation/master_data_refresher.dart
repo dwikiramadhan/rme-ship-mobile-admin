@@ -27,11 +27,13 @@ class MasterDataRefresher {
     _ref.invalidate(doctorsProvider);
     _ref.invalidate(portsProvider);
     _ref.invalidate(labTestsProvider);
+    _ref.invalidate(labParametersProvider);
     // Errors are handled where the lists are shown.
     await Future.wait([
       _ref.read(doctorsProvider.future).then((_) {}, onError: (_) {}),
       _ref.read(portsProvider.future).then((_) {}, onError: (_) {}),
       _ref.read(labTestsProvider.future).then((_) {}, onError: (_) {}),
+      _ref.read(labParametersProvider.future).then((_) {}, onError: (_) {}),
       _downloadShipStocks(),
     ]);
     _ref.invalidate(masterDataStatusProvider);

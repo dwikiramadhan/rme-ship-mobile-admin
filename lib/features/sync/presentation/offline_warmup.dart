@@ -65,7 +65,7 @@ class OfflineWarmup {
           () => _history(labOrderHistoryProvider),
           _patients,
         ],
-        UserRole.adminKapal => [_tripsInProgress],
+        UserRole.adminKapal || UserRole.koordinator => [_tripsInProgress],
       };
 
   Future<void> _notifications() =>

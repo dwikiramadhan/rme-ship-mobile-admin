@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:bayan_rme/features/patients/domain/lab_parameter.dart';
 import 'package:bayan_rme/features/patients/domain/lab_test_type.dart';
 import 'package:bayan_rme/features/lab/presentation/lab_order_detail.dart';
 import 'package:bayan_rme/core/widgets/app_button.dart';
@@ -119,6 +120,12 @@ class _MockPatientApi implements PatientApi {
           doctorName: 'Budi Santoso',
           date: '2026-09-07',
           createdAt: '2026-09-07T08:30:00Z',
+          rawJson: {
+            'lab_examination': {
+              'id': 'lab-1',
+              'requested_test': 'Hematologi: Hematologi Rutin',
+            },
+          },
         ),
         const MedicalHistory(
           id: 'hist-lab-2',
@@ -338,6 +345,31 @@ void main() {
                 ),
               ],
             ),
+            labParametersProvider.overrideWith(
+              (ref) async => const [
+                LabParameter(
+                  id: 'hb',
+                  section: 'Hematologi',
+                  name: 'Hemoglobin',
+                  unit: 'g/dL',
+                  referenceRange: 'L : 13,5 – 17,5\nP : 11,7 – 15,5',
+                  references: [
+                    LabReference(who: 'L', range: '13,5 – 17,5'),
+                    LabReference(who: 'P', range: '11,7 – 15,5'),
+                  ],
+                  sortOrder: 1,
+                  labTestIds: ['t1'],
+                ),
+                LabParameter(
+                  id: 'goldar',
+                  section: 'Golongan Darah',
+                  name: 'Golongan Darah',
+                  inputType: kLabInputSelect,
+                  options: ['A Rh+', 'O Rh+'],
+                  sortOrder: 11,
+                ),
+              ],
+            ),
             labDocumentPickerProvider.overrideWithValue(
               () async => (
                 name: 'hasil.pdf',
@@ -370,49 +402,41 @@ void main() {
       expect(find.text('Hasil Pemeriksaan Dokter'), findsOneWidget);
       expect(find.text('Diagnosa Klinis'), findsOneWidget);
       expect(find.text('Hasil Pemeriksaan Lab'), findsOneWidget);
-      // The result document is required: no document, no sending.
+      // Nothing to send yet: no result and no document.
       final submitBtn = find.text('Kirim Hasil ke Dokter');
       expect(submitBtn, findsOneWidget);
-      expect(
-        tester
-            .widget<AppButton>(
-              find.ancestor(of: submitBtn, matching: find.byType(AppButton)),
-            )
-            .onPressed,
-        isNull,
+      AppButton button() => tester.widget<AppButton>(
+        find.ancestor(of: submitBtn, matching: find.byType(AppButton)),
       );
+      expect(button().onPressed, isNull);
 
-      // Optional per-test result: the test comes from the master list,
-      // and its category with it.
-      final addBtn = find.text('Tambah Hasil Pemeriksaan');
-      await tester.ensureVisible(addBtn);
-      await tester.tap(addBtn);
-      await tester.pump();
-      final picker = find.text('Pilih pemeriksaan...');
-      await tester.ensureVisible(picker);
-      await tester.tap(picker);
-      await tester.pumpAndSettle();
-      // Searchable: by name or category.
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Cari pemeriksaan atau kategori...'),
-        'xyz',
-      );
-      await tester.pump();
-      expect(find.text('Pemeriksaan tidak ditemukan'), findsOneWidget);
-      await tester.enterText(
-        find.widgetWithText(TextField, 'xyz'),
-        'rutin',
-      );
-      await tester.pump();
-      await tester.tap(find.text('Hematologi Rutin').last);
-      await tester.pumpAndSettle();
-      expect(find.text('Kategori: Hematologi'), findsOneWidget);
+      // The requested test's rows are on the form, with the patient's
+      // reference range.
+      expect(find.text('HEMATOLOGI'), findsOneWidget);
+      expect(find.text('Hemoglobin'), findsOneWidget);
+      expect(find.text('Rujukan: 13,5 – 17,5'), findsOneWidget);
+      expect(find.text('Golongan Darah'), findsNothing);
 
-      final upload = find.text('Unggah hasil scan / PDF');
-      await tester.ensureVisible(upload);
-      await tester.tap(upload);
+      // Another row from the form, searchable.
+      final addParam = find.text('Tambah parameter lain');
+      await tester.ensureVisible(addParam);
+      await tester.tap(addParam);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Cari parameter atau bagian...'),
+        'golongan',
+      );
       await tester.pump();
-      expect(find.text('hasil.pdf'), findsOneWidget);
+      await tester.tap(find.text('Golongan Darah').last);
+      await tester.pumpAndSettle();
+      expect(find.text('GOLONGAN DARAH'), findsOneWidget);
+
+      // A result is enough: the document is optional.
+      final hb = find.byKey(const ValueKey('lab-param-hb'));
+      await tester.ensureVisible(hb);
+      await tester.enterText(hb, '14,2');
+      await tester.pump();
+      expect(button().onPressed, isNotNull);
 
       await tester.ensureVisible(submitBtn);
       await tester.tap(submitBtn);
@@ -431,10 +455,11 @@ void main() {
       );
       expect(body['items'], isA<List>());
       final items = body['items'] as List;
-      expect(items.isNotEmpty, isTrue);
-      expect(items.first['test_name'], 'Hematologi Rutin');
-      expect(items.first['test_category'], 'Hematologi');
-      expect(mockApi.lastSubmittedFiles, 1);
+      // Only rows with a result are sent, by their form row.
+      expect(items, hasLength(1));
+      expect(items.first['lab_parameter_id'], 'hb');
+      expect(items.first['result_value'], '14,2');
+      expect(mockApi.lastSubmittedFiles, 0);
     },
   );
 }

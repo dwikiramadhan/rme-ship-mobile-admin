@@ -68,8 +68,8 @@ void main() {
     expect(find.text('Hasil Pemeriksaan Lab'), findsOneWidget);
     expect(find.text('Darah Lengkap'), findsOneWidget);
     expect(find.text('Hemoglobin'), findsOneWidget);
-    expect(find.text('10.1 g/dL'), findsOneWidget);
-    expect(find.text('Low'), findsOneWidget);
+    // Below the reference range: marked (L), as on the printed form.
+    expect(find.text('10.1 (L) g/dL'), findsOneWidget);
     expect(find.text('Lihat Dokumen'), findsOneWidget);
 
     // Earlier diagnosis and procedure are filled in, not empty.

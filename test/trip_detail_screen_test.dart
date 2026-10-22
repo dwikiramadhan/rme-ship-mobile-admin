@@ -989,6 +989,60 @@ void main() {
     },
   );
 
+  testWidgets(
+    'the trip shows its coordinators; they set the clinics until it ends',
+    (tester) async {
+      JadwalPerjalanan trip(String status) => JadwalPerjalanan(
+        id: 'sched-koor',
+        code: 'SCH-KOOR-001',
+        shipCode: 'KPL-001',
+        namaKapal: 'KM Nusantara 01',
+        pelabuhanAsal: 'Pelabuhan Tanjung Priok',
+        kodeAsal: 'TPK',
+        pelabuhanTujuan: 'Pelabuhan Sorong',
+        kodeTujuan: 'SOQ',
+        berangkat: DateTime(2026, 9, 1, 13),
+        tiba: DateTime(2026, 9, 16, 14),
+        status: status,
+        coordinatorStaff: const [
+          SchedulePersonnelItem(
+            id: 'mp-koor',
+            name: 'UAT Koordinator',
+            type: 'Coordinator',
+          ),
+        ],
+      );
+      Future<void> open(JadwalPerjalanan schedule) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            key: UniqueKey(),
+            overrides: [
+              scheduleRepositoryProvider.overrideWithValue(
+                _FakeScheduleRepo(schedule),
+              ),
+            ],
+            child: MaterialApp(
+              home: TripDetailScreen(
+                item: schedule,
+                readOnly: true,
+                canEditClinics: true,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await open(trip('Scheduled'));
+      expect(find.text('KOORDINATOR'), findsOneWidget);
+      expect(find.text('UAT Koordinator'), findsOneWidget);
+      expect(find.text('Atur Poli'), findsOneWidget);
+
+      await open(trip('Cancelled'));
+      expect(find.text('Atur Poli'), findsNothing);
+    },
+  );
+
   testWidgets('a completed trip shows its logistics and issues read-only', (
     tester,
   ) async {

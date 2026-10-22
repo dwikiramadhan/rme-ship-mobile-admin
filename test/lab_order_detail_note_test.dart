@@ -177,4 +177,42 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('a finished lab shows its results by form part, with the PDF', (
+    tester,
+  ) async {
+    await _pumpDetail(
+      tester,
+      '',
+      history: const MedicalHistory(
+        id: 'hist-1',
+        code: 'REG-1',
+        patientId: 'patient-1',
+        patientName: 'Budi Darmawan',
+        statusPenanganan: 'Menunggu Dokter',
+        rawJson: {
+          'lab_examination': {
+            'id': 'lab-1',
+            'requested_test': 'Hematologi: Hematologi Rutin',
+            'items': [
+              {
+                'lab_parameter_id': 'hb',
+                'test_name': 'Hemoglobin',
+                'test_category': 'Hematologi',
+                'result_value': '18',
+                'unit': 'g/dL',
+                'reference_range': '13,5 – 17,5',
+                'status': 'Tinggi',
+              },
+            ],
+          },
+        },
+      ),
+    );
+
+    expect(find.text('HEMATOLOGI'), findsOneWidget);
+    expect(find.text('18 (H) g/dL'), findsOneWidget);
+    expect(find.text('Unduh Hasil Lab (PDF)'), findsOneWidget);
+    expect(find.text('Kirim Hasil ke Dokter'), findsNothing);
+  });
 }

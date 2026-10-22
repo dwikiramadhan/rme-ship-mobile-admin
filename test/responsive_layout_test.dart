@@ -106,6 +106,7 @@ Future<void> _pumpRole(WidgetTester tester, UserRole? role, {String email = 'tes
         labOrderHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
         medicalHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
         schedulesNotifierProvider.overrideWith((ref) => _FakeSchedulesNotifier()),
+        assignedTripsProvider.overrideWith((ref) async => const []),
       ],
       child: const BayanRmeApp(),
     ),

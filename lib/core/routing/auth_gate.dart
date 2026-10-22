@@ -6,6 +6,7 @@ import '../../features/auth/presentation/auth_controller.dart';
 import '../../features/auth/presentation/auth_state.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/doctor/presentation/doctor_home_screen.dart';
+import '../../features/koordinator/presentation/koordinator_home_screen.dart';
 import '../../features/lab/presentation/lab_home_screen.dart';
 import '../../features/nurse/presentation/nurse_home_screen.dart';
 import '../../features/pharmacy/presentation/pharmacy_home_screen.dart';
@@ -54,6 +55,7 @@ class AuthGate extends ConsumerWidget {
       UserRole.dokter => DokterHomeScreen(doctorId: user.id, doctorName: user.name),
       UserRole.pharmacy => PharmacyHomeScreen(apotekerName: user.name),
       UserRole.lab => LabHomeScreen(analystName: user.name),
+      UserRole.koordinator => KoordinatorHomeScreen(koordinatorName: user.name),
     };
   }
 }

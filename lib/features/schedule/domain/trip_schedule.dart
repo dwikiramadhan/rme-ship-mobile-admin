@@ -199,9 +199,11 @@ class SchedulePersonnelItem extends Equatable {
         ? json['doctor'] as Map<String, dynamic>
         : (json['nurse'] is Map<String, dynamic>)
             ? json['nurse'] as Map<String, dynamic>
-            : (json['medical_personnel'] is Map<String, dynamic>)
-                ? json['medical_personnel'] as Map<String, dynamic>
-                : null;
+            : (json['coordinator'] is Map<String, dynamic>)
+                ? json['coordinator'] as Map<String, dynamic>
+                : (json['medical_personnel'] is Map<String, dynamic>)
+                    ? json['medical_personnel'] as Map<String, dynamic>
+                    : null;
 
     final name = (nested?['name'] ??
             nested?['full_name'] ??
@@ -226,6 +228,7 @@ class SchedulePersonnelItem extends Equatable {
             json['medical_personnel_id'] ??
             json['doctor_id'] ??
             json['nurse_id'] ??
+            json['coordinator_id'] ??
             json['id'] ??
             '')
         .toString();
@@ -493,6 +496,7 @@ class JadwalPerjalanan extends Equatable {
     this.clinics = const [],
     this.doctorStaff = const [],
     this.nurseStaff = const [],
+    this.coordinatorStaff = const [],
     this.crewStaff = const [],
     this.provisions = const [],
     this.tripIssues = const [],
@@ -528,6 +532,7 @@ class JadwalPerjalanan extends Equatable {
   final List<ScheduleClinicItem> clinics;
   final List<SchedulePersonnelItem> doctorStaff;
   final List<SchedulePersonnelItem> nurseStaff;
+  final List<SchedulePersonnelItem> coordinatorStaff;
   final List<ScheduleCrewItem> crewStaff;
   final List<ProvisionHistoryItem> provisions;
   final List<TripIssueItem> tripIssues;
@@ -548,6 +553,9 @@ class JadwalPerjalanan extends Equatable {
   bool get isScheduled => tripStatus == TripStatus.scheduled;
   bool get isCompleted => tripStatus == TripStatus.completed;
   bool get isCancelled => tripStatus == TripStatus.cancelled;
+
+  /// The Koordinator sets the clinics before and during the trip.
+  bool get clinicsEditable => isScheduled || isOngoing;
 
   /// Where the ship is at [now]: the last stop it has arrived at (also while
   /// sailing on to the next one), or the first stop before it reaches any.
@@ -587,6 +595,7 @@ class JadwalPerjalanan extends Equatable {
     List<ScheduleClinicItem>? clinics,
     List<SchedulePersonnelItem>? doctorStaff,
     List<SchedulePersonnelItem>? nurseStaff,
+    List<SchedulePersonnelItem>? coordinatorStaff,
     List<ScheduleCrewItem>? crewStaff,
     List<ProvisionHistoryItem>? provisions,
     List<TripIssueItem>? tripIssues,
@@ -617,6 +626,7 @@ class JadwalPerjalanan extends Equatable {
       clinics: clinics ?? this.clinics,
       doctorStaff: doctorStaff ?? this.doctorStaff,
       nurseStaff: nurseStaff ?? this.nurseStaff,
+      coordinatorStaff: coordinatorStaff ?? this.coordinatorStaff,
       crewStaff: crewStaff ?? this.crewStaff,
       provisions: provisions ?? this.provisions,
       tripIssues: tripIssues ?? this.tripIssues,
@@ -818,6 +828,17 @@ class JadwalPerjalanan extends Equatable {
       }
     }
 
+    final List<SchedulePersonnelItem> parsedCoordinatorStaff = [];
+    if (json['coordinators'] is List) {
+      for (final c in json['coordinators'] as List) {
+        if (c is Map<String, dynamic>) {
+          parsedCoordinatorStaff.add(
+            SchedulePersonnelItem.fromJson(c, defaultType: 'Coordinator'),
+          );
+        }
+      }
+    }
+
     final List<ScheduleCrewItem> parsedCrewStaff = [];
     if (json['crews'] is List) {
       for (final cr in json['crews'] as List) {
@@ -894,6 +915,7 @@ class JadwalPerjalanan extends Equatable {
       clinics: parsedClinics,
       doctorStaff: parsedDoctorStaff,
       nurseStaff: parsedNurseStaff,
+      coordinatorStaff: parsedCoordinatorStaff,
       crewStaff: parsedCrewStaff,
       provisions: parsedProvisions,
       tripIssues: parsedTripIssues,
@@ -927,6 +949,7 @@ class JadwalPerjalanan extends Equatable {
         clinics,
         doctorStaff,
         nurseStaff,
+        coordinatorStaff,
         crewStaff,
         provisions,
         tripIssues,
@@ -934,6 +957,16 @@ class JadwalPerjalanan extends Equatable {
 }
 
 /// Represents a Port in the ports master
+/// The assigned trip a Koordinator works on: the one under way, else the
+/// next planned one, else the most recent ([trips] come newest first).
+JadwalPerjalanan? currentAssignedTrip(List<JadwalPerjalanan> trips) {
+  final ongoing = trips.where((t) => t.isOngoing).firstOrNull;
+  if (ongoing != null) return ongoing;
+  final planned = trips.where((t) => t.isScheduled).toList()
+    ..sort((a, b) => a.berangkat.compareTo(b.berangkat));
+  return planned.firstOrNull ?? trips.firstOrNull;
+}
+
 class PortItem extends Equatable {
   const PortItem({
     required this.id,

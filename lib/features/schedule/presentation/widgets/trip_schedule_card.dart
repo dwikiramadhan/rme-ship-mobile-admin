@@ -7,9 +7,18 @@ import '../trip_detail_screen.dart';
 import '../../../../core/utils/date_helper.dart';
 
 class TripScheduleCard extends StatelessWidget {
-  const TripScheduleCard({super.key, required this.item});
+  const TripScheduleCard({
+    super.key,
+    required this.item,
+    this.readOnly = false,
+    this.canEditClinics = false,
+  });
 
   final JadwalPerjalanan item;
+
+  /// Passed on to [TripDetailScreen].
+  final bool readOnly;
+  final bool canEditClinics;
 
   String _formatDateShort(DateTime value, String? tz) {
     final dt = tz == null ? value.toLocal() : DateHelper.wallClockIn(value, tz);
@@ -39,7 +48,11 @@ class TripScheduleCard extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => TripDetailScreen(item: item),
+        builder: (_) => TripDetailScreen(
+          item: item,
+          readOnly: readOnly,
+          canEditClinics: canEditClinics,
+        ),
       ),
     );
   }

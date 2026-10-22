@@ -119,6 +119,7 @@ class ApiConfig {
   static const String doctorsPath = medicalPersonnelPath;
   static const String medicalHistoryPath = '/api/v1/medical-history';
   static const String schedulesPath = '/api/v1/schedules';
+  static const String assignedSchedulesPath = '/api/v1/schedules/assigned';
   static String schedulesByShipPath(String shipCode) =>
       '/api/v1/schedules/ship/${Uri.encodeComponent(shipCode)}';
   static String scheduleCounterPath(String shipCode) =>
@@ -139,6 +140,8 @@ class ApiConfig {
       '/api/v1/medical-records/$medRecId/prescription/pdf';
   static String medicalRecordLabExaminationsPath(String medRecId) =>
       '/api/v1/medical-records/$medRecId/lab-examinations';
+  static String labExaminationPdfPath(String labExamId) =>
+      '/api/v1/lab-examinations/$labExamId/pdf';
   static String labExaminationViewDocumentPath(String fileName) =>
       '/api/v1/lab-examinations/view-document/${Uri.encodeComponent(fileName)}';
   static String labExaminationViewDocumentUrl(String fileName) =>
@@ -149,6 +152,12 @@ class ApiConfig {
   static const String crewsPath = '/api/v1/crews';
   static const String poliklinikPath = '/api/v1/poliklinik';
   static const String labTestsPath = '/api/v1/lab-tests';
+  static const String stockAdjustmentsPath = '/api/v1/stock-adjustments';
+  static const String stockAdjustmentReportPath =
+      '/api/v1/stock-adjustments/report';
+  static const String stockAdjustmentReportDownloadPath =
+      '/api/v1/stock-adjustments/report/download';
+  static const String labParametersPath = '/api/v1/lab-parameters';
   static const String devicesPath = '/api/v1/devices';
 }
 

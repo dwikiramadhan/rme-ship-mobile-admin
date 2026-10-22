@@ -8,6 +8,8 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/offline/outbox_entry.dart';
 import '../../../core/offline/sync_service.dart';
 import '../../../core/utils/ship_code_helper.dart';
+import '../../auth/domain/user_role.dart';
+import '../../auth/presentation/auth_controller.dart';
 import '../../patients/domain/doctor.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../domain/trip_schedule.dart';
@@ -273,10 +275,28 @@ final scheduleRepositoryProvider = Provider<ScheduleRepository>((ref) {
   return ScheduleRepository(api);
 });
 
+/// The trips the logged-in user is assigned to (Koordinator), newest first.
+final assignedTripsProvider =
+    FutureProvider.autoDispose<List<JadwalPerjalanan>>((ref) {
+  return ref.watch(scheduleApiProvider).getAssignedSchedules();
+});
+
+/// The assigned trip a Koordinator works on; see [currentAssignedTrip].
+final assignedTripProvider =
+    FutureProvider.autoDispose<JadwalPerjalanan?>((ref) async {
+  return currentAssignedTrip(await ref.watch(assignedTripsProvider.future));
+});
+
 /// The ongoing trip of this ship when a visit form opens. Null when no trip
-/// is under way.
+/// is under way. For a Koordinator: the ongoing trip they're assigned to,
+/// whichever ship it is.
 final ongoingTripProvider =
     FutureProvider.autoDispose<JadwalPerjalanan?>((ref) async {
+  final role = ref.watch(authControllerProvider).session?.user.role;
+  if (role == UserRole.koordinator) {
+    final trips = await ref.watch(assignedTripsProvider.future);
+    return trips.where((t) => t.isOngoing).firstOrNull;
+  }
   final shipCode = await resolveLocalStorageShipCode(ref);
   if (shipCode.isEmpty) return null;
   // Same request as the schedule list, so it also works offline.

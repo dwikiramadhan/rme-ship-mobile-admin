@@ -15,6 +15,7 @@ import '../../../core/notifications/in_app_notification_manager.dart';
 import '../../../core/notifications/in_app_notification_model.dart';
 import '../domain/doctor.dart';
 import '../domain/lab_order.dart';
+import '../domain/lab_parameter.dart';
 import '../domain/lab_test_type.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
@@ -1488,6 +1489,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
     String? conclusion,
     String status = 'Completed',
     required List<Map<String, dynamic>> items,
+    String? sampleReceivedAt,
     String? fileName,
     String? filePath,
     Uint8List? fileBytes,
@@ -1497,6 +1499,7 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       'conclusion': conclusion ?? '',
       'status': status,
       'items': jsonEncode(items),
+      'sample_received_at': ?sampleReceivedAt,
     };
     if (medicalRecordId.isNotEmpty) {
       map['medical_record_id'] = medicalRecordId;
@@ -2019,6 +2022,16 @@ final doctorsProvider = FutureProvider<List<Doctor>>((ref) async {
 
 /// The lab request form's tests. Offline, the last list kept on the device
 /// is used (see `masterDataPaths`); empty when there is none yet.
+/// The lab result form rows (master data, kept for offline use).
+final labParametersProvider = FutureProvider<List<LabParameter>>((ref) async {
+  try {
+    return await ref.watch(patientApiProvider).getLabParameters();
+  } catch (e) {
+    debugPrint('labParametersProvider error: $e');
+    return [];
+  }
+});
+
 final labTestsProvider = FutureProvider<List<LabTestType>>((ref) async {
   try {
     return await ref.watch(patientApiProvider).getLabTests();

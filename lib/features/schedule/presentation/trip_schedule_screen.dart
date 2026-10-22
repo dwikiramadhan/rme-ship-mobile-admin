@@ -12,7 +12,15 @@ import '../domain/trip_schedule.dart';
 import 'widgets/trip_schedule_card.dart';
 
 class TripScheduleScreen extends ConsumerStatefulWidget {
-  const TripScheduleScreen({super.key});
+  const TripScheduleScreen({
+    super.key,
+    this.readOnly = false,
+    this.canEditClinics = false,
+  });
+
+  /// Passed on to each trip's [TripDetailScreen].
+  final bool readOnly;
+  final bool canEditClinics;
 
   @override
   ConsumerState<TripScheduleScreen> createState() => _TripScheduleScreenState();
@@ -297,7 +305,13 @@ class _TripScheduleScreenState extends ConsumerState<TripScheduleScreen> {
                   else if (allJadwal.isEmpty)
                     _buildEmptyState()
                   else
-                    ...allJadwal.map((item) => TripScheduleCard(item: item)),
+                    ...allJadwal.map(
+                      (item) => TripScheduleCard(
+                        item: item,
+                        readOnly: widget.readOnly,
+                        canEditClinics: widget.canEditClinics,
+                      ),
+                    ),
 
                   if (schedulesNotifier.isLoadingMore) ...[
                     const SizedBox(height: 16),
