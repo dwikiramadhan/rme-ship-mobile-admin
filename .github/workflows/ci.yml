@@ -1,0 +1,29 @@
+# Analyze and test every pull request and every push to a branch, so main
+# stays releasable. Releases (tags) are built by deploy-play.yml.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ['**']
+
+# A newer push to the same branch cancels the run still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test

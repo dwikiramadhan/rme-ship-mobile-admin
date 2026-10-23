@@ -73,3 +73,33 @@ flutter test
 home screens at both a phone-sized (390×844) and tablet-sized (1180×820)
 viewport and fails on any layout overflow, since that's the actual
 breakpoint behavior the app ships with.
+
+CI (`.github/workflows/ci.yml`) runs both on every pull request and every
+push to a branch.
+
+## Branches and releases
+
+- Work on a short-lived branch from `main` (`feat/...`, `fix/...`) and merge
+  it back through a pull request once CI passes. `main` is always
+  releasable.
+- A release is a tag on `main`. Raise the version in `pubspec.yaml` (the
+  build number after `+` goes up on every upload, e.g. `1.0.0+1` →
+  `1.0.1+2`), update the release notes in `distribution/whatsnew/` (max 500
+  characters each), then tag:
+
+  ```bash
+  git commit -am "chore(release): 1.0.1"
+  git tag v1.0.1 && git push origin main v1.0.1
+  ```
+
+  `.github/workflows/deploy-play.yml` builds the signed app bundle and
+  uploads it to Google Play's **Internal testing** track. Once testers have
+  checked it, promote it in Play Console, or run the workflow from the
+  Actions tab with the `production` track.
+- Hotfix while `main` holds unreleased work: branch from the last tag
+  (`git checkout -b fix/x v1.0.1`), tag `v1.0.2` there, then merge the fix
+  back into `main`.
+
+Release signing uses the upload key in `android/key.properties`, which is
+not in git; CI gets it from the repository secrets listed in
+`deploy-play.yml`.
