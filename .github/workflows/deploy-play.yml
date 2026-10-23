@@ -1,0 +1,85 @@
+# Build the release app bundle and upload it to Google Play.
+#
+# - Push a tag `v<version>` (the pubspec.yaml version without the build
+#   number, e.g. v1.0.1 for 1.0.1+2) to release to Internal testing.
+# - Or run it from the Actions tab to choose the track (Production too).
+#
+# Raise the build number (the part after `+` in pubspec.yaml) for every
+# upload: Google Play rejects a version code it has seen. Update the release
+# notes in distribution/whatsnew/ too.
+#
+# Secrets (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_BASE64    the upload keystore (.jks), base64-encoded
+#   ANDROID_KEYSTORE_PASSWORD  its password (store and key)
+#   PLAY_SERVICE_ACCOUNT_JSON  the Play Console service account's JSON key
+name: Deploy to Google Play
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Google Play track
+        type: choice
+        options: [internal, alpha, beta, production]
+        default: internal
+
+# One upload at a time: Play rejects a second edit while one is open.
+concurrency: play-deploy
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches the pubspec version
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(sed -n 's/^version: *\([^+]*\).*/\1/p' pubspec.yaml)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match pubspec.yaml version $version"
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Set up the upload key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEYSTORE_PASSWORD
+          keyAlias=upload
+          storeFile=$RUNNER_TEMP/upload.jks
+          EOF
+
+      - run: flutter build appbundle --release
+
+      - uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.bayanrme.bayan_rme
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          mappingFile: build/app/outputs/mapping/release/mapping.txt
+          # Release notes per language (whatsnew-<locale>, max 500 characters).
+          whatsNewDirectory: distribution/whatsnew
+          track: ${{ inputs.track || 'internal' }}
+          status: completed

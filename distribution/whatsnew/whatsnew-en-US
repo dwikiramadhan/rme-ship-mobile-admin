@@ -1,0 +1,9 @@
+First release of RME Bayan: medical records on board.
+• Nurses: register patients, record complaints & vital signs
+• Doctors: examine patients, add ICD-10 diagnoses & prescriptions
+• Pharmacy: dispense prescriptions, track medicine stock
+• Lab: send lab results to the doctor
+• Coordinators: set clinic schedules & adjust medicine stock
+• Ship admin: log fuel, fresh water & trip issues
+• Works offline, syncs when back online
+• Notifications for new patients, prescriptions & lab results
