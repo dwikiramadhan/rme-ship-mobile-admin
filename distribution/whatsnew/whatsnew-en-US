@@ -1,5 +1,6 @@
 RME Bayan update:
-• The server address is set automatically, no need to enter it at login
-• The ship banner shows the ship of the logged-in account
-• Coordinators see the ship of their assigned trip, or "Not assigned"
-• Ship assignment changes by an admin show without logging in again
+• Stock adjustment: a table of system stock, counted stock, difference & reason, with a summary
+• Coordinators: the ship's position on the home screen
+• New look for the nurse dashboard, patient list & clinic schedule
+• The harbor and the staff member who registered a patient are now recorded
+• Tidier adjustment inputs on tablets

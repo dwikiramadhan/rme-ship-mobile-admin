@@ -1,5 +1,6 @@
 Pembaruan RME Bayan:
-• Alamat server diatur otomatis, tidak perlu diisi saat login
-• Pita kapal menampilkan kapal akun yang login
-• Koordinator melihat kapal dari jadwal tugasnya, atau "Belum Ditugaskan"
-• Perubahan penugasan kapal dari admin langsung terlihat tanpa login ulang
+• Adjustment Stok: tabel stok sistem, stok fisik, selisih & alasan, plus ringkasan
+• Koordinator: posisi kapal di beranda
+• Tampilan baru dashboard Perawat, daftar pasien & jadwal poli
+• Pelabuhan dan petugas yang mendaftarkan pasien kini tercatat
+• Kolom isian adjustment lebih rapi di tablet
