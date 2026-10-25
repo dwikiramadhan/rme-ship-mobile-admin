@@ -62,6 +62,8 @@ class Patient extends Equatable {
     this.lastVisit,
     this.medicalRecordId,
     this.photoUrl,
+    this.createdByName,
+    this.createdPortName,
   });
 
   final String id;
@@ -106,6 +108,11 @@ class Patient extends Equatable {
   final String? kodeKelurahan;
   final int? kodePos;
   final String? photoUrl;
+
+  /// Who registered the patient (`created_by_user` from the backend), and
+  /// the port they were registered at. Null when the server doesn't send it.
+  final String? createdByName;
+  final String? createdPortName;
 
   final String? diagnosa;
   final String? tindakan;
@@ -163,6 +170,8 @@ class Patient extends Equatable {
     String? serviceShipName,
     String? lastVisit,
     Object? medicalRecordId = _unset,
+    String? createdByName,
+    String? createdPortName,
   }) {
     return Patient(
       id: id ?? this.id,
@@ -221,6 +230,8 @@ class Patient extends Equatable {
       photoUrl: identical(photoUrl, _unset)
           ? this.photoUrl
           : photoUrl as String?,
+      createdByName: createdByName ?? this.createdByName,
+      createdPortName: createdPortName ?? this.createdPortName,
     );
   }
 
@@ -599,7 +610,8 @@ class Patient extends Equatable {
       resepStatus = ResepStatus.baru;
     }
 
-    final rawLabData = json['lab_examination'] ??
+    final rawLabData =
+        json['lab_examination'] ??
         json['lab_examinations'] ??
         activeRecord?['lab_examination'] ??
         activeRecord?['lab_examinations'] ??
@@ -627,14 +639,15 @@ class Patient extends Equatable {
           }
         }
         final notes = (labMap['notes'] ?? labMap['catatan'] ?? '').toString();
-        final rawFile = (labMap['attachment_url'] ??
-                labMap['file_name'] ??
-                labMap['file_url'] ??
-                labMap['file_path'] ??
-                labMap['fileName'] ??
-                labMap['filePath'] ??
-                labMap['url'])
-            ?.toString();
+        final rawFile =
+            (labMap['attachment_url'] ??
+                    labMap['file_name'] ??
+                    labMap['file_url'] ??
+                    labMap['file_path'] ??
+                    labMap['fileName'] ??
+                    labMap['filePath'] ??
+                    labMap['url'])
+                ?.toString();
         final fileName = (rawFile != null && rawFile.trim().isNotEmpty)
             ? rawFile.trim()
             : null;
@@ -642,8 +655,8 @@ class Patient extends Equatable {
         final jenis = code != null && code.isNotEmpty
             ? 'Pemeriksaan Lab ($code)'
             : (labMap['jenis']?.toString() ??
-                labOrder?.jenis ??
-                'Pemeriksaan Laboratorium');
+                  labOrder?.jenis ??
+                  'Pemeriksaan Laboratorium');
 
         labOrder = LabOrder(
           id: labMap['id']?.toString() ?? medicalRecordId ?? id,
@@ -660,10 +673,7 @@ class Patient extends Equatable {
     }
 
     if (normStatusPenanganan == 'menunggu lab' && labOrder == null) {
-      labOrder = LabOrder(
-        id: medicalRecordId ?? id,
-        jenis: 'Pemeriksaan Lab',
-      );
+      labOrder = LabOrder(id: medicalRecordId ?? id, jenis: 'Pemeriksaan Lab');
     } else if (normStatusPenanganan == 'dalam pemeriksaan lab' &&
         labOrder == null) {
       labOrder = LabOrder(
@@ -714,7 +724,31 @@ class Patient extends Equatable {
       lastVisit: lastVisit,
       medicalRecordId: medicalRecordId,
       photoUrl: photoUrl,
+      createdByName: _createdByNameFrom(json),
+      createdPortName: _createdPortNameFrom(json),
     );
+  }
+
+  /// `created_by_user: {full_name | name}` (as on medical records), or a
+  /// plain `created_by_name`.
+  static String? _createdByNameFrom(Map<String, dynamic> json) {
+    final user = json['created_by_user'] ?? json['created_by'];
+    final raw = user is Map
+        ? (user['full_name'] ?? user['name'])
+        : json['created_by_name'];
+    final name = CleanTextHelper.cleanName(raw);
+    return name.isNotEmpty ? name : null;
+  }
+
+  /// `port: {name | nama}` or `port_name`, the port the patient was
+  /// registered at.
+  static String? _createdPortNameFrom(Map<String, dynamic> json) {
+    final port = json['port'] ?? json['created_port'];
+    final raw = port is Map
+        ? (port['name'] ?? port['nama'])
+        : (json['port_name'] ?? json['created_port_name']);
+    final name = CleanTextHelper.cleanName(raw);
+    return name.isNotEmpty ? name : null;
   }
 
   static String? normalizeBloodType(String? raw) {
@@ -768,11 +802,11 @@ class Patient extends Equatable {
 
     final effectiveServiceShipCode =
         (serviceShipCode != null && serviceShipCode.trim().isNotEmpty)
-            ? serviceShipCode.trim()
-            : (this.serviceShipCode != null &&
-                    this.serviceShipCode!.trim().isNotEmpty
-                ? this.serviceShipCode!.trim()
-                : null);
+        ? serviceShipCode.trim()
+        : (this.serviceShipCode != null &&
+                  this.serviceShipCode!.trim().isNotEmpty
+              ? this.serviceShipCode!.trim()
+              : null);
 
     final effectiveDob = (dob != null && dob.isNotEmpty) ? dob : this.dob;
     final effectivePhone = (phone != null && phone.isNotEmpty)
@@ -857,6 +891,8 @@ class Patient extends Equatable {
     serviceShipName,
     lastVisit,
     medicalRecordId,
+    createdByName,
+    createdPortName,
   ];
 }
 

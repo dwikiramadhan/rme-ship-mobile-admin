@@ -5,6 +5,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_badge.dart';
+import '../../../core/widgets/app_button.dart';
+import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/screen_header.dart';
 import '../../doctor/domain/medicine_item.dart';
 import '../../doctor/presentation/widgets/medicine_search_modal.dart';
@@ -163,103 +166,58 @@ class _StockAdjustmentFormState extends ConsumerState<StockAdjustmentForm> {
     final shipCode = trip.valueOrNull?.shipCode ?? '';
     // Not on an ongoing trip: nothing to adjust.
     final blocked = trip.isLoading || port.isLoading || shipCode.isEmpty;
+    final lines = [for (final l in _lines) l.line];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const ScreenHeader(
+        ScreenHeader(
           title: 'Adjustment Stok',
           subtitle: 'Sesuaikan stok obat dengan hitungan fisik',
+          trailing: _PortChip(
+            text: port.isLoading
+                ? 'Memuat pelabuhan...'
+                : stop?.portName ?? '-',
+          ),
         ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            children: [
-              _PortCard(
-                text: port.isLoading
-                    ? 'Memuat pelabuhan...'
-                    : stop?.portName ?? '-',
-              ),
-              if (!trip.isLoading && shipCode.isEmpty) ...[
-                const SizedBox(height: 10),
-                const Text(
-                  notOnOngoingTripMessage,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.red,
+          child: DefaultTextStyle.merge(
+            style: const TextStyle(letterSpacing: 0),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (!trip.isLoading && shipCode.isEmpty) ...[
+                  const _Notice(
+                    text: notOnOngoingTripMessage,
+                    icon: LucideIcons.alertCircle,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                AppCard(
+                  padding: EdgeInsets.zero,
+                  child: _LinesTable(
+                    lines: _lines,
+                    onChanged: () => setState(() {}),
+                    onRemove: _remove,
+                    onAdd: _saving || blocked
+                        ? null
+                        : () => _addMedicine(shipCode),
                   ),
                 ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  _Notice(text: _error!, icon: LucideIcons.alertCircle),
+                ],
               ],
-              const SizedBox(height: 14),
-              for (final line in _lines) ...[
-                _LineCard(
-                  form: line,
-                  onChanged: () => setState(() {}),
-                  onRemove: () => _remove(line),
-                ),
-                const SizedBox(height: 10),
-              ],
-              if (_lines.isEmpty)
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: const Text(
-                    'Belum ada obat. Tambahkan obat yang stoknya akan '
-                    'disesuaikan.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12.5, color: AppColors.sub),
-                  ),
-                ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _saving || blocked
-                    ? null
-                    : () => _addMedicine(shipCode),
-                icon: const Icon(LucideIcons.plus, size: 16),
-                label: const Text('Tambah Obat'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.orange,
-                  side: const BorderSide(color: AppColors.orange),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  _error!,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.red,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 14),
-              FilledButton(
-                onPressed: _saving || blocked
-                    ? null
-                    : () => _save(shipCode, stop),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.orange,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Simpan Adjustment'),
-              ),
-            ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: _SummaryBar(
+            lines: lines,
+            saving: _saving,
+            onSave: blocked ? null : () => _save(shipCode, stop),
           ),
         ),
       ],
@@ -272,35 +230,95 @@ const notOnOngoingTripMessage =
     'Anda belum ditugaskan di jadwal perjalanan Ongoing, sehingga stok obat '
     'belum dapat disesuaikan.';
 
-class _PortCard extends StatelessWidget {
-  const _PortCard({required this.text});
+// One type scale for the whole form: 13 card title, 12.5 body, 11 meta,
+// 10.5 column labels (all before the tablet text scale).
+const _kBody = TextStyle(
+  fontSize: 12.5,
+  color: AppColors.text,
+  letterSpacing: 0,
+);
+const _kMeta = TextStyle(fontSize: 11, color: AppColors.sub, letterSpacing: 0);
+const _kColumnLabel = TextStyle(
+  fontSize: 10.5,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 0.3,
+  color: AppColors.sub,
+);
+
+// Fixed column widths of the wide (tablet) table; the medicine name takes
+// the rest.
+const double _kSystemCol = 92;
+const double _kCountCol = 112;
+const double _kDiffCol = 84;
+const double _kReasonCol = 220;
+const double _kRemoveCol = 32;
+const double _kColGap = 12;
+
+/// Below this width the rows stack instead of forming a table.
+const double _kTableMinWidth = 640;
+
+/// The harbor the ship is at, shown in the header.
+class _PortChip extends StatelessWidget {
+  const _PortChip({required this.text});
 
   final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.card2,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(LucideIcons.anchor, size: 16, color: AppColors.sub),
-          const SizedBox(width: 8),
-          const Text(
-            'Lokasi Pelabuhan: ',
-            style: TextStyle(fontSize: 12.5, color: AppColors.sub),
+          const Icon(LucideIcons.anchor, size: 13, color: AppColors.sub),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.text,
+              letterSpacing: 0,
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A red notice: not on an ongoing trip, or what is missing before saving.
+class _Notice extends StatelessWidget {
+  const _Notice({required this.text, required this.icon});
+
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.redLt,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.red.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: AppColors.red),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               text,
               style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w700,
-                color: AppColors.text,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.red,
               ),
             ),
           ),
@@ -310,8 +328,343 @@ class _PortCard extends StatelessWidget {
   }
 }
 
-class _LineCard extends StatelessWidget {
-  const _LineCard({
+/// "Daftar Obat": a table on tablet (one row per medicine), stacked rows on
+/// narrow screens.
+class _LinesTable extends StatelessWidget {
+  const _LinesTable({
+    required this.lines,
+    required this.onChanged,
+    required this.onRemove,
+    required this.onAdd,
+  });
+
+  final List<_LineForm> lines;
+  final VoidCallback onChanged;
+  final ValueChanged<_LineForm> onRemove;
+  final VoidCallback? onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= _kTableMinWidth;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Row(
+                children: [
+                  const Text(
+                    'Daftar Obat',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 1,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.card2,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Text(
+                      '${lines.length} obat',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.sub,
+                      ),
+                    ),
+                  ),
+                  if (wide) ...[
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Text(
+                        'Isi stok fisik hasil hitung, selisih dihitung '
+                        'otomatis',
+                        textAlign: TextAlign.right,
+                        overflow: TextOverflow.ellipsis,
+                        style: _kMeta,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (lines.isEmpty)
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: const Text(
+                  'Belum ada obat. Tambahkan obat yang stoknya akan '
+                  'disesuaikan.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: AppColors.sub),
+                ),
+              )
+            else ...[
+              if (wide) const _TableHeader(),
+              for (final line in lines)
+                wide
+                    ? _WideRow(
+                        form: line,
+                        onChanged: onChanged,
+                        onRemove: () => onRemove(line),
+                      )
+                    : _NarrowRow(
+                        form: line,
+                        onChanged: onChanged,
+                        onRemove: () => onRemove(line),
+                      ),
+            ],
+            Align(
+              alignment: lines.isEmpty
+                  ? Alignment.center
+                  : Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
+                child: TextButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(LucideIcons.plus, size: 15),
+                  label: const Text(
+                    'Tambah Obat',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.orange,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _TableHeader extends StatelessWidget {
+  const _TableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget label(String text, {double? width}) => width == null
+        ? Expanded(child: Text(text, style: _kColumnLabel))
+        : SizedBox(
+            width: width,
+            child: Text(text, style: _kColumnLabel),
+          );
+    const gap = SizedBox(width: _kColGap);
+
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: AppColors.card2,
+        border: Border.symmetric(
+          horizontal: BorderSide(color: AppColors.border),
+        ),
+      ),
+      child: Row(
+        children: [
+          label('OBAT'),
+          gap,
+          label('STOK SISTEM', width: _kSystemCol),
+          gap,
+          label('STOK FISIK', width: _kCountCol),
+          gap,
+          label('SELISIH', width: _kDiffCol),
+          gap,
+          label('ALASAN', width: _kReasonCol),
+          gap,
+          const SizedBox(width: _kRemoveCol),
+        ],
+      ),
+    );
+  }
+}
+
+/// Name and "SKU · unit" of a medicine.
+class _MedicineName extends StatelessWidget {
+  const _MedicineName({required this.form});
+
+  final _LineForm form;
+
+  @override
+  Widget build(BuildContext context) {
+    final med = form.medicine;
+    final meta = [
+      med.sku,
+      med.unitOfMeasurement,
+    ].where((s) => s.isNotEmpty).join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          med.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        if (meta.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(meta, style: _kMeta),
+        ],
+      ],
+    );
+  }
+}
+
+/// "124 strip": the ship's stock when the medicine was picked.
+class _SystemStock extends StatelessWidget {
+  const _SystemStock({required this.form});
+
+  final _LineForm form;
+
+  @override
+  Widget build(BuildContext context) {
+    final med = form.medicine;
+    return Text.rich(
+      TextSpan(
+        style: _kBody,
+        children: [
+          TextSpan(text: '${med.stock}'),
+          if (med.unitOfMeasurement.isNotEmpty)
+            TextSpan(text: ' ${med.unitOfMeasurement}', style: _kMeta),
+        ],
+      ),
+    );
+  }
+}
+
+/// Stok akhir − sisa stok as a coloured badge; "—" until counted.
+class _DiffBadge extends StatelessWidget {
+  const _DiffBadge({required this.diff});
+
+  final int? diff;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = diff;
+    final (color, background) = d == null || d == 0
+        ? (AppColors.sub, AppColors.card2)
+        : d < 0
+        ? (AppColors.red, AppColors.redLt)
+        : (AppColors.green, AppColors.greenLt);
+    return AppBadge(
+      label: d == null ? '—' : signedDifference(d),
+      color: color,
+      background: background,
+      fontSize: 10.5,
+      fontWeight: FontWeight.w600,
+    );
+  }
+}
+
+/// Compact filled input used for the counted stock and the reason.
+class _CompactField extends StatelessWidget {
+  const _CompactField({
+    required this.controller,
+    required this.hint,
+    required this.onChanged,
+    this.numbersOnly = false,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final VoidCallback onChanged;
+  final bool numbersOnly;
+
+  @override
+  Widget build(BuildContext context) {
+    OutlineInputBorder border(Color color, [double width = 1]) =>
+        OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: color, width: width),
+        );
+    return TextField(
+      controller: controller,
+      keyboardType: numbersOnly ? TextInputType.number : null,
+      inputFormatters: numbersOnly
+          ? [FilteringTextInputFormatter.digitsOnly]
+          : [LengthLimitingTextInputFormatter(500)],
+      style: _kBody,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(
+          fontSize: 12.5,
+          color: Color(0xFF94A3B8),
+          letterSpacing: 0,
+        ),
+        isDense: true,
+        filled: true,
+        fillColor: AppColors.inputBg,
+        // The padding gives the box its height (it grows with the tablet
+        // text scale): a fixed height leaves the drawn box short.
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 9,
+        ),
+        border: border(AppColors.border),
+        enabledBorder: border(AppColors.border),
+        focusedBorder: border(AppColors.orange, 1.5),
+      ),
+      onChanged: (_) => onChanged(),
+    );
+  }
+}
+
+class _RemoveButton extends StatelessWidget {
+  const _RemoveButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: _kRemoveCol,
+      height: _kRemoveCol,
+      child: IconButton(
+        tooltip: 'Hapus',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        style: IconButton.styleFrom(
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        iconSize: 15,
+        icon: const Icon(LucideIcons.trash2, color: Color(0xFF94A3B8)),
+        onPressed: onPressed,
+      ),
+    );
+  }
+}
+
+/// One medicine as a table row (tablet).
+class _WideRow extends StatelessWidget {
+  const _WideRow({
     required this.form,
     required this.onChanged,
     required this.onRemove,
@@ -323,97 +676,189 @@ class _LineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final med = form.medicine;
-    final diff = form.line.difference;
-    final unit = med.unitOfMeasurement.isEmpty
-        ? ''
-        : ' ${med.unitOfMeasurement}';
-    InputDecoration decoration(String label, String hint) => InputDecoration(
-      labelText: label,
-      hintText: hint,
-      isDense: true,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-    );
-
+    const gap = SizedBox(width: _kColGap);
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _MedicineName(form: form)),
+          gap,
+          SizedBox(
+            width: _kSystemCol,
+            child: _SystemStock(form: form),
+          ),
+          gap,
+          SizedBox(
+            width: _kCountCol,
+            child: _CompactField(
+              controller: form.stockAfter,
+              hint: 'Jumlah',
+              numbersOnly: true,
+              onChanged: onChanged,
+            ),
+          ),
+          gap,
+          SizedBox(
+            width: _kDiffCol,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _DiffBadge(diff: form.line.difference),
+            ),
+          ),
+          gap,
+          SizedBox(
+            width: _kReasonCol,
+            child: _CompactField(
+              controller: form.reason,
+              hint: 'Tulis alasan',
+              onChanged: onChanged,
+            ),
+          ),
+          gap,
+          _RemoveButton(onPressed: onRemove),
+        ],
+      ),
+    );
+  }
+}
+
+/// One medicine as stacked rows (phone).
+class _NarrowRow extends StatelessWidget {
+  const _NarrowRow({
+    required this.form,
+    required this.onChanged,
+    required this.onRemove,
+  });
+
+  final _LineForm form;
+  final VoidCallback onChanged;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(
-                  '[${med.sku}] ${med.name}',
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
-              ),
-              IconButton(
-                tooltip: 'Hapus',
-                icon: const Icon(
-                  LucideIcons.trash2,
-                  size: 16,
-                  color: AppColors.red,
-                ),
-                onPressed: onRemove,
-              ),
+              Expanded(child: _MedicineName(form: form)),
+              _RemoveButton(onPressed: onRemove),
             ],
           ),
-          Text(
-            'Sisa stok: ${med.stock}$unit',
-            style: const TextStyle(fontSize: 12, color: AppColors.sub),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: form.stockAfter,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: decoration('Stok Akhir', 'Hasil hitung fisik'),
-                  onChanged: (_) => onChanged(),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text(
-                  diff == null
-                      ? 'Selisih: -'
-                      : 'Selisih: ${signedDifference(diff)}',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                    color: diff == null || diff == 0
-                        ? AppColors.sub
-                        : diff < 0
-                        ? AppColors.red
-                        : AppColors.green,
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Row(
+              children: [
+                Expanded(child: _SystemStock(form: form)),
+                const SizedBox(width: _kColGap),
+                SizedBox(
+                  width: _kCountCol,
+                  child: _CompactField(
+                    controller: form.stockAfter,
+                    hint: 'Jumlah',
+                    numbersOnly: true,
+                    onChanged: onChanged,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(width: _kColGap),
+                _DiffBadge(diff: form.line.difference),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: form.reason,
-            maxLength: 500,
-            decoration: decoration(
-              'Alasan',
-              'cth: Kedaluwarsa, rusak, selisih hitung',
-            ).copyWith(counterText: ''),
-            onChanged: (_) => onChanged(),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: _CompactField(
+              controller: form.reason,
+              hint: 'Tulis alasan',
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bottom bar: how many medicines are counted, how many go down / up, and
+/// the save button.
+class _SummaryBar extends StatelessWidget {
+  const _SummaryBar({
+    required this.lines,
+    required this.saving,
+    required this.onSave,
+  });
+
+  final List<AdjustmentLine> lines;
+  final bool saving;
+  final VoidCallback? onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final counted = lines.where((l) => l.difference != null).length;
+    final down = lines.where((l) => (l.difference ?? 0) < 0).length;
+    final up = lines.where((l) => (l.difference ?? 0) > 0).length;
+
+    Widget stat(String label, String value, Color color) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: _kMeta),
+        const SizedBox(height: 1),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+      ],
+    );
+    Widget divider() => Container(
+      width: 1,
+      height: 28,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      color: AppColors.border,
+    );
+
+    return AppCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  stat(
+                    'Obat disesuaikan',
+                    '$counted dari ${lines.length}',
+                    AppColors.text,
+                  ),
+                  divider(),
+                  stat('Stok berkurang', '$down obat', AppColors.red),
+                  divider(),
+                  stat('Stok bertambah', '$up obat', AppColors.green),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          AppButton(
+            label: 'Simpan Adjustment',
+            icon: LucideIcons.check,
+            loading: saving,
+            onPressed: onSave,
           ),
         ],
       ),

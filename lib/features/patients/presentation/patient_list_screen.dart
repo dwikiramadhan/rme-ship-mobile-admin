@@ -9,13 +9,9 @@ import '../../sync/presentation/unsynced_ids.dart';
 import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_helper.dart';
-import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/app_shimmer.dart';
 import '../../../core/widgets/responsive_master_detail.dart';
 import '../../../core/widgets/screen_header.dart';
-import '../../auth/presentation/auth_controller.dart';
-import '../../history/presentation/edit_visit_screen.dart';
-import '../../nurse/presentation/patient_form.dart';
 import '../data/patient_repository.dart';
 import '../domain/patient.dart';
 import 'patient_detail_screen.dart';
@@ -351,10 +347,18 @@ class _PatientListScreenState extends ConsumerState<PatientListScreen> {
   }
 }
 
+/// One patient as a minimal card: identity, a 2×2 grid (NIK, gender, the port
+/// the patient was registered at, and who registered them), and the
+/// registration time centred in a glass footer along the card's bottom edge.
 class _PatientCard extends ConsumerWidget {
   const _PatientCard({super.key, required this.patient});
 
   final Patient patient;
+
+  static const _border = Color(0xFFE2E8F0);
+  static const _sky = Color(0xFF0284C7);
+  static const _skyDeep = Color(0xFF0369A1);
+  static const _navy = Color(0xFF0C4A6E);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -363,20 +367,6 @@ class _PatientCard extends ConsumerWidget {
         (ids) => ids.valueOrNull?.patients.contains(patient.id) ?? false,
       ),
     );
-    final initial = patient.nama.isNotEmpty
-        ? patient.nama[0].toUpperCase()
-        : '?';
-    final isMale = patient.jk == Gender.l;
-    final avatarBg = isMale ? const Color(0xFFEFF6FF) : const Color(0xFFFFF1F2);
-    final avatarColor = isMale
-        ? const Color(0xFF2563EB)
-        : const Color(0xFFE11D48);
-
-    // While the latest visit still waits for the doctor, the nurse can edit
-    // the patient's identity.
-    final canEditPatient =
-        canEditVisits(ref.watch(authControllerProvider).session?.user.role) &&
-        isWaitingForDoctor(patient.statusPenanganan);
 
     final displayDate = patient.createdAt != null
         ? formatDateTime(patient.createdAt)
@@ -387,10 +377,13 @@ class _PatientCard extends ConsumerWidget {
                     : '-'));
 
     return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
+      color: AppColors.card,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: _border),
+      ),
+      child: InkWell(
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -401,459 +394,235 @@ class _PatientCard extends ConsumerWidget {
             ),
           );
         },
-        child: AppCard(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(letterSpacing: 0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            // In the wide grid both cards of a row share the taller one's
+            // height; this keeps the footer on the bottom edge.
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 1. Header: Avatar + Nama & Code Pasien (tanpa #) + Tanggal Created At di Kanan Atas
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar
-                  Container(
-                    width: 38,
-                    height: 38,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: avatarBg,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child:
-                        (patient.photoUrl != null &&
-                            patient.photoUrl!.isNotEmpty)
-                        ? Image.network(
-                            patient.photoUrl!.startsWith('http')
-                                ? patient.photoUrl!
-                                : '${ApiConfig.baseUrl}${patient.photoUrl}',
-                            width: 38,
-                            height: 38,
-                            // Width only: forcing both dimensions decoded non-square photos
-                            // into a square (squashed). This keeps the aspect ratio so
-                            // BoxFit.cover crops instead.
-                            cacheWidth: 114,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Text(
-                              initial,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: avatarColor,
-                              ),
-                            ),
-                          )
-                        : Text(
-                            initial,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: avatarColor,
-                            ),
-                          ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Nama & Code Pasien (tanpa tanda #)
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          patient.nama,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.text,
+                        _PatientAvatar(patient: patient),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                patient.nama,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.text,
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                patient.registerNo.isNotEmpty
+                                    ? patient.registerNo
+                                    : 'No. RM: -',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: patient.registerNo.isNotEmpty
+                                      ? _sky
+                                      : AppColors.sub,
+                                ),
+                              ),
+                              if (unsynced) ...[
+                                const SizedBox(height: 4),
+                                const UnsyncedBadge(),
+                              ],
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        if (patient.registerNo.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE0F2FE),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              patient.registerNo,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF0284C7),
-                              ),
-                            ),
-                          )
-                        else
-                          const Text(
-                            'No. RM: -',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: AppColors.sub,
-                            ),
-                          ),
-                        if (unsynced) ...[
-                          const SizedBox(height: 4),
-                          const UnsyncedBadge(),
-                        ],
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  // Tanggal Created At (Kanan Atas). Shares the row with the
-                  // name so a long date (with its time zone) never overflows.
-                  Flexible(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'Registered',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF94A3B8),
-                              fontWeight: FontWeight.w500,
-                            ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _InfoItem(
+                            label: 'NIK',
+                            value: patient.nik.isNotEmpty ? patient.nik : '-',
                           ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              displayDate,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF374151),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _InfoItem(
+                            label: 'Gender',
+                            value: patient.jk.label,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _InfoItem(
+                            label: 'Pelabuhan',
+                            value: patient.createdPortName ?? '-',
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _InfoItem(
+                            label: 'Dibuat oleh',
+                            value: patient.createdByName ?? '-',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-
-              const SizedBox(height: 6),
-
-              // 2. Info 2 Kolom (NIK, Gender, Umur, Phone, Alamat, Poli)
-              // Baris 1: NIK & Gender
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildColItem(
-                      icon: LucideIcons.creditCard,
-                      label: 'NIK',
-                      value: patient.nik.isNotEmpty ? patient.nik : '-',
-                      labelWidth: 24,
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFFE0F2FE).withValues(alpha: 0.9),
+                      const Color(0xFFF0F9FF).withValues(alpha: 0.55),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildColItem(
-                      icon: LucideIcons.user,
-                      label: 'Gender',
-                      value: patient.jk.label.isNotEmpty
-                          ? patient.jk.label
-                          : '-',
-                      labelWidth: 42,
-                    ),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withValues(alpha: 0.9)),
                   ),
-                ],
-              ),
-              const SizedBox(height: 4),
-
-              // Baris 2: Umur & Phone
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildColItem(
-                      icon: LucideIcons.calendar,
-                      label: 'Umur',
-                      value: patient.umur > 0
-                          ? '${patient.umur} th'
-                          : (patient.dob != null && patient.dob!.isNotEmpty
-                                ? '${patient.umur} th'
-                                : '-'),
-                      labelWidth: 32,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildColItem(
-                      icon: LucideIcons.phone,
-                      label: 'Phone',
-                      value:
-                          (patient.phone != null && patient.phone!.isNotEmpty)
-                          ? patient.phone!
-                          : '-',
-                      labelWidth: 36,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-
-              // Baris 3: Alamat & Poli (atau Alamat Full-width)
-              if (patient.poliName != null && patient.poliName!.isNotEmpty)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: _buildColItem(
-                        icon: LucideIcons.mapPin,
-                        label: 'Alamat',
-                        value: _extractKabKotaProvinsi(patient.alamat),
-                        labelWidth: 40,
-                        maxLines: 2,
+                    const Icon(LucideIcons.clock, size: 12, color: _sky),
+                    const SizedBox(width: 6),
+                    const Text(
+                      'Registered',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w400,
+                        color: _skyDeep,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildColItem(
-                        icon: LucideIcons.stethoscope,
-                        label: 'Poli',
-                        value: patient.poliName!,
-                        labelWidth: 26,
-                        maxLines: 2,
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        displayDate,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: _navy,
+                        ),
                       ),
                     ),
                   ],
-                )
-              else
-                _buildColItem(
-                  icon: LucideIcons.mapPin,
-                  label: 'Alamat',
-                  value: _extractKabKotaProvinsi(patient.alamat),
-                  labelWidth: 42,
-                  maxLines: 2,
                 ),
-              if (canEditPatient) ...[
-                const SizedBox(height: 6),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: _EditPatientButton(patient: patient),
-                ),
-              ],
+              ),
             ],
           ),
         ),
       ),
     );
   }
-
-  String _extractKabKotaProvinsi(String raw) {
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty || trimmed == '-') return '-';
-
-    // Split by comma
-    final parts = trimmed
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)
-        .toList();
-
-    if (parts.isEmpty) return '-';
-
-    // Remove postal code if present at the end (5 digits)
-    if (parts.length > 1 && RegExp(r'^\d{5}$').hasMatch(parts.last)) {
-      parts.removeLast();
-    }
-
-    // Filter out street/RT/RW, Kelurahan, Kecamatan
-    final candidates = parts.where((p) {
-      final lower = p.toLowerCase();
-      if (lower.startsWith('jl.') ||
-          lower.startsWith('jl ') ||
-          lower.startsWith('jalan ') ||
-          lower.startsWith('gang ') ||
-          lower.startsWith('rt ') ||
-          lower.startsWith('rw ') ||
-          lower.startsWith('kel.') ||
-          lower.startsWith('kel ') ||
-          lower.startsWith('kelurahan ') ||
-          lower.startsWith('desa ') ||
-          lower.startsWith('kec.') ||
-          lower.startsWith('kec ') ||
-          lower.startsWith('kecamatan ')) {
-        return false;
-      }
-      return true;
-    }).toList();
-
-    if (candidates.isEmpty) {
-      return _toTitleCase(parts.last);
-    }
-
-    if (candidates.length == 1) {
-      return _toTitleCase(candidates.first);
-    }
-
-    // If 2 or more candidates, take the last two (which represent Kab/Kota and Provinsi)
-    final kabKota = _toTitleCase(candidates[candidates.length - 2]);
-    final provinsi = _toTitleCase(candidates.last);
-    return '$kabKota, $provinsi';
-  }
-
-  String _toTitleCase(String text) {
-    final clean = text.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (clean.isEmpty) return clean;
-    if (clean == clean.toUpperCase() && clean.length > 2) {
-      return clean
-          .split(' ')
-          .map((w) {
-            if (w.isEmpty) return w;
-            return w[0].toUpperCase() + w.substring(1).toLowerCase();
-          })
-          .join(' ');
-    }
-    return clean;
-  }
-
-  Widget _buildColItem({
-    required IconData icon,
-    required String label,
-    required String value,
-    double? labelWidth,
-    int maxLines = 1,
-  }) {
-    return Row(
-      crossAxisAlignment: maxLines > 1
-          ? CrossAxisAlignment.start
-          : CrossAxisAlignment.center,
-      children: [
-        Padding(
-          padding: EdgeInsets.only(top: maxLines > 1 ? 1.5 : 0),
-          child: Icon(icon, size: 11, color: const Color(0xFF94A3B8)),
-        ),
-        const SizedBox(width: 4),
-        if (labelWidth != null)
-          SizedBox(
-            width: labelWidth,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10.5,
-                color: Color(0xFF6B7280),
-                fontWeight: FontWeight.w400,
-                letterSpacing: 0,
-              ),
-            ),
-          )
-        else
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 10.5,
-              color: Color(0xFF6B7280),
-              fontWeight: FontWeight.w500,
-              letterSpacing: 0,
-            ),
-          ),
-        const SizedBox(width: 3),
-        Expanded(
-          child: Text(
-            value,
-            maxLines: maxLines,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF374151),
-              letterSpacing: 0,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 }
 
-/// Opens the patient's identity (the full patient form) to edit, from the
-/// patient's details as the detail screen loads them.
-class _EditPatientButton extends ConsumerStatefulWidget {
-  const _EditPatientButton({required this.patient});
+/// The patient's photo, or their initial on a gender-tinted square.
+class _PatientAvatar extends StatelessWidget {
+  const _PatientAvatar({required this.patient});
 
   final Patient patient;
 
   @override
-  ConsumerState<_EditPatientButton> createState() => _EditPatientButtonState();
+  Widget build(BuildContext context) {
+    final isMale = patient.jk == Gender.l;
+    final bg = isMale ? const Color(0xFFEFF6FF) : const Color(0xFFFFF1F2);
+    final fg = isMale ? const Color(0xFF2563EB) : const Color(0xFFE11D48);
+    final initialText = Text(
+      patient.nama.isNotEmpty ? patient.nama[0].toUpperCase() : '?',
+      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fg),
+    );
+    final photo = patient.photoUrl;
+
+    return Container(
+      width: 36,
+      height: 36,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: (photo != null && photo.isNotEmpty)
+          ? Image.network(
+              photo.startsWith('http') ? photo : '${ApiConfig.baseUrl}$photo',
+              width: 36,
+              height: 36,
+              // Width only: forcing both dimensions decoded non-square photos
+              // into a square (squashed). This keeps the aspect ratio so
+              // BoxFit.cover crops instead.
+              cacheWidth: 108,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => initialText,
+            )
+          : initialText,
+    );
+  }
 }
 
-class _EditPatientButtonState extends ConsumerState<_EditPatientButton> {
-  bool _loading = false;
+/// A small upper-case label over its value.
+class _InfoItem extends StatelessWidget {
+  const _InfoItem({required this.label, required this.value});
 
-  Future<void> _open() async {
-    setState(() => _loading = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final data = await ref.read(
-        patientDetailProvider(widget.patient.id).future,
-      );
-      if (!mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          // The form is a plain body widget, so a pushed page needs its own
-          // Scaffold (see patient_detail_screen.dart).
-          builder: (routeContext) => Scaffold(
-            backgroundColor: AppColors.bg,
-            body: SafeArea(
-              child: PatientForm(
-                initialPatient: Patient.fromApiJson(data),
-                onBack: () => Navigator.of(routeContext).pop(),
-                onSaved: () {
-                  Navigator.of(routeContext).pop();
-                  // PatientForm already refreshes patients & history.
-                  ref.invalidate(patientDetailProvider(widget.patient.id));
-                },
-              ),
-            ),
-          ),
-        ),
-      );
-    } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Gagal membuka data pasien: $e'),
-          backgroundColor: AppColors.red,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: _loading ? null : _open,
-      style: TextButton.styleFrom(
-        foregroundColor: AppColors.blue,
-        visualDensity: VisualDensity.compact,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-      ),
-      icon: _loading
-          ? const SizedBox(
-              width: 14,
-              height: 14,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : const Icon(LucideIcons.pencil, size: 14),
-      label: const Text(
-        'Edit Pasien',
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label.toUpperCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+            color: Color(0xFF94A3B8),
+          ),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF334155),
+          ),
+        ),
+      ],
     );
   }
 }

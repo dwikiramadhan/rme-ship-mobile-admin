@@ -184,21 +184,22 @@ void main() {
 
     await tester.tap(find.text('Tambah Obat'));
     await tester.pumpAndSettle();
-    expect(find.text('[GT-A013] Ambroxol 30 mg'), findsOneWidget);
-    expect(find.text('Sisa stok: 124 strip'), findsOneWidget);
+    expect(find.text('Ambroxol 30 mg'), findsOneWidget);
+    expect(find.text('GT-A013 · strip'), findsOneWidget);
+    expect(find.text('124 strip', findRichText: true), findsOneWidget);
 
     // Picking it again doesn't add a second row.
     await tester.tap(find.text('Tambah Obat'));
     await tester.pumpAndSettle();
-    expect(find.text('[GT-A013] Ambroxol 30 mg'), findsOneWidget);
+    expect(find.text('Ambroxol 30 mg'), findsOneWidget);
 
     await tester.tap(find.text('Simpan Adjustment'));
     await tester.pump();
     expect(find.text('Isi stok akhir Ambroxol 30 mg.'), findsOneWidget);
 
-    await tester.enterText(find.widgetWithText(TextField, 'Stok Akhir'), '44');
+    await tester.enterText(find.widgetWithText(TextField, 'Jumlah'), '44');
     await tester.pump();
-    expect(find.text('Selisih: -80'), findsOneWidget);
+    expect(find.text('-80'), findsOneWidget);
     await tester.tap(find.text('Simpan Adjustment'));
     await tester.pump();
     expect(
@@ -208,7 +209,7 @@ void main() {
     expect(api.created, isEmpty);
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Alasan'),
+      find.widgetWithText(TextField, 'Tulis alasan'),
       'Kedaluwarsa',
     );
     await tester.tap(find.text('Simpan Adjustment'));
@@ -222,7 +223,7 @@ void main() {
       {'medicine_sku': 'GT-A013', 'stock_after': 44, 'reason': 'Kedaluwarsa'},
     ]);
     expect(find.text('Adjustment stok berhasil disimpan.'), findsOneWidget);
-    expect(find.text('[GT-A013] Ambroxol 30 mg'), findsNothing);
+    expect(find.text('Ambroxol 30 mg'), findsNothing);
   });
 
   testWidgets('the report lists each medicine of the month so far', (
@@ -262,11 +263,26 @@ void main() {
       'date_from': '2026-10-01',
       'date_to': '2026-10-22',
     });
-    expect(find.text('[GT-A013] Ambroxol 30 mg'), findsOneWidget);
+    expect(find.text('Ambroxol 30 mg'), findsOneWidget);
     expect(find.text('-80'), findsOneWidget);
-    expect(find.text('Alasan: Kedaluwarsa'), findsOneWidget);
+    expect(find.text('Kedaluwarsa'), findsOneWidget);
     expect(find.text('Unduh PDF'), findsOneWidget);
     expect(find.text('Unduh Excel'), findsOneWidget);
+    expect(find.text('1 baris'), findsOneWidget);
+
+    // The medicine search filters the loaded rows.
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Cari nama obat'),
+      'paracetamol',
+    );
+    await tester.pump();
+    expect(find.text('Ambroxol 30 mg'), findsNothing);
+    expect(find.text('0 baris'), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'ambro');
+    await tester.pump();
+    expect(find.text('Ambroxol 30 mg'), findsOneWidget);
+    // Searching doesn't ask the server again.
+    expect(api.queries, hasLength(1));
   });
 
   testWidgets('no adjustment without an ongoing trip assigned', (tester) async {
@@ -291,7 +307,7 @@ void main() {
     await tester.tap(find.text('Tambah Obat'));
     await tester.tap(find.text('Simpan Adjustment'));
     await tester.pumpAndSettle();
-    expect(find.text('[GT-A013] Ambroxol 30 mg'), findsNothing);
+    expect(find.text('Ambroxol 30 mg'), findsNothing);
     expect(api.created, isEmpty);
   });
 

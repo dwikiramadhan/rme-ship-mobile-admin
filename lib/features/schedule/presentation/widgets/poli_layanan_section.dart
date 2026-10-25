@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_card.dart';
 import '../../data/schedule_api.dart';
 import '../../domain/trip_schedule.dart';
 import 'edit_clinics_modal.dart';
@@ -34,8 +35,9 @@ void editScheduleClinics(
   );
 }
 
-/// "Daftar Poli Layanan" of the trip under way. With [onEdit] the clinics
-/// can be changed (Koordinator); without it the list is read-only.
+/// "Poli Layanan" of the trip under way: one card with a row per clinic
+/// (name, hours, status). With [onEdit] the clinics can be changed
+/// (Koordinator); without it the list is read-only.
 class PoliLayananSection extends StatelessWidget {
   const PoliLayananSection({
     super.key,
@@ -52,287 +54,358 @@ class PoliLayananSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final schedule = this.schedule;
     final onEdit = this.onEdit;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(
-              LucideIcons.building2,
-              size: 16,
-              color: Color(0xFF475569),
-            ),
-            const SizedBox(width: 8),
-            const Text(
-              'DAFTAR POLI LAYANAN',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5,
-                color: Color(0xFF475569),
-              ),
-            ),
-            const Spacer(),
-            if (schedule != null && onEdit != null)
-              InkWell(
-                onTap: onEdit,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.orangeLt,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.orange.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        LucideIcons.pencilLine,
-                        size: 13,
-                        color: AppColors.orange,
-                      ),
-                      SizedBox(width: 5),
-                      Text(
-                        'Atur Poli',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.orange,
-                        ),
-                      ),
-                    ],
+    final Widget body;
+    if (schedule == null) {
+      body = const _EmptyMessage(
+        title: 'Tidak ada jadwal pelayaran aktif',
+        subtitle:
+            'Poli layanan dapat diatur setelah jadwal pelayaran tersedia.',
+      );
+    } else if (clinics.isEmpty) {
+      body = _EmptyMessage(
+        title: 'Belum ada Poli Layanan terdaftar',
+        subtitle:
+            'Poli layanan untuk jadwal pelayaran ini belum dikonfigurasi.',
+        action: onEdit == null
+            ? null
+            : TextButton.icon(
+                onPressed: onEdit,
+                icon: const Icon(LucideIcons.pencilLine, size: 14),
+                label: const Text(
+                  'Atur Poli Layanan',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0,
                   ),
                 ),
+                style: TextButton.styleFrom(foregroundColor: AppColors.orange),
               ),
+      );
+    } else {
+      body = LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= _kTableMinWidth;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (wide) const _TableHeader(),
+              for (var i = 0; i < clinics.length; i++)
+                _ClinicRow(
+                  clinic: clinics[i],
+                  wide: wide,
+                  first: i == 0,
+                  last: i == clinics.length - 1,
+                ),
+            ],
+          );
+        },
+      );
+    }
+
+    return DefaultTextStyle.merge(
+      style: const TextStyle(letterSpacing: 0),
+      child: AppCard(
+        padding: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Row(
+                children: [
+                  const Text(
+                    'Poli Layanan',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
+                  ),
+                  if (schedule != null) ...[
+                    const SizedBox(width: 8),
+                    _CountChip(text: '${clinics.length} poli'),
+                  ],
+                  const Spacer(),
+                  if (schedule != null && onEdit != null)
+                    _GhostButton(label: 'Atur Poli', onTap: onEdit),
+                ],
+              ),
+            ),
+            body,
           ],
         ),
-        const SizedBox(height: 12),
-        if (schedule == null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Column(
-              children: [
-                Icon(LucideIcons.calendarX, size: 36, color: Color(0xFF94A3B8)),
-                SizedBox(height: 10),
-                Text(
-                  'Tidak ada jadwal pelayaran aktif',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Poli layanan dapat diatur setelah jadwal pelayaran tersedia.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: AppColors.sub),
-                ),
-              ],
-            ),
-          )
-        else if (clinics.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              children: [
-                const Icon(
-                  LucideIcons.building2,
-                  size: 40,
-                  color: Color(0xFF94A3B8),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Belum ada Poli Layanan terdaftar',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Poli layanan untuk jadwal pelayaran ini belum dikonfigurasi.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: AppColors.sub),
-                ),
-                if (onEdit != null) ...[
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: onEdit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.orange,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                    ),
-                    icon: const Icon(
-                      LucideIcons.pencilLine,
-                      size: 15,
-                      color: Colors.white,
-                    ),
-                    label: const Text(
-                      'Atur Poli Layanan',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          )
-        else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: clinics.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final clinic = clinics[index];
-              return _clinicCard(clinic);
-            },
-          ),
-      ],
+      ),
     );
   }
+}
 
-  Widget _clinicCard(ScheduleClinicItem clinic) {
+// Same type scale as the other Koordinator screens: 13 card title, 12.5 body,
+// 11 meta, 10.5 column labels (all before the tablet text scale).
+const _kBody = TextStyle(
+  fontSize: 12.5,
+  color: AppColors.text,
+  letterSpacing: 0,
+);
+const _kMeta = TextStyle(fontSize: 11, color: AppColors.sub, letterSpacing: 0);
+const _kColumnLabel = TextStyle(
+  fontSize: 10.5,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 0.3,
+  color: AppColors.sub,
+);
+
+const double _kHoursCol = 200;
+const double _kStatusCol = 96;
+const double _kColGap = 12;
+
+/// Below this width the hours go under the clinic name.
+const double _kTableMinWidth = 520;
+
+class _CountChip extends StatelessWidget {
+  const _CountChip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.card2,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          color: AppColors.sub,
+        ),
+      ),
+    );
+  }
+}
+
+/// Small grey button ("Atur Poli").
+class _GhostButton extends StatelessWidget {
+  const _GhostButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.card2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                LucideIcons.pencilLine,
+                size: 14,
+                color: AppColors.sub,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyMessage extends StatelessWidget {
+  const _EmptyMessage({
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: _kBody.copyWith(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(subtitle, textAlign: TextAlign.center, style: _kMeta),
+          if (action != null) ...[const SizedBox(height: 8), action!],
+        ],
+      ),
+    );
+  }
+}
+
+class _TableHeader extends StatelessWidget {
+  const _TableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: AppColors.card2,
+        border: Border.symmetric(
+          horizontal: BorderSide(color: AppColors.border),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Expanded(child: Text('POLI', style: _kColumnLabel)),
+          SizedBox(width: _kColGap),
+          SizedBox(
+            width: _kHoursCol,
+            child: Text('JAM LAYANAN', style: _kColumnLabel),
+          ),
+          SizedBox(width: _kColGap),
+          SizedBox(
+            width: _kStatusCol,
+            child: Text('STATUS', style: _kColumnLabel),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFED7AA)),
-            ),
-            child: const Icon(
-              LucideIcons.building2,
-              color: Color(0xFFEA580C),
-              size: 20,
-            ),
+    );
+  }
+}
+
+class _ClinicRow extends StatelessWidget {
+  const _ClinicRow({
+    required this.clinic,
+    required this.wide,
+    required this.first,
+    required this.last,
+  });
+
+  final ScheduleClinicItem clinic;
+  final bool wide;
+  final bool first;
+  final bool last;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          clinic.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _kBody.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (clinic.code.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(clinic.code.toUpperCase(), style: _kMeta),
+        ],
+      ],
+    );
+    final hours = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(LucideIcons.clock, size: 13, color: AppColors.sub),
+        const SizedBox(width: 6),
+        Text(clinic.operationalHours, style: _kBody),
+      ],
+    );
+    const status = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _Dot(color: AppColors.green),
+        SizedBox(width: 6),
+        Text(
+          'Aktif',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0,
+            color: AppColors.green,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+      ],
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+      decoration: BoxDecoration(
+        border: Border(
+          top: !wide && first
+              ? const BorderSide(color: AppColors.border)
+              : BorderSide.none,
+          bottom: last
+              ? BorderSide.none
+              : const BorderSide(color: AppColors.border),
+        ),
+      ),
+      child: wide
+          ? Row(
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        clinic.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 1.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        clinic.code.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF475569),
-                        ),
-                      ),
-                    ),
-                  ],
+                Expanded(child: name),
+                const SizedBox(width: _kColGap),
+                SizedBox(width: _kHoursCol, child: hours),
+                const SizedBox(width: _kColGap),
+                const SizedBox(width: _kStatusCol, child: status),
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [name, const SizedBox(height: 6), hours],
+                  ),
                 ),
-                const SizedBox(height: 5),
-                Row(
-                  children: [
-                    const Icon(
-                      LucideIcons.clock,
-                      size: 12,
-                      color: Color(0xFF94A3B8),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      'Jam Layanan: ${clinic.operationalHours}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF475569),
-                      ),
-                    ),
-                  ],
-                ),
+                const SizedBox(width: _kColGap),
+                status,
               ],
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color(0xFFECFDF5),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFA7F3D0)),
-            ),
-            child: const Text(
-              'Aktif',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF059669),
-              ),
-            ),
-          ),
-        ],
-      ),
+    );
+  }
+}
+
+class _Dot extends StatelessWidget {
+  const _Dot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 6,
+      height: 6,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

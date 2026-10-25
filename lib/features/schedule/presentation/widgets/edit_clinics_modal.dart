@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../data/schedule_api.dart';
 import '../../domain/trip_schedule.dart';
 
@@ -27,10 +28,7 @@ class EditClinicsModal extends StatefulWidget {
     return showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => EditClinicsModal(
-        schedule: schedule,
-        onSave: onSave,
-      ),
+      builder: (ctx) => EditClinicsModal(schedule: schedule, onSave: onSave),
     );
   }
 
@@ -149,7 +147,11 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(LucideIcons.x, color: Colors.white, size: 16),
+                  icon: const Icon(
+                    LucideIcons.x,
+                    color: Colors.white,
+                    size: 16,
+                  ),
                   onPressed: () {
                     entry.remove();
                     if (_activeErrorToast == entry) _activeErrorToast = null;
@@ -378,547 +380,483 @@ class _EditClinicsModalState extends State<EditClinicsModal> {
 
   @override
   Widget build(BuildContext context) {
+    final count = _clinics.length;
     return Dialog(
       backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Top Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide(color: AppColors.border)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: AppColors.orangeLt,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      LucideIcons.building2,
-                      color: AppColors.orange,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Edit Poli Layanan',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.text,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${widget.schedule.namaKapal} • ${widget.schedule.code}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.sub,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      LucideIcons.x,
-                      size: 20,
-                      color: AppColors.sub,
-                    ),
-                    onPressed: _isSubmitting
-                        ? null
-                        : () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-
-            // Top Error Banner
-            if (_errorMessage != null)
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(letterSpacing: 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
               Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFCA5A5)),
+                padding: const EdgeInsets.fromLTRB(20, 14, 12, 14),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      LucideIcons.alertCircle,
-                      color: Color(0xFFDC2626),
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                          color: Color(0xFF991B1B),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    InkWell(
-                      onTap: () => setState(() => _errorMessage = null),
-                      child: const Icon(
-                        LucideIcons.x,
-                        size: 16,
-                        color: Color(0xFF991B1B),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            // Scrollable Content
-            Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          LucideIcons.building2,
-                          size: 16,
-                          color: Color(0xFF64748B),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'POLIKLINIK TERSEDIA',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF7ED),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '${_clinics.length} dipilih',
-                            style: const TextStyle(
-                              fontSize: 11,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Edit Poli Layanan',
+                            style: TextStyle(
+                              fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.orange,
+                              color: AppColors.text,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Multi-select picker input
-                    InkWell(
-                      onTap: _showPoliklinikPickerModal,
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              LucideIcons.building2,
-                              size: 18,
-                              color: Color(0xFF64748B),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                _clinics.isEmpty
-                                    ? 'Pilih poliklinik...'
-                                    : '${_clinics.length} poliklinik dipilih',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: _clinics.isNotEmpty
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  color: _clinics.isNotEmpty
-                                      ? AppColors.text
-                                      : const Color(0xFF94A3B8),
-                                ),
-                              ),
-                            ),
-                            if (_clinics.isNotEmpty)
-                              InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    for (final c in _clinics) {
-                                      c.openTime.dispose();
-                                      c.closeTime.dispose();
-                                    }
-                                    _clinics.clear();
-                                  });
-                                },
-                                child: const Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 4),
-                                  child: Icon(
-                                    LucideIcons.x,
-                                    size: 16,
-                                    color: Color(0xFF94A3B8),
-                                  ),
-                                ),
-                              ),
-                            const Icon(
-                              LucideIcons.chevronDown,
-                              size: 18,
-                              color: Color(0xFF64748B),
-                            ),
-                          ],
-                        ),
+                          const SizedBox(height: 2),
+                          Text(
+                            [
+                              widget.schedule.namaKapal,
+                              widget.schedule.code,
+                            ].where((s) => s.isNotEmpty).join(' · '),
+                            style: _kMeta,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 14),
-
-                    if (_clinics.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 32,
-                          horizontal: 16,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: const Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              LucideIcons.building2,
-                              size: 32,
-                              color: Color(0xFF94A3B8),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Belum ada poliklinik yang dipilih',
-                              style: TextStyle(
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF475569),
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              'Pilih poliklinik di atas untuk mengatur jam operasional pelayanan',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF94A3B8),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      for (final clinic in _clinics) ...[
-                        _buildClinicCard(clinic),
-                        const SizedBox(height: 10),
-                      ],
-                  ],
-                ),
-              ),
-            ),
-
-            // Footer Buttons
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.border)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    IconButton(
+                      tooltip: 'Tutup',
+                      icon: const Icon(
+                        LucideIcons.x,
+                        size: 18,
+                        color: AppColors.sub,
                       ),
                       onPressed: _isSubmitting
                           ? null
                           : () => Navigator.pop(context),
-                      child: const Text(
-                        'Batal',
-                        style: TextStyle(
-                          color: Color(0xFF64748B),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.orange,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: _isSubmitting ? null : _handleSave,
-                      child: _isSubmitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  LucideIcons.check,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Simpan Perubahan',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+
+              // Error
+              if (_errorMessage != null)
+                Container(
+                  margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.redLt,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.red.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        LucideIcons.alertCircle,
+                        color: AppColors.red,
+                        size: 15,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                            color: AppColors.red,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => setState(() => _errorMessage = null),
+                        child: const Icon(
+                          LucideIcons.x,
+                          size: 14,
+                          color: AppColors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Content
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text('POLIKLINIK', style: _kColumnLabel),
+                          ),
+                          Text('$count dipilih', style: _kMeta),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      _PickerField(
+                        count: count,
+                        onTap: _showPoliklinikPickerModal,
+                        onClear: count == 0
+                            ? null
+                            : () => setState(() {
+                                for (final c in _clinics) {
+                                  c.openTime.dispose();
+                                  c.closeTime.dispose();
+                                }
+                                _clinics.clear();
+                              }),
+                      ),
+                      const SizedBox(height: 14),
+                      if (_clinics.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 24,
+                            horizontal: 16,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Belum ada poliklinik yang dipilih',
+                                textAlign: TextAlign.center,
+                                style: _kBody.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Pilih poliklinik di atas untuk mengatur jam '
+                                'operasional pelayanan',
+                                textAlign: TextAlign.center,
+                                style: _kMeta,
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final wide =
+                                  constraints.maxWidth >= _kRowMinWidth;
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (wide) const _HoursHeader(),
+                                  for (var i = 0; i < _clinics.length; i++)
+                                    _buildClinicRow(
+                                      _clinics[i],
+                                      wide: wide,
+                                      last: i == _clinics.length - 1,
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Footer
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                decoration: const BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    AppButton(
+                      label: 'Batal',
+                      variant: AppButtonVariant.ghost,
+                      onPressed: _isSubmitting
+                          ? null
+                          : () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 8),
+                    AppButton(
+                      label: 'Simpan',
+                      icon: LucideIcons.check,
+                      loading: _isSubmitting,
+                      onPressed: _handleSave,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildClinicCard(_ClinicFormItem clinic) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFDFB),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFB923C), width: 1.5),
+  /// One selected clinic with its opening and closing time. On a narrow
+  /// dialog the times go under the name.
+  Widget _buildClinicRow(
+    _ClinicFormItem clinic, {
+    required bool wide,
+    required bool last,
+  }) {
+    final name = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          clinic.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: _kBody.copyWith(fontWeight: FontWeight.w600),
+        ),
+        if (clinic.code.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(clinic.code.toUpperCase(), style: _kMeta),
+        ],
+      ],
+    );
+    final open = _TimeField(
+      value: _displayTime(clinic.openTime.text),
+      onTap: () => _pickClinicTime(clinic, isOpening: true),
+    );
+    final close = _TimeField(
+      value: _displayTime(clinic.closeTime.text),
+      onTap: () => _pickClinicTime(clinic, isOpening: false),
+    );
+    final remove = SizedBox(
+      width: 28,
+      height: 28,
+      child: IconButton(
+        tooltip: 'Hapus',
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+        style: IconButton.styleFrom(
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        iconSize: 15,
+        icon: const Icon(LucideIcons.trash2, color: Color(0xFF94A3B8)),
+        onPressed: () {
+          setState(() {
+            clinic.openTime.dispose();
+            clinic.closeTime.dispose();
+            _clinics.remove(clinic);
+          });
+        },
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        border: last
+            ? null
+            : const Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: wide
+          ? Row(
               children: [
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: const BoxDecoration(
-                    color: AppColors.orange,
-                    shape: BoxShape.circle,
+                Expanded(child: name),
+                const SizedBox(width: 10),
+                SizedBox(width: _kTimeCol, child: open),
+                const SizedBox(width: 10),
+                SizedBox(width: _kTimeCol, child: close),
+                const SizedBox(width: 10),
+                remove,
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: name),
+                    remove,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: open),
+                    const SizedBox(width: 8),
+                    Expanded(child: close),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+/// "08 . 00" (how the form keeps a time) shown as "08:00".
+String _displayTime(String value) =>
+    value.replaceAll(' ', '').replaceAll('.', ':');
+
+// Same type scale as the other Koordinator screens: 15 dialog title,
+// 12.5 body, 11 meta, 10.5 column labels (all before the tablet text scale).
+const _kBody = TextStyle(
+  fontSize: 12.5,
+  color: AppColors.text,
+  letterSpacing: 0,
+);
+const _kMeta = TextStyle(fontSize: 11, color: AppColors.sub, letterSpacing: 0);
+const _kColumnLabel = TextStyle(
+  fontSize: 10.5,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 0.3,
+  color: AppColors.sub,
+);
+const double _kTimeCol = 112;
+
+/// Below this width the times of a clinic go under its name.
+const double _kRowMinWidth = 460;
+
+class _HoursHeader extends StatelessWidget {
+  const _HoursHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: const BoxDecoration(
+        color: AppColors.card2,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: const Row(
+        children: [
+          Expanded(child: Text('POLI', style: _kColumnLabel)),
+          SizedBox(width: 10),
+          SizedBox(
+            width: _kTimeCol,
+            child: Text('JAM BUKA', style: _kColumnLabel),
+          ),
+          SizedBox(width: 10),
+          SizedBox(
+            width: _kTimeCol,
+            child: Text('JAM TUTUP', style: _kColumnLabel),
+          ),
+          SizedBox(width: 10),
+          SizedBox(width: 28),
+        ],
+      ),
+    );
+  }
+}
+
+/// "3 poliklinik dipilih" — opens the clinic picker.
+class _PickerField extends StatelessWidget {
+  const _PickerField({
+    required this.count,
+    required this.onTap,
+    required this.onClear,
+  });
+
+  final int count;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.inputBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.building2, size: 14, color: AppColors.sub),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  count == 0
+                      ? 'Pilih poliklinik...'
+                      : '$count poliklinik dipilih',
+                  style: _kBody.copyWith(
+                    color: count == 0 ? const Color(0xFF94A3B8) : null,
                   ),
-                  child: const Center(
+                ),
+              ),
+              if (onClear != null)
+                InkWell(
+                  onTap: onClear,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
                     child: Icon(
-                      LucideIcons.check,
-                      color: Colors.white,
+                      LucideIcons.x,
                       size: 14,
+                      color: Color(0xFF94A3B8),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        clinic.name,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.text,
-                        ),
-                      ),
-                      Text(
-                        clinic.code.toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.sub,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    LucideIcons.trash2,
-                    size: 17,
-                    color: Color(0xFF94A3B8),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      clinic.openTime.dispose();
-                      clinic.closeTime.dispose();
-                      _clinics.remove(clinic);
-                    });
-                  },
-                ),
-              ],
-            ),
+              const Icon(
+                LucideIcons.chevronDown,
+                size: 14,
+                color: AppColors.sub,
+              ),
+            ],
           ),
-          const Divider(height: 1, color: Color(0xFFFFEDD5)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Jam Buka',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      InkWell(
-                        onTap: () => _pickClinicTime(clinic, isOpening: true),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFCBD5E1)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.clock,
-                                size: 14,
-                                color: Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  clinic.openTime.text,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.text,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Jam Tutup',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF64748B),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      InkWell(
-                        onTap: () => _pickClinicTime(clinic, isOpening: false),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 9,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFCBD5E1)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.clock,
-                                size: 14,
-                                color: Color(0xFF64748B),
-                              ),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  clinic.closeTime.text,
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.text,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A clinic time ("08:00", regular weight) that opens the time picker.
+class _TimeField extends StatelessWidget {
+  const _TimeField({required this.value, required this.onTap});
+
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.inputBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: const BorderSide(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(LucideIcons.clock, size: 13, color: AppColors.sub),
+              const SizedBox(width: 6),
+              Expanded(child: Text(value, style: _kBody)),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1132,10 +1070,18 @@ class _PoliklinikPickerBottomSheetState
               child: TextField(
                 controller: _searchController,
                 onChanged: _onSearchChanged,
-                style: const TextStyle(fontSize: 13, color: AppColors.text, letterSpacing: 0),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.text,
+                  letterSpacing: 0,
+                ),
                 decoration: InputDecoration(
                   hintText: 'Cari poliklinik...',
-                  hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8), letterSpacing: 0),
+                  hintStyle: const TextStyle(
+                    fontSize: 12.5,
+                    color: Color(0xFF94A3B8),
+                    letterSpacing: 0,
+                  ),
                   prefixIcon: const Icon(LucideIcons.search, size: 16),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
@@ -1160,82 +1106,79 @@ class _PoliklinikPickerBottomSheetState
               child: _loading && displayedItems.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : displayedItems.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'Tidak ada poliklinik ditemukan',
-                            style: TextStyle(color: AppColors.sub),
+                  ? const Center(
+                      child: Text(
+                        'Tidak ada poliklinik ditemukan',
+                        style: TextStyle(color: AppColors.sub),
+                      ),
+                    )
+                  : ListView.separated(
+                      controller: _scrollController,
+                      itemCount: displayedItems.length + (_loadingMore ? 1 : 0),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1, indent: 56),
+                      itemBuilder: (context, index) {
+                        if (index >= displayedItems.length) {
+                          return const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: Center(
+                              child: SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final item = displayedItems[index];
+                        final selected = _isItemSelected(item);
+
+                        return ListTile(
+                          onTap: () => _toggleItem(item),
+                          leading: Container(
+                            width: 22,
+                            height: 22,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: selected
+                                    ? AppColors.orange
+                                    : const Color(0xFFCBD5E1),
+                                width: 1.5,
+                              ),
+                              color: selected ? AppColors.orange : Colors.white,
+                            ),
+                            child: selected
+                                ? const Icon(
+                                    Icons.check,
+                                    size: 15,
+                                    color: Colors.white,
+                                  )
+                                : null,
                           ),
-                        )
-                      : ListView.separated(
-                          controller: _scrollController,
-                          itemCount:
-                              displayedItems.length + (_loadingMore ? 1 : 0),
-                          separatorBuilder: (context, index) =>
-                              const Divider(height: 1, indent: 56),
-                          itemBuilder: (context, index) {
-                            if (index >= displayedItems.length) {
-                              return const Padding(
-                                padding: EdgeInsets.all(12),
-                                child: Center(
-                                  child: SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final item = displayedItems[index];
-                            final selected = _isItemSelected(item);
-
-                            return ListTile(
-                              onTap: () => _toggleItem(item),
-                              leading: Container(
-                                width: 22,
-                                height: 22,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: selected
-                                        ? AppColors.orange
-                                        : const Color(0xFFCBD5E1),
-                                    width: 1.5,
-                                  ),
-                                  color: selected
-                                      ? AppColors.orange
-                                      : Colors.white,
-                                ),
-                                child: selected
-                                    ? const Icon(
-                                        Icons.check,
-                                        size: 15,
-                                        color: Colors.white,
-                                      )
-                                    : null,
-                              ),
-                              title: Text(
-                                item.name,
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  fontWeight: selected
-                                      ? FontWeight.w700
-                                      : FontWeight.w500,
-                                  color: AppColors.text,
-                                ),
-                              ),
-                              subtitle: Text(
-                                item.code.toUpperCase(),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.sub,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                          title: Text(
+                            item.name,
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: AppColors.text,
+                            ),
+                          ),
+                          subtitle: Text(
+                            item.code.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.sub,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
 
             // Bottom Action

@@ -67,7 +67,10 @@ void main() {
         expect(spinner, findsOneWidget);
         // Centered across the list (same horizontal center as the list).
         final listCenterX = tester.getCenter(find.byType(ListView)).dx;
-        expect(tester.getCenter(spinner).dx, moreOrLessEquals(listCenterX, epsilon: 1));
+        expect(
+          tester.getCenter(spinner).dx,
+          moreOrLessEquals(listCenterX, epsilon: 1),
+        );
       },
     );
   }
@@ -92,6 +95,8 @@ void main() {
         registerNo: 'RJ30082026-00001',
         phone: '081234567890',
         poliName: 'Poli Umum',
+        createdByName: 'Suster Siti',
+        createdPortName: 'Pelabuhan Maloy',
       );
 
       await tester.pumpWidget(
@@ -111,8 +116,12 @@ void main() {
       expect(find.text('Pierre Gasly'), findsOneWidget);
       expect(find.text('RJ30082026-00001'), findsOneWidget);
       expect(find.text('3173051208950007'), findsOneWidget);
-      expect(find.text('081234567890'), findsOneWidget);
-      expect(find.text('Poli Umum'), findsOneWidget);
+      expect(find.text('Pelabuhan Maloy'), findsOneWidget);
+      expect(find.text('Suster Siti'), findsOneWidget);
+      // Phone, poli and the Edit Pasien button are no longer on the card.
+      expect(find.text('081234567890'), findsNothing);
+      expect(find.text('Poli Umum'), findsNothing);
+      expect(find.text('Edit Pasien'), findsNothing);
 
       // Verify 'Menunggu Dokter' does NOT exist in the widget tree
       expect(find.text('Menunggu Dokter'), findsNothing);

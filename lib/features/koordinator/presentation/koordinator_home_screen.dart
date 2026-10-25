@@ -111,16 +111,13 @@ class _KoordinatorDashboard extends ConsumerWidget {
                     canEditClinics: true,
                   ),
                   if (trip.isOngoing)
-                    _InfoRow(
-                      icon: LucideIcons.anchor,
-                      text: 'Posisi kapal: ${port?.portName ?? '-'}',
-                    ),
+                    _ShipPositionCard(portName: port?.portName ?? '-'),
                 ] else
                   const _InfoRow(
                     icon: LucideIcons.ship,
                     text: notAssignedMessage,
                   ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 PoliLayananSection(
                   schedule: trip,
                   clinics: trip?.clinics ?? const [],
@@ -236,6 +233,193 @@ class _InfoRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// "Posisi kapal": the harbor the ship is at, highlighted as a light-blue
+/// glass bar so it stands out on the dashboard.
+class _ShipPositionCard extends StatelessWidget {
+  const _ShipPositionCard({required this.portName});
+
+  final String portName;
+
+  static const _sky = Color(0xFF0284C7);
+  static const _skyLight = Color(0xFF38BDF8);
+  static const _skyDeep = Color(0xFF0369A1);
+  static const _navy = Color(0xFF0C4A6E);
+
+  @override
+  Widget build(BuildContext context) {
+    Widget glow(double size, Color color) => Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(colors: [color, color.withValues(alpha: 0)]),
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _sky.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: _sky.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: Stack(
+          children: [
+            // Glass: a light sky gradient with soft glows behind the content.
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFE0F2FE).withValues(alpha: 0.95),
+                      const Color(0xFFF0F9FF).withValues(alpha: 0.85),
+                      Colors.white.withValues(alpha: 0.7),
+                    ],
+                    stops: const [0, 0.55, 1],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              right: -40,
+              top: -70,
+              child: glow(220, _skyLight.withValues(alpha: 0.28)),
+            ),
+            Positioned(
+              right: 180,
+              bottom: -90,
+              child: glow(200, const Color(0xFF0EA5E9).withValues(alpha: 0.16)),
+            ),
+            // Top highlight of the glass edge.
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: Container(
+                height: 1,
+                color: Colors.white.withValues(alpha: 0.9),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [_skyLight, _sky],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _sky.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      LucideIcons.anchor,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'POSISI KAPAL',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                            color: _skyDeep,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          portName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0,
+                            color: _navy,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0EA5E9),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(
+                                  0xFF0EA5E9,
+                                ).withValues(alpha: 0.18),
+                                spreadRadius: 3,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Kapal sedang di sini',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0,
+                            color: _skyDeep,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
