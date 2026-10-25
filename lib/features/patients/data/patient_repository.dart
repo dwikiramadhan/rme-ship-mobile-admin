@@ -746,6 +746,9 @@ class PatientsNotifier extends StateNotifier<List<Patient>> {
       photoUrl: patient.photoUrl,
       serviceShipCode: effectiveShipCode,
     );
+    // Where the patient was registered (the user who did is taken from the
+    // login on the server).
+    createBody['port_id'] = portId;
     // Poli Umum needs no doctor: the first one to examine takes the visit.
     final visitBody =
         patient.assignedDokterId.isNotEmpty || isPoliUmum(patient.poliCode)

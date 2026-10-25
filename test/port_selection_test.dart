@@ -40,10 +40,14 @@ JadwalPerjalanan _trip(List<ScheduleStop> stops) => JadwalPerjalanan(
 
 /// Records the medical records (visits) sent to the backend.
 class _RecordingPatientApi extends PatientApi {
+  final created = <Map<String, dynamic>>[];
   final visits = <Map<String, dynamic>>[];
 
   @override
-  Future<Patient> createPatient(Map<String, dynamic> body) async => _patient;
+  Future<Patient> createPatient(Map<String, dynamic> body) async {
+    created.add(body);
+    return _patient;
+  }
 
   @override
   Future<void> addMedicalRecord(
@@ -99,6 +103,8 @@ void main() {
 
     await notifier.addPatient(_patient, shipId: 'ship-1', portId: 'port-bpn');
 
+    // The patient record keeps the harbor they were registered at too.
+    expect(api.created.single['port_id'], 'port-bpn');
     expect(api.visits, hasLength(1));
     expect(api.visits.single['ship_id'], 'ship-1');
     expect(api.visits.single['port_id'], 'port-bpn');

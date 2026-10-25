@@ -166,6 +166,7 @@ void main() {
     expect(create.path, '/api/v1/patients');
     expect(create.body?['id'], local.id);
     expect(create.produces, {local.id: 'result.id'});
+    expect(create.body?['port_id'], 'port-bpn');
     expect(visit.path, '/api/v1/patients/${local.id}/medical-records');
     expect(visit.body?['port_id'], 'port-bpn');
   });
