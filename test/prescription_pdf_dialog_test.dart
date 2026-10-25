@@ -8,6 +8,8 @@ import 'package:pdfx/pdfx.dart';
 
 import 'package:bayan_rme/features/patients/presentation/widgets/prescription_pdf_dialog.dart';
 
+import 'support/pdf_support.dart';
+
 final _pdf = Uint8List.fromList(utf8.encode('%PDF-1.4 test'));
 
 Future<void> _pump(WidgetTester tester, PrescriptionPdfDialog dialog) async {
@@ -56,7 +58,7 @@ void main() {
     expect(savedName, 'resep-siti-14072026.pdf');
     expect(savedBytes, _pdf);
     expect(find.text('Resep tersimpan: resep-siti-14072026.pdf'), findsOneWidget);
-  });
+  }, skip: noPdfRenderer);
 
   testWidgets('save is disabled until the download succeeds', (tester) async {
     var saved = false;

@@ -8,6 +8,8 @@ import 'package:pdfx/pdfx.dart';
 
 import 'package:bayan_rme/features/patients/presentation/widgets/lab_document_viewer.dart';
 
+import 'support/pdf_support.dart';
+
 // 1x1 transparent PNG.
 final _png = base64Decode(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
@@ -55,7 +57,7 @@ void main() {
 
     expect(find.byType(PdfViewPinch), findsOneWidget);
     expect(find.byType(Image), findsNothing);
-  });
+  }, skip: noPdfRenderer);
 
   testWidgets('a missing document shows a clear error with retry', (tester) async {
     var attempts = 0;

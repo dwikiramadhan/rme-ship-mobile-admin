@@ -70,6 +70,14 @@ void main() {
         'expiry_date': '2027-10-05T00:00:00Z',
       };
 
+      // Warm up first: the first parses also pay for compiling the code,
+      // which on a slow CI runner alone can take most of the budget.
+      for (int i = 0; i < 1000; i++) {
+        MedicalHistory.fromApiJson(sampleHistoryJson);
+        Patient.fromApiJson(samplePatientJson);
+        ShipMedicineStock.fromJson(sampleMedicineJson);
+      }
+
       // Measure 1,000 MedicalHistory parses
       final swHist = Stopwatch()..start();
       for (int i = 0; i < 1000; i++) {

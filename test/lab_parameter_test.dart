@@ -10,6 +10,8 @@ import 'package:bayan_rme/features/patients/domain/lab_parameter.dart';
 import 'package:bayan_rme/features/patients/domain/lab_test_type.dart';
 import 'package:bayan_rme/features/patients/presentation/widgets/prescription_pdf_dialog.dart';
 
+import 'support/pdf_support.dart';
+
 // The lab result form (master GET /lab-parameters): rows of the requested
 // tests, the patient's reference range, and what is sent back.
 
@@ -237,5 +239,5 @@ void main() {
     await tester.pump();
     expect(requested, 'lab-1');
     expect(find.text('Hasil Pemeriksaan Lab'), findsOneWidget);
-  });
+  }, skip: noPdfRenderer);
 }
