@@ -14,6 +14,9 @@ import 'package:bayan_rme/features/medicine_stock/domain/ship_medicine_stock.dar
 import 'package:bayan_rme/features/medicine_stock/presentation/medicine_stock_screen.dart';
 
 class _FakeAuthRepository implements AuthRepository {
+  @override
+  Future<AuthSession?> refreshUser(AuthSession current) async => null;
+
   _FakeAuthRepository(this.session);
   final AuthSession? session;
 

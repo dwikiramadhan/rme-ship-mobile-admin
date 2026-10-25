@@ -1,31 +1,27 @@
-import 'dart:async';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// API paths and base URL. Defaults to the cloud backend; can be overridden
-/// at build time via `--dart-define=API_BASE_URL=...`, or at runtime (debug
-/// builds only) via the server settings dialog.
+/// API paths and base URL: the production backend in release builds, a
+/// local backend while developing. Either can be overridden at build time
+/// via `--dart-define=API_BASE_URL=...` (e.g. the Android emulator's
+/// `http://10.0.2.2:8080`, or a LAN address on a phone).
 class ApiConfig {
   ApiConfig._();
 
-  static const String cloudBaseUrl = 'https://rme-ship.wikibaggins.com';
+  static const String productionBaseUrl = 'https://api.rmebayanpeduli.com';
+  static const String developmentBaseUrl = 'http://localhost:8080';
 
-  static const String serverUrlStorageKey = 'bayan_rme.server_url';
-  static String? _customBaseUrl;
-
-  static final StreamController<String> _baseUrlChangeController =
-      StreamController<String>.broadcast();
-  static Stream<String> get onBaseUrlChanged => _baseUrlChangeController.stream;
+  /// Where the removed server settings dialog kept a custom address.
+  static const String _serverUrlStorageKey = 'bayan_rme.server_url';
 
   /// Host only, without `/api/v1`: every path below already carries it.
-  static String get defaultBaseUrl {
+  static String get baseUrl {
     const raw = String.fromEnvironment('API_BASE_URL');
     if (raw.isNotEmpty) {
       return sanitizeUrl(raw);
     }
-    return cloudBaseUrl;
+    return kReleaseMode ? productionBaseUrl : developmentBaseUrl;
   }
 
   static String sanitizeUrl(String input) {
@@ -39,48 +35,14 @@ class ApiConfig {
     return trimmed;
   }
 
+  /// Drops a server address saved by the old server settings dialog.
   static Future<void> init({FlutterSecureStorage? storage}) async {
     try {
-      final s = storage ?? const FlutterSecureStorage();
-      // Release builds always use the default backend. Devices that ran the
-      // ship LAN (mini PC) build still hold its address, so drop it.
-      if (!kDebugMode) {
-        await s.delete(key: serverUrlStorageKey);
-        return;
-      }
-      final saved = await s.read(key: serverUrlStorageKey);
-      if (saved != null && saved.trim().isNotEmpty) {
-        _customBaseUrl = sanitizeUrl(saved);
-        _baseUrlChangeController.add(baseUrl);
-      }
+      await (storage ?? const FlutterSecureStorage()).delete(
+        key: _serverUrlStorageKey,
+      );
     } catch (_) {}
   }
-
-  static void setCustomBaseUrl(String? url) {
-    if (url == null || url.trim().isEmpty) {
-      _customBaseUrl = null;
-    } else {
-      _customBaseUrl = sanitizeUrl(url);
-    }
-    _baseUrlChangeController.add(baseUrl);
-  }
-
-  static Future<void> saveCustomBaseUrl(
-    String? url, {
-    FlutterSecureStorage? storage,
-  }) async {
-    setCustomBaseUrl(url);
-    try {
-      final s = storage ?? const FlutterSecureStorage();
-      if (_customBaseUrl != null) {
-        await s.write(key: serverUrlStorageKey, value: _customBaseUrl!);
-      } else {
-        await s.delete(key: serverUrlStorageKey);
-      }
-    } catch (_) {}
-  }
-
-  static String get baseUrl => _customBaseUrl ?? defaultBaseUrl;
 
   static String get wsUrl {
     final httpUrl = baseUrl;
@@ -113,6 +75,7 @@ class ApiConfig {
 
   static const String healthPath = '/api/v1/health';
   static const String loginPath = '/api/v1/auth/login';
+  static const String mePath = '/api/v1/auth/me';
   static const String changePasswordPath = '/api/v1/auth/me/password';
   static const String patientsPath = '/api/v1/patients';
   static const String medicalPersonnelPath = '/api/v1/medical-personnel';

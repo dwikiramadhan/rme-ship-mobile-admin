@@ -10,6 +10,10 @@ abstract class AuthRepository {
   /// Reads back a previously persisted session, if any.
   Future<AuthSession?> restoreSession();
 
+  /// [current] with the user's data as the server has it now (kept on the
+  /// device when the session is), or null while the server can't be reached.
+  Future<AuthSession?> refreshUser(AuthSession current);
+
   /// Clears the persisted session.
   Future<void> logout();
 

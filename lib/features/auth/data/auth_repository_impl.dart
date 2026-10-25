@@ -35,6 +35,18 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AuthSession?> restoreSession() => _storage.read();
 
   @override
+  Future<AuthSession?> refreshUser(AuthSession current) async {
+    final user = await _api.me();
+    if (user == null) return null;
+    final updated = AuthSession(token: current.token, user: user);
+    // Saved only when the login was (remember me).
+    if (updated != current && await _storage.read() != null) {
+      await _storage.save(updated);
+    }
+    return updated;
+  }
+
+  @override
   Future<void> logout() => _storage.clear();
 
   @override

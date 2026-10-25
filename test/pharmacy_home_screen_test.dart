@@ -16,6 +16,9 @@ import 'package:bayan_rme/features/pharmacy/presentation/pharmacy_home_screen.da
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 class _FakeAuthRepository implements AuthRepository {
+  @override
+  Future<AuthSession?> refreshUser(AuthSession current) async => null;
+
   _FakeAuthRepository(this.session);
   final AuthSession? session;
 

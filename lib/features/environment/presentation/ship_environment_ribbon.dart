@@ -3,20 +3,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../core/offline/sync_service.dart';
+import '../../auth/domain/user_role.dart';
+import '../../auth/presentation/auth_controller.dart';
+import '../../schedule/data/schedule_repository.dart';
 import '../../sync/presentation/sync_providers.dart';
 import '../../sync/presentation/sync_queue_sheet.dart';
-import 'environment_controller.dart';
 import 'server_connection_controller.dart';
 
-/// Full-width top ribbon displaying the active ship/vessel environment
-/// the user is currently logged into.
+/// Full-width top ribbon displaying the ship of the logged-in user (from the
+/// login session, so it is shown offline too). A Koordinator has no ship of
+/// their own: the ship of the trip they're assigned to is shown.
 class ShipEnvironmentRibbon extends ConsumerWidget {
   const ShipEnvironmentRibbon({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final envState = ref.watch(activeEnvironmentProvider);
-    final env = envState.valueOrNull;
+    final user = ref.watch(
+      authControllerProvider.select((s) => s.session?.user),
+    );
+    final isKoordinator = user?.role == UserRole.koordinator;
+    final trip = isKoordinator
+        ? ref.watch(assignedTripProvider).valueOrNull
+        : null;
+    final shipCode =
+        (isKoordinator ? trip?.shipCode : user?.shipCode)?.trim() ?? '';
+    final shipName =
+        (isKoordinator ? trip?.namaKapal : user?.shipName)?.trim() ?? '';
+    final hasShip = isKoordinator
+        ? trip != null
+        : (user?.shipId ?? '').isNotEmpty || shipCode.isNotEmpty;
+    final noShipText = isKoordinator
+        ? 'Belum Ditugaskan'
+        : 'Kapal Belum Dikonfigurasi';
     final isConnected = ref.watch(serverConnectionProvider);
     final sync =
         ref.watch(syncStatusProvider).valueOrNull ?? const SyncStatus();
@@ -85,11 +103,10 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    env != null
-                        ? env.name
-                        : (envState.isLoading
-                            ? 'Memuat data kapal...'
-                            : 'Kapal Belum Dikonfigurasi'),
+                    !hasShip
+                        ? noShipText
+                        // A session saved before the ship name was kept.
+                        : (shipName.isNotEmpty ? shipName : shipCode),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -100,7 +117,7 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (env != null && env.code.isNotEmpty) ...[
+                if (hasShip && shipName.isNotEmpty && shipCode.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   // Code Badge Tag
                   Container(
@@ -117,7 +134,7 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
                       ),
                     ),
                     child: Text(
-                      env.code,
+                      shipCode,
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
@@ -176,7 +193,6 @@ class ShipEnvironmentRibbon extends ConsumerWidget {
               InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
-                  ref.read(activeEnvironmentProvider.notifier).refresh();
                   ref.read(serverConnectionProvider.notifier).check();
                   ref.read(syncServiceProvider)?.syncNow();
                 },

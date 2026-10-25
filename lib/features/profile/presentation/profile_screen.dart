@@ -1,11 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/server_settings_dialog.dart';
 import '../../auth/presentation/auth_controller.dart';
 import '../../environment/presentation/server_connection_controller.dart';
 import '../../sync/presentation/offline_data_card.dart';
@@ -285,88 +282,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         ),
       ),
-      // Server Settings Card (debug only: release always uses the cloud backend)
-      if (kDebugMode) ...[
-        const SizedBox(height: 10),
-        Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () async {
-              await ServerSettingsDialog.show(context);
-              if (mounted) setState(() {});
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 13,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.skyLt,
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: const Icon(
-                        LucideIcons.server,
-                        size: 18,
-                        color: AppColors.skyBlue,
-                      ),
-                    ),
-                    const SizedBox(width: 13),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Pengaturan Server',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.text,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Host: ${ApiConfig.baseUrl}',
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              color: AppColors.sub,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      LucideIcons.chevronRight,
-                      size: 18,
-                      color: Color(0xFF94A3B8),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
       const SizedBox(height: 20),
 
       // Master data on the device for offline forms.

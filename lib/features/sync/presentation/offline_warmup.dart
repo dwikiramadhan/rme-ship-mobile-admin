@@ -32,6 +32,8 @@ class OfflineWarmup {
     _running = true;
     try {
       await Future.wait([
+        // The user's ship may have changed since the login.
+        _ref.read(authControllerProvider.notifier).refreshUser(),
         for (final task in _tasksFor(user.role, user.id))
           task().catchError((Object e) {
             // Offline or a server error: the copy on the device stays.

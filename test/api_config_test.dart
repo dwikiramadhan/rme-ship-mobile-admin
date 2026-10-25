@@ -2,12 +2,15 @@ import 'package:bayan_rme/core/network/api_config.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('defaults to the cloud backend host, without /api/v1', () {
-    expect(ApiConfig.defaultBaseUrl, 'https://rme-ship.wikibaggins.com');
+  test('uses the local backend outside release builds, host only', () {
+    // Tests don't run in release mode.
+    expect(ApiConfig.baseUrl, ApiConfig.developmentBaseUrl);
+    expect(ApiConfig.developmentBaseUrl, 'http://localhost:8080');
+    expect(ApiConfig.productionBaseUrl, 'https://api.rmebayanpeduli.com');
     expect(ApiConfig.patientsPath, startsWith('/api/v1/'));
   });
 
-  test('health check uses the cloud health endpoint', () {
+  test('health check uses the backend health endpoint', () {
     expect(ApiConfig.healthPath, '/api/v1/health');
   });
 
@@ -20,7 +23,6 @@ void main() {
   });
 
   test('websocket follows the base URL scheme', () {
-    ApiConfig.setCustomBaseUrl(null);
-    expect(ApiConfig.wsUrl, 'wss://rme-ship.wikibaggins.com/api/v1/ws');
+    expect(ApiConfig.wsUrl, 'ws://localhost:8080/api/v1/ws');
   });
 }

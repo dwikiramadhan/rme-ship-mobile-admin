@@ -15,6 +15,9 @@ import 'package:bayan_rme/features/auth/presentation/auth_state.dart';
 
 class _FakeAuthRepository implements AuthRepository {
   @override
+  Future<AuthSession?> refreshUser(AuthSession current) async => null;
+
+  @override
   Future<AuthSession> login({required String email, required String password, bool rememberMe = true}) {
     throw UnimplementedError();
   }

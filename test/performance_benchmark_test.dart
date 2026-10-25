@@ -237,6 +237,9 @@ void main() {
 }
 
 class _BenchmarkAuthController extends StateNotifier<AuthState> implements AuthController {
+  @override
+  Future<void> refreshUser() async {}
+
   _BenchmarkAuthController(super.initial);
 
   @override

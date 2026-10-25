@@ -38,6 +38,23 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (_) {
       state = const AuthState.unauthenticated();
     }
+    unawaited(refreshUser());
+  }
+
+  /// Takes the user's current data from the server: an admin may have
+  /// changed their ship (or role) since the login, which the saved session
+  /// still has. Offline, the saved user stays.
+  Future<void> refreshUser() async {
+    final current = state.session;
+    if (!state.isAuthenticated || current == null) return;
+    try {
+      final updated = await _repository.refreshUser(current);
+      // Logged out or in again meanwhile: that session is newer.
+      if (!mounted || updated == null || updated == current || state.session != current) return;
+      state = AuthState.authenticated(updated);
+    } catch (e) {
+      debugPrint('⚠️ [Auth] user refresh failed: $e');
+    }
   }
 
   Future<void> login({required String email, required String password, bool rememberMe = true}) async {

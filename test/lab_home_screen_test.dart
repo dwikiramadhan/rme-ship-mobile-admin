@@ -25,6 +25,9 @@ import 'package:bayan_rme/features/patients/domain/patient.dart';
 import 'package:bayan_rme/features/patients/domain/vitals.dart';
 
 class _FakeAuthRepository implements AuthRepository {
+  @override
+  Future<AuthSession?> refreshUser(AuthSession current) async => null;
+
   _FakeAuthRepository(this.session);
   final AuthSession? session;
 

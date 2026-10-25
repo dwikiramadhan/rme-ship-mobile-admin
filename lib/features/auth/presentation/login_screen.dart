@@ -10,7 +10,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/server_settings_dialog.dart';
 import '../data/session_storage.dart';
 import 'auth_controller.dart';
 import 'auth_state.dart';
@@ -305,14 +304,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 6),
                       InkWell(
-                        onTap: () async {
-                          // Changing the server is a debug-only tool; in
-                          // release the chip just re-checks the connection.
-                          if (kDebugMode) {
-                            await ServerSettingsDialog.show(context);
-                          }
-                          if (mounted) await _checkServer();
-                        },
+                        // Tapping the chip checks the connection again.
+                        onTap: _checkServer,
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -401,17 +394,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ],
                   ),
                 ),
-                if (kDebugMode)
-                  IconButton(
-                    tooltip: 'Pengaturan Server',
-                    onPressed: () async {
-                      await ServerSettingsDialog.show(context);
-                      if (mounted) await _checkServer();
-                    },
-                    icon: const Icon(LucideIcons.server, size: 18),
-                    color: AppColors.sub,
-                    splashRadius: 20,
-                  ),
               ],
             ),
             const SizedBox(height: 18),

@@ -1,9 +1,14 @@
+import 'package:bayan_rme/features/auth/domain/app_user.dart';
+import 'package:bayan_rme/features/auth/domain/user_role.dart';
+import 'package:bayan_rme/features/auth/presentation/auth_controller.dart';
+import 'package:bayan_rme/features/auth/presentation/auth_state.dart';
 import 'package:bayan_rme/features/environment/data/environment_api.dart';
 import 'package:bayan_rme/features/environment/data/environment_storage.dart';
 import 'package:bayan_rme/features/environment/domain/environment_item.dart';
 import 'package:bayan_rme/features/environment/presentation/environment_controller.dart';
 import 'package:bayan_rme/features/environment/presentation/server_connection_controller.dart';
 import 'package:bayan_rme/features/environment/presentation/ship_environment_ribbon.dart';
+import 'package:bayan_rme/features/schedule/domain/trip_schedule.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -140,31 +145,35 @@ void main() {
   });
 
   group('ShipEnvironmentRibbon Widget', () {
-    testWidgets('renders active ship name and code badge when loaded', (
+    Widget ribbon({
+      AppUser? user,
+      bool connected = true,
+      List<JadwalPerjalanan> assignedTrips = const [],
+    }) => ProviderScope(
+      overrides: [
+        authControllerProvider.overrideWith((ref) => _FakeAuthController(user)),
+        assignedTripsProvider.overrideWith((ref) async => assignedTrips),
+        serverConnectionProvider.overrideWith(
+          (ref) => _FakeServerConnectionNotifier(connected),
+        ),
+      ],
+      child: const MaterialApp(home: Scaffold(body: ShipEnvironmentRibbon())),
+    );
+
+    const nurse = AppUser(
+      id: 'u1',
+      name: 'Perawat',
+      email: 'perawat@example.com',
+      role: UserRole.perawat,
+      shipId: 'ship-1',
+      shipCode: 'KAPAL-01',
+      shipName: 'KM Bayan 01',
+    );
+
+    testWidgets("shows the logged-in user's ship and its code", (
       tester,
     ) async {
-      const testEnv = EnvironmentItem(
-        id: 'env-1',
-        code: 'KAPAL-01',
-        name: 'KM Bayan 01',
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            activeEnvironmentProvider.overrideWith(
-              (ref) =>
-                  _FakeEnvironmentController(const AsyncValue.data(testEnv)),
-            ),
-            serverConnectionProvider.overrideWith(
-              (ref) => _FakeServerConnectionNotifier(true),
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(body: ShipEnvironmentRibbon()),
-          ),
-        ),
-      );
+      await tester.pumpWidget(ribbon(user: nurse));
 
       expect(find.text('KAPAL:'), findsOneWidget);
       expect(find.text('KM Bayan 01'), findsOneWidget);
@@ -172,87 +181,116 @@ void main() {
       expect(find.text('Terhubung'), findsOneWidget);
     });
 
-    testWidgets('renders loading state when environment is being fetched', (
+    testWidgets('a session without the ship name shows its code', (
       tester,
     ) async {
       await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            activeEnvironmentProvider.overrideWith(
-              (ref) => _FakeEnvironmentController(const AsyncValue.loading()),
-            ),
-            serverConnectionProvider.overrideWith(
-              (ref) => _FakeServerConnectionNotifier(true),
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(body: ShipEnvironmentRibbon()),
+        ribbon(
+          user: const AppUser(
+            id: 'u1',
+            name: 'Perawat',
+            email: 'perawat@example.com',
+            role: UserRole.perawat,
+            shipId: 'ship-1',
+            shipCode: 'KAPAL-01',
           ),
         ),
       );
 
-      expect(find.text('Memuat data kapal...'), findsOneWidget);
+      expect(find.text('KAPAL-01'), findsOneWidget);
+    });
+
+    testWidgets('a user set to no ship sees "Kapal Belum Dikonfigurasi"', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ribbon(
+          user: const AppUser(
+            id: 'u2',
+            name: 'Lab',
+            email: 'lab@example.com',
+            role: UserRole.lab,
+          ),
+        ),
+      );
+
+      expect(find.text('Kapal Belum Dikonfigurasi'), findsOneWidget);
+    });
+
+    // The account still carries a ship from before, but a Koordinator's ship
+    // is the one of their assigned trip.
+    const koordinator = AppUser(
+      id: 'u3',
+      name: 'Koordinator',
+      email: 'koordinator@example.com',
+      role: UserRole.koordinator,
+      shipId: 'ship-1',
+      shipCode: 'KAPAL-01',
+      shipName: 'KM Bayan 01',
+    );
+
+    testWidgets('a Koordinator on no trip sees "Belum Ditugaskan"', (
+      tester,
+    ) async {
+      await tester.pumpWidget(ribbon(user: koordinator));
+      await tester.pump();
+
+      expect(find.text('Belum Ditugaskan'), findsOneWidget);
+      expect(find.text('KM Bayan 01'), findsNothing);
+      expect(find.text('KAPAL-01'), findsNothing);
+    });
+
+    testWidgets('a Koordinator sees the ship of their assigned trip', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ribbon(
+          user: koordinator,
+          assignedTrips: [
+            JadwalPerjalanan(
+              id: 'sched-1',
+              shipCode: 'KAPAL-02',
+              namaKapal: 'KM Bayan 02',
+              pelabuhanAsal: 'Tanjung Priok',
+              kodeAsal: 'TPK',
+              pelabuhanTujuan: 'Sorong',
+              kodeTujuan: 'SOQ',
+              berangkat: DateTime(2026, 10, 2),
+              tiba: DateTime(2026, 10, 15),
+              status: 'Ongoing',
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('KM Bayan 02'), findsOneWidget);
+      expect(find.text('KAPAL-02'), findsOneWidget);
+      expect(find.text('KM Bayan 01'), findsNothing);
     });
 
     testWidgets('renders Disconnected status when server connection is false', (
       tester,
     ) async {
-      const testEnv = EnvironmentItem(
-        id: 'env-1',
-        code: 'KAPAL-01',
-        name: 'KM Bayan 01',
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            activeEnvironmentProvider.overrideWith(
-              (ref) =>
-                  _FakeEnvironmentController(const AsyncValue.data(testEnv)),
-            ),
-            serverConnectionProvider.overrideWith(
-              (ref) => _FakeServerConnectionNotifier(false),
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(body: ShipEnvironmentRibbon()),
-          ),
-        ),
-      );
+      await tester.pumpWidget(ribbon(user: nurse, connected: false));
 
       expect(find.text('Disconnected'), findsOneWidget);
       expect(find.text('Terhubung'), findsNothing);
     });
+  });
 
-    testWidgets('renders Terhubung status when server connection is true', (
-      tester,
-    ) async {
-      const testEnv = EnvironmentItem(
-        id: 'env-1',
-        code: 'KAPAL-01',
-        name: 'KM Bayan 01',
-      );
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            activeEnvironmentProvider.overrideWith(
-              (ref) =>
-                  _FakeEnvironmentController(const AsyncValue.data(testEnv)),
-            ),
-            serverConnectionProvider.overrideWith(
-              (ref) => _FakeServerConnectionNotifier(true),
-            ),
-          ],
-          child: const MaterialApp(
-            home: Scaffold(body: ShipEnvironmentRibbon()),
-          ),
-        ),
-      );
-
-      expect(find.text('Terhubung'), findsOneWidget);
-      expect(find.text('Disconnected'), findsNothing);
+  test('the ship name comes from the login response and is kept', () {
+    final user = AppUser.fromJson(const {
+      'id': 'u1',
+      'full_name': 'Perawat',
+      'email': 'perawat@example.com',
+      'role': 'Perawat',
+      'ship_id': 'ship-1',
+      'ship': {'id': 'ship-1', 'code': 'KAPAL-01', 'name': 'KM Bayan 01'},
     });
+    expect(user.shipName, 'KM Bayan 01');
+    // Saved with the session, read back when the app opens offline.
+    expect(AppUser.fromJson(user.toJson()), user);
   });
 }
 
@@ -264,10 +302,14 @@ class _FakeServerConnectionNotifier extends StateNotifier<bool>
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeEnvironmentController
-    extends StateNotifier<AsyncValue<EnvironmentItem?>>
-    implements EnvironmentController {
-  _FakeEnvironmentController(super.state);
+class _FakeAuthController extends StateNotifier<AuthState>
+    implements AuthController {
+  _FakeAuthController(AppUser? user)
+    : super(
+        user == null
+            ? const AuthState.unauthenticated()
+            : AuthState.authenticated(AuthSession(token: 't', user: user)),
+      );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

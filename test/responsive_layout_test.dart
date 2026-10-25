@@ -66,6 +66,9 @@ class _FakeSchedulesNotifier extends StateNotifier<AsyncValue<List<JadwalPerjala
 }
 
 class _FixedSessionAuthRepository implements AuthRepository {
+  @override
+  Future<AuthSession?> refreshUser(AuthSession current) async => null;
+
 
   _FixedSessionAuthRepository(this.session);
   final AuthSession? session;

@@ -16,16 +16,7 @@ import 'api_config.dart';
 class WebSocketService {
   WebSocketService({String? url, Future<String?> Function()? accessToken})
     : _customUrl = url,
-      _accessToken = accessToken ?? _sessionToken {
-    _baseUrlSub = ApiConfig.onBaseUrlChanged.listen((_) {
-      if (!_isDisposed) {
-        debugPrint(
-          '🔄 [WebSocket] Base URL changed. Reconnecting to ${ApiConfig.wsUrl}...',
-        );
-        reconnect();
-      }
-    });
-  }
+      _accessToken = accessToken ?? _sessionToken;
 
   final String? _customUrl;
   String get _url => _customUrl ?? ApiConfig.wsUrl;
@@ -36,7 +27,6 @@ class WebSocketService {
 
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
-  StreamSubscription? _baseUrlSub;
   Timer? _reconnectTimer;
   Timer? _pingTimer;
 
@@ -205,7 +195,6 @@ class WebSocketService {
     _reconnectTimer?.cancel();
     _pingTimer?.cancel();
     _subscription?.cancel();
-    _baseUrlSub?.cancel();
     _channel?.sink.close();
     _eventController.close();
     _connectionController.close();
