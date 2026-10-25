@@ -1,9 +1,5 @@
-Rilis perdana RME Bayan: rekam medis elektronik di kapal.
-• Perawat: daftarkan pasien, catat keluhan & tanda vital
-• Dokter: periksa pasien, isi diagnosis ICD-10 & resep
-• Farmasi: serahkan obat sesuai resep, pantau stok obat
-• Lab: kirim hasil pemeriksaan lab ke dokter
-• Koordinator: atur jadwal poli & adjustment stok obat
-• Admin kapal: catat BBM, air bersih & kendala perjalanan
-• Bisa dipakai tanpa internet, data terkirim otomatis saat online
-• Notifikasi pasien baru, resep & hasil lab
+Pembaruan RME Bayan:
+• Alamat server diatur otomatis, tidak perlu diisi saat login
+• Pita kapal menampilkan kapal akun yang login
+• Koordinator melihat kapal dari jadwal tugasnya, atau "Belum Ditugaskan"
+• Perubahan penugasan kapal dari admin langsung terlihat tanpa login ulang
