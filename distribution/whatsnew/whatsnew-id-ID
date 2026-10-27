@@ -1,6 +1,6 @@
 Pembaruan RME Bayan:
-• Adjustment Stok: tabel stok sistem, stok fisik, selisih & alasan, plus ringkasan
-• Koordinator: posisi kapal di beranda
-• Tampilan baru dashboard Perawat, daftar pasien & jadwal poli
-• Pelabuhan dan petugas yang mendaftarkan pasien kini tercatat
-• Kolom isian adjustment lebih rapi di tablet
+• Detail rekam medis kini menampilkan Hasil Pemeriksaan dari dokter
+• Dashboard Perawat: statistik hari ini dari server dan daftar Poli Layanan pelayaran aktif
+• Stok Obat: tab Riwayat Transaksi Obat
+• Halaman login lebih bersih dengan sudut yang lebih bulat
+• Perbaikan tampilan kecil lainnya
