@@ -1093,7 +1093,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                                   style: const TextStyle(
                                     fontSize: 9.0,
                                     color: AppColors.blue,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),

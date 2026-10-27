@@ -71,7 +71,9 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
         } else {
           void onAnimationStatusChanged(AnimationStatus status) {
             if (status == AnimationStatus.completed) {
-              modalRoute.animation?.removeStatusListener(onAnimationStatusChanged);
+              modalRoute.animation?.removeStatusListener(
+                onAnimationStatusChanged,
+              );
               _triggerInitialFetch();
             }
           }
@@ -101,8 +103,11 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
     }
   }
 
-  Future<void> _fetchPage(int page,
-      {String query = '', bool reset = false}) async {
+  Future<void> _fetchPage(
+    int page, {
+    String query = '',
+    bool reset = false,
+  }) async {
     // Only the newest list reset may write results; a stale search or
     // a loadMore that started before the reset is dropped.
     final seq = reset ? ++_fetchSeq : _fetchSeq;
@@ -136,8 +141,9 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
               .map((m) => m.id.isNotEmpty ? m.id : m.sku)
               .toSet();
           final newItems = res.data
-              .where((m) =>
-                  !existingKeys.contains(m.id.isNotEmpty ? m.id : m.sku))
+              .where(
+                (m) => !existingKeys.contains(m.id.isNotEmpty ? m.id : m.sku),
+              )
               .toList();
           _medicines = [..._medicines, ...newItems];
         }
@@ -230,7 +236,9 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.blueLt,
                           borderRadius: BorderRadius.circular(6),
@@ -332,212 +340,209 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
             child: _isLoading
                 ? _buildLoadingState()
                 : _medicines.isEmpty
-                    ? _buildEmptyState(query)
-                    : ListView.separated(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        itemCount: _medicines.length + (_hasMore ? 1 : 0),
-                        separatorBuilder: (_, _) => const SizedBox(height: 6),
-                        itemBuilder: (context, i) {
-                          if (i >= _medicines.length) {
-                            return const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 14),
-                              child: Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppColors.orange,
-                                  ),
-                                ),
+                ? _buildEmptyState(query)
+                : ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
+                    itemCount: _medicines.length + (_hasMore ? 1 : 0),
+                    separatorBuilder: (_, _) => const SizedBox(height: 6),
+                    itemBuilder: (context, i) {
+                      if (i >= _medicines.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 14),
+                          child: Center(
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.orange,
                               ),
-                            );
+                            ),
+                          ),
+                        );
+                      }
+
+                      final med = _medicines[i];
+                      final isSelected = med.name == widget.selectedName;
+                      final hasStock = med.stock > 0;
+
+                      return InkWell(
+                        onTap: () {
+                          if (widget.onSelectMedicine != null) {
+                            widget.onSelectMedicine!(med);
+                          } else {
+                            widget.onSelect(med.name);
                           }
-
-                          final med = _medicines[i];
-                          final isSelected = med.name == widget.selectedName;
-                          final hasStock = med.stock > 0;
-
-                          return InkWell(
-                            onTap: () {
-                              if (widget.onSelectMedicine != null) {
-                                widget.onSelectMedicine!(med);
-                              } else {
-                                widget.onSelect(med.name);
-                              }
-                            },
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.orangeLt.withValues(alpha: 0.5)
+                                : AppColors.card2,
                             borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 9,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.orangeLt.withValues(alpha: 0.5)
-                                    : AppColors.card2,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? AppColors.orange.withValues(alpha: 0.5)
-                                      : AppColors.border,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.orange.withValues(alpha: 0.5)
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Name and SKU
+                                    Row(
                                       children: [
-                                        // Name and SKU
-                                        Row(
-                                          children: [
-                                            if (med.sku.isNotEmpty) ...[
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 5,
-                                                  vertical: 1.5,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: isSelected
-                                                      ? AppColors.card
-                                                      : AppColors.inputBg,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                  border: Border.all(
-                                                    color: isSelected
-                                                        ? AppColors.orange
-                                                            .withValues(
-                                                                alpha: 0.3)
-                                                        : AppColors.border,
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  med.sku,
-                                                  style: TextStyle(
-                                                    fontSize: 9.0,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: isSelected
-                                                        ? AppColors.orange
-                                                        : AppColors.sub,
-                                                  ),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 6),
-                                            ],
-                                            Expanded(
-                                              child: Text(
-                                                med.name,
-                                                style: TextStyle(
-                                                  fontSize: 11.5,
-                                                  fontWeight: isSelected
-                                                      ? FontWeight.w700
-                                                      : FontWeight.w600,
-                                                  color: isSelected
-                                                      ? AppColors.orange
-                                                      : AppColors.text,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
+                                        if (med.sku.isNotEmpty) ...[
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 5,
+                                              vertical: 1.5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: isSelected
+                                                  ? AppColors.card
+                                                  : AppColors.inputBg,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: isSelected
+                                                    ? AppColors.orange
+                                                          .withValues(
+                                                            alpha: 0.3,
+                                                          )
+                                                    : AppColors.border,
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 5),
-
-                                        // Badges: Tipe & Stok
-                                        Wrap(
-                                          spacing: 6,
-                                          runSpacing: 4,
-                                          crossAxisAlignment:
-                                              WrapCrossAlignment.center,
-                                          children: [
-                                            // Tipe / Kategori badge
-                                            if (med.category.isNotEmpty)
-                                              Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                  horizontal: 6,
-                                                  vertical: 1.5,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  borderRadius:
-                                                      BorderRadius.circular(4),
-                                                  border: Border.all(
-                                                    color: AppColors.border,
-                                                    width: 0.8,
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  'Tipe: ${med.category}',
-                                                  style: const TextStyle(
-                                                    fontSize: 9.0,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: AppColors.sub,
-                                                  ),
-                                                ),
-                                              ),
-
-                                            // Stock badge
-                                            if (widget.showStock)
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 6,
-                                                vertical: 1.5,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: hasStock
-                                                    ? const Color(0xFFECFDF5)
-                                                    : const Color(0xFFFEF2F2),
-                                                borderRadius:
-                                                    BorderRadius.circular(4),
-                                                border: Border.all(
-                                                  color: hasStock
-                                                      ? const Color(0xFFA7F3D0)
-                                                      : const Color(0xFFFECACA),
-                                                  width: 0.8,
-                                                ),
-                                              ),
-                                              child: Text(
-                                                hasStock
-                                                    ? 'Stok: ${med.stock} ${med.unitOfMeasurement.isNotEmpty ? med.unitOfMeasurement : "Unit"}'
-                                                    : 'Stok: Habis (0)',
-                                                style: TextStyle(
-                                                  fontSize: 9.0,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: hasStock
-                                                      ? const Color(0xFF059669)
-                                                      : const Color(0xFFDC2626),
-                                                ),
+                                            child: Text(
+                                              med.sku,
+                                              style: TextStyle(
+                                                fontSize: 9.0,
+                                                fontWeight: FontWeight.w700,
+                                                color: isSelected
+                                                    ? AppColors.orange
+                                                    : AppColors.sub,
                                               ),
                                             ),
-                                          ],
+                                          ),
+                                          const SizedBox(width: 6),
+                                        ],
+                                        Expanded(
+                                          child: Text(
+                                            med.name,
+                                            style: TextStyle(
+                                              fontSize: 11.5,
+                                              fontWeight: isSelected
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w600,
+                                              color: isSelected
+                                                  ? AppColors.orange
+                                                  : AppColors.text,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                  if (isSelected) ...[
-                                    const SizedBox(width: 8),
-                                    const Icon(
-                                      LucideIcons.check,
-                                      size: 16,
-                                      color: AppColors.orange,
+                                    const SizedBox(height: 5),
+
+                                    // Badges: Tipe & Stok
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 4,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        // Tipe / Kategori badge
+                                        if (med.category.isNotEmpty)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 1.5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: AppColors.border,
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'Tipe: ${med.category}',
+                                              style: const TextStyle(
+                                                fontSize: 9.0,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppColors.sub,
+                                              ),
+                                            ),
+                                          ),
+
+                                        // Stock badge
+                                        if (widget.showStock)
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 1.5,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: hasStock
+                                                  ? const Color(0xFFECFDF5)
+                                                  : const Color(0xFFFEF2F2),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                              border: Border.all(
+                                                color: hasStock
+                                                    ? const Color(0xFFA7F3D0)
+                                                    : const Color(0xFFFECACA),
+                                                width: 0.8,
+                                              ),
+                                            ),
+                                            child: Text(
+                                              hasStock
+                                                  ? 'Stok: ${med.stock} ${med.unitOfMeasurement.isNotEmpty ? med.unitOfMeasurement : "Unit"}'
+                                                  : 'Stok: Habis (0)',
+                                              style: TextStyle(
+                                                fontSize: 9.0,
+                                                fontWeight: FontWeight.w700,
+                                                color: hasStock
+                                                    ? const Color(0xFF059669)
+                                                    : const Color(0xFFDC2626),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   ],
-                                ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                              if (isSelected) ...[
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  LucideIcons.check,
+                                  size: 16,
+                                  color: AppColors.orange,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
           ),
           const SizedBox(height: 12),
         ],
@@ -564,8 +569,8 @@ class _MedicineSearchModalState extends ConsumerState<MedicineSearchModal> {
             Text(
               'Memuat daftar obat...',
               style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
                 color: AppColors.sub,
                 letterSpacing: 0,
               ),

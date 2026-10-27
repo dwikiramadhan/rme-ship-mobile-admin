@@ -67,7 +67,7 @@ class CurrentPortInfo extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: fontSize ?? 12,
                     fontWeight: stop != null
-                        ? FontWeight.w600
+                        ? FontWeight.w400
                         : FontWeight.w400,
                     color: missing ? AppColors.red : AppColors.text,
                   ),

@@ -18,6 +18,7 @@ import '../../doctor/presentation/widgets/examination_input_modal.dart';
 import '../../lab/presentation/widgets/lab_result_table.dart';
 import '../../history/presentation/edit_visit_screen.dart';
 import '../data/patient_repository.dart';
+import '../domain/clinical_notes.dart';
 import '../domain/dispensed_medicine.dart';
 import '../domain/doctor_referral.dart';
 import '../domain/medical_history.dart';
@@ -76,6 +77,8 @@ class MedicalHistoryDetailView extends ConsumerWidget {
     final hasTreatment =
         (history.treatment?.trim().isNotEmpty ?? false) ||
         (history.tindakanDetail?.trim().isNotEmpty ?? false);
+    // The doctor's free-text "Hasil Pemeriksaan" from the visit's notes.
+    final examResult = doctorExamResult(history.notes);
 
     final isMenungguLab = statusPenanganan == 'Menunggu Lab';
     final isSelesai = statusPenanganan == 'Selesai';
@@ -450,6 +453,21 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                             ? history.complaint!
                             : 'Tidak ada keluhan tercatat',
                         isMuted: history.complaint?.isNotEmpty != true,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 10),
+                        child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      ),
+                      _buildClinicalItem(
+                        icon: LucideIcons.stethoscope,
+                        label: 'Hasil Pemeriksaan',
+                        value: examResult.isNotEmpty
+                            ? examResult
+                            : 'Belum ada hasil pemeriksaan dokter',
+                        isMuted: examResult.isEmpty,
+                        labelColor: examResult.isNotEmpty
+                            ? AppColors.blue
+                            : null,
                       ),
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: 10),

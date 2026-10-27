@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -7,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../core/network/api_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_button.dart';
 import '../data/session_storage.dart';
@@ -29,30 +27,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = true;
   String? _errorMessage;
-  bool _serverChecking = false;
-  bool _serverOnline = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedEmail();
-    _checkServer();
     final authState = ref.read(authControllerProvider);
     if (authState.status == AuthStatus.unauthenticated &&
         authState.errorMessage != null) {
       _errorMessage = _formatErrorMessage(authState.errorMessage!);
     }
-  }
-
-  Future<void> _checkServer() async {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
-    setState(() => _serverChecking = true);
-    final isAlive = await ApiConfig.testConnection(ApiConfig.baseUrl);
-    if (!mounted) return;
-    setState(() {
-      _serverChecking = false;
-      _serverOnline = isAlive;
-    });
   }
 
   String _formatErrorMessage(String message) {
@@ -225,15 +209,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       color: AppColors.card,
-                      borderRadius: BorderRadius.circular(40),
-                      border: Border.all(
-                        color: AppColors.border.withValues(alpha: 0.8),
-                      ),
+                      borderRadius: BorderRadius.circular(44),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 36,
-                          offset: const Offset(0, 16),
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 48,
+                          offset: const Offset(0, 20),
                         ),
                       ],
                     ),
@@ -276,125 +257,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Welcome Back',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.text,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Please sign in to your account to continue',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.sub,
-                          letterSpacing: 0,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      InkWell(
-                        // Tapping the chip checks the connection again.
-                        onTap: _checkServer,
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3.5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _serverChecking
-                                ? AppColors.skyLt
-                                : (_serverOnline
-                                      ? const Color(0xFFECFDF5)
-                                      : AppColors.redLt),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: _serverChecking
-                                  ? AppColors.skyBlue.withValues(alpha: 0.3)
-                                  : (_serverOnline
-                                        ? const Color(
-                                            0xFF10B981,
-                                          ).withValues(alpha: 0.3)
-                                        : AppColors.red.withValues(alpha: 0.3)),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (_serverChecking) ...[
-                                const SizedBox(
-                                  width: 9,
-                                  height: 9,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 1.5,
-                                    color: AppColors.skyBlue,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                const Text(
-                                  'Memeriksa koneksi server...',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.skyBlue,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ] else if (_serverOnline) ...[
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Color(0xFF10B981),
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  'Server Terhubung (${ApiConfig.baseUrl.replaceFirst(RegExp(r'https?://'), '')})',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Color(0xFF059669),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ] else ...[
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppColors.red,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                const Text(
-                                  'Server belum terhubung',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.red,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            const Text(
+              'Welcome Back',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Please sign in to your account to continue',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.sub,
+                letterSpacing: 0,
+              ),
             ),
             const SizedBox(height: 18),
 
@@ -406,7 +285,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: AppColors.red.withValues(alpha: 0.3),
                   ),
@@ -485,15 +364,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   vertical: 12,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   borderSide: const BorderSide(
                     color: AppColors.blue,
                     width: 1.6,
@@ -569,15 +448,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   vertical: 12,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(18),
                   borderSide: const BorderSide(
                     color: AppColors.blue,
                     width: 1.6,
@@ -692,7 +571,7 @@ class _TestAccountsPanel extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.card2,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
@@ -730,7 +609,7 @@ class _TestAccountsPanel extends StatelessWidget {
                     ),
                     visualDensity: VisualDensity.compact,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                   child: Column(
@@ -819,12 +698,16 @@ class _LoginHero extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(22),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.15),
                     ),
                   ),
-                  child: Row(
+                  // The logos are 266 wide: on narrow phones they shrink to
+                  // fit instead of overflowing.
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Image.asset(
@@ -869,6 +752,7 @@ class _LoginHero extends StatelessWidget {
                       ),
                     ],
                   ),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 const Text(
@@ -906,7 +790,7 @@ class _LoginHero extends StatelessWidget {
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.15),
                       ),

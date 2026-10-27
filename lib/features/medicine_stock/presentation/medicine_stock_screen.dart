@@ -261,7 +261,7 @@ class _MedicineStockScreenState extends ConsumerState<MedicineStockScreen> {
             _buildTabItem(
               index: 1,
               icon: LucideIcons.history,
-              label: 'Riwayat Tambah Obat',
+              label: 'Riwayat Transaksi Obat',
               activeBg: activePillBg,
               activeBorder: activePillBorder,
             ),
@@ -983,10 +983,7 @@ class _StockItemCard extends StatelessWidget {
                     textAlign: TextAlign.end,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 9.5,
-                      color: AppColors.sub,
-                    ),
+                    style: const TextStyle(fontSize: 9.5, color: AppColors.sub),
                   ),
                 ],
               ],
@@ -1045,10 +1042,7 @@ class _HistoryItemCard extends StatelessWidget {
                   const SizedBox(width: 5),
                   Text(
                     formattedTime,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.sub,
-                    ),
+                    style: const TextStyle(fontSize: 11, color: AppColors.sub),
                   ),
                 ],
               ),

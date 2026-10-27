@@ -23,6 +23,7 @@ import '../../shell/presentation/nav_item.dart';
 import '../../shell/presentation/role_shell.dart';
 import 'patient_form.dart';
 import 'nurse_dashboard_view.dart';
+import '../data/today_stats_api.dart';
 import '../../schedule/data/schedule_repository.dart';
 
 class NurseHomeScreen extends ConsumerStatefulWidget {
@@ -73,10 +74,11 @@ class _NurseHomeScreenState extends ConsumerState<NurseHomeScreen> {
         _showForm = false;
         _editingPatient = null;
         if (key == 'dashboard') {
+          // Statistik hari ini dari GET /dashboard/today-stats; daftar pasien
+          // & kunjungan tidak perlu dimuat ulang untuk dashboard.
           ref.invalidate(scheduleCounterProvider);
+          ref.invalidate(todayStatsProvider);
           ref.read(schedulesNotifierProvider.notifier).refresh();
-          ref.read(patientsProvider.notifier).fetchPatients();
-          ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
         } else if (key == 'riwayat') {
           ref.read(medicalHistoryProvider.notifier).fetchHistory(refresh: true);
         } else if (key == 'pasien') {

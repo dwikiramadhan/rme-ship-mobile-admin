@@ -12,6 +12,7 @@ import 'package:bayan_rme/features/auth/domain/auth_repository.dart';
 import 'package:bayan_rme/features/auth/domain/user_role.dart';
 import 'package:bayan_rme/features/auth/presentation/auth_controller.dart';
 
+import 'package:bayan_rme/features/nurse/data/today_stats_api.dart';
 import 'package:bayan_rme/features/patients/data/patient_repository.dart';
 import 'package:bayan_rme/features/schedule/domain/trip_schedule.dart';
 
@@ -110,6 +111,7 @@ Future<void> _pumpRole(WidgetTester tester, UserRole? role, {String email = 'tes
         medicalHistoryProvider.overrideWith((ref) => _FakeMedicalHistoryNotifier()),
         schedulesNotifierProvider.overrideWith((ref) => _FakeSchedulesNotifier()),
         assignedTripsProvider.overrideWith((ref) async => const []),
+        todayStatsProvider.overrideWith((ref) async => const TodayStats()),
       ],
       child: const BayanRmeApp(),
     ),

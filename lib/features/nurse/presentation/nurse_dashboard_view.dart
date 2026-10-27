@@ -7,6 +7,8 @@ import '../../../core/widgets/screen_header.dart';
 import '../../patients/data/patient_repository.dart';
 import '../../patients/domain/patient.dart';
 import '../../schedule/domain/trip_schedule.dart';
+import '../../schedule/presentation/widgets/poli_layanan_section.dart';
+import '../data/today_stats_api.dart';
 
 class NurseDashboardView extends ConsumerStatefulWidget {
   const NurseDashboardView({
@@ -74,6 +76,9 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
     final patients = ref.watch(patientsProvider);
     final histories = ref.watch(medicalHistoryProvider);
     final schedules = ref.watch(jadwalPerjalananProvider);
+    // Angka dari server (GET /dashboard/today-stats). Selama belum ada atau
+    // gagal (mis. offline), dihitung dari data pasien & kunjungan di perangkat.
+    final serverStats = ref.watch(todayStatsProvider).valueOrNull;
 
     // Active Voyage: Prefer Ongoing, fallback to first schedule
     final activeVoyage = _findActiveVoyage(schedules);
@@ -86,7 +91,7 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
     final todayVisits = histories.where((h) {
       return isToday(h.createdAt) || isToday(h.date) || isToday(h.updatedAt);
     }).toList();
-    final todayVisitCount = todayVisits.length;
+    final localVisitCount = todayVisits.length;
 
     final todayVisitPatientIds = todayVisits
         .map((h) => h.patientId)
@@ -111,12 +116,12 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
       ...todayVisitPatientIds,
       ...todayPatients.map((p) => p.id).where((id) => id.isNotEmpty),
     };
-    final todayPatientCount = allTodayPatientIds.isNotEmpty
+    final localPatientCount = allTodayPatientIds.isNotEmpty
         ? allTodayPatientIds.length
         : todayPatients.length;
 
     // 3. Menunggu Hari Ini: Status Menunggu Dokter dan aktif / terdaftar hari ini
-    final todayWaitingCount = patients.where((p) {
+    final localWaitingCount = patients.where((p) {
       if (p.status != PatientStatus.menungguDokter) return false;
       final isCreatedToday = isToday(p.createdAt) || isToday(p.waktuMasuk);
       final isUpdatedToday = isToday(p.updatedAt);
@@ -129,6 +134,10 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
           isLastVisitToday ||
           hasVisitToday;
     }).length;
+
+    final todayPatientCount = serverStats?.patients ?? localPatientCount;
+    final todayWaitingCount = serverStats?.waiting ?? localWaitingCount;
+    final todayVisitCount = serverStats?.visits ?? localVisitCount;
 
     final clinics = activeVoyage?.clinics ?? [];
 
@@ -158,11 +167,11 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
                   color: AppColors.orange,
                   onRefresh: () async {
                     ref.invalidate(scheduleCounterProvider);
+                    ref.invalidate(todayStatsProvider);
                     await Future.wait([
-                      ref.read(patientsProvider.notifier).fetchPatients(),
                       ref
-                          .read(medicalHistoryProvider.notifier)
-                          .fetchHistory(refresh: true),
+                          .read(todayStatsProvider.future)
+                          .then<void>((_) {}, onError: (_) {}),
                       ref.read(schedulesNotifierProvider.notifier).refresh(),
                     ]);
                   },
@@ -204,6 +213,13 @@ class _NurseDashboardViewState extends ConsumerState<NurseDashboardView> {
                         const SizedBox(height: 14),
                         _VoyageCard(voyage: activeVoyage),
                       ],
+                      // Daftar Poli Layanan pelayaran aktif (hanya lihat;
+                      // diatur oleh Koordinator).
+                      const SizedBox(height: 14),
+                      PoliLayananSection(
+                        schedule: activeVoyage,
+                        clinics: clinics,
+                      ),
                     ],
                   ),
                 ),

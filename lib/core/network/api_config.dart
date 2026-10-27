@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -54,25 +53,6 @@ class ApiConfig {
     return 'ws://$httpUrl/api/v1/ws';
   }
 
-  static Future<bool> testConnection(String targetUrl) async {
-    final dio = Dio(
-      BaseOptions(
-        connectTimeout: const Duration(seconds: 4),
-        receiveTimeout: const Duration(seconds: 4),
-      ),
-    );
-    try {
-      final sanitized = sanitizeUrl(targetUrl);
-      final res = await dio.get('$sanitized$healthPath');
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    } finally {
-      // Release the underlying HttpClient/sockets right away.
-      dio.close(force: true);
-    }
-  }
-
   static const String healthPath = '/api/v1/health';
   static const String loginPath = '/api/v1/auth/login';
   static const String mePath = '/api/v1/auth/me';
@@ -122,6 +102,7 @@ class ApiConfig {
       '/api/v1/stock-adjustments/report/download';
   static const String labParametersPath = '/api/v1/lab-parameters';
   static const String devicesPath = '/api/v1/devices';
+  static const String todayStatsPath = '/api/v1/dashboard/today-stats';
 }
 
 

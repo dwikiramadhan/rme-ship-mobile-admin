@@ -223,7 +223,7 @@ void main() {
 
       // Tab 1 & Tab 2 headers exist
       expect(find.text('Inventaris Obat'), findsAtLeastNWidgets(1));
-      expect(find.text('Riwayat Tambah Obat'), findsOneWidget);
+      expect(find.text('Riwayat Transaksi Obat'), findsOneWidget);
 
       // Verify Tab 1 data with default filter: 'Tersedia'
       expect(find.text('Paracetamol 500mg'), findsOneWidget);
@@ -258,7 +258,7 @@ void main() {
       expect(find.text('Paracetamol 500mg'), findsNothing);
 
       // Tap Tab 2: Riwayat Tambah Obat
-      await tester.tap(find.text('Riwayat Tambah Obat'));
+      await tester.tap(find.text('Riwayat Transaksi Obat'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
