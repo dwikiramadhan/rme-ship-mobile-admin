@@ -71,7 +71,7 @@ void main() {
     expect(repo.logins, [('dokter1@gmail.com', '123456')]);
   });
 
-  testWidgets('boots to login screen with email/password fields', (WidgetTester tester) async {
+  testWidgets('boots to login screen with username-or-email/password fields', (WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [authRepositoryProvider.overrideWithValue(_FakeAuthRepository())],
@@ -82,7 +82,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Bayan Peduli'), findsWidgets);
-    expect(find.text('Email'), findsOneWidget);
+    expect(find.text('Username atau Email'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Masuk'), findsOneWidget);
 

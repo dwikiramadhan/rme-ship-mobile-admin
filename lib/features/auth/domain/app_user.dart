@@ -8,6 +8,7 @@ class AppUser extends Equatable {
     required this.name,
     required this.email,
     required this.role,
+    this.username = '',
     this.shipId,
     this.shipCode,
     this.shipName,
@@ -15,7 +16,9 @@ class AppUser extends Equatable {
 
   final String id;
   final String name;
+  /// May be empty: accounts sign in with a username, an email, or either.
   final String email;
+  final String username;
   final UserRole role;
   final String? shipId;
   final String? shipCode;
@@ -35,6 +38,7 @@ class AppUser extends Equatable {
       id: (json['id'] ?? json['user_id'] ?? '').toString(),
       name: (json['full_name'] ?? json['name'] ?? json['nama'] ?? json['username'] ?? '').toString(),
       email: (json['email'] ?? '').toString(),
+      username: (json['username'] ?? '').toString(),
       role: role,
       shipId: (json['ship_id'] ?? json['shipId'] ?? shipMap?['id'])?.toString(),
       shipCode: code,
@@ -46,6 +50,7 @@ class AppUser extends Equatable {
         'id': id,
         'name': name,
         'email': email,
+        'username': username,
         'role': role.apiValue,
         if (shipId != null) 'ship_id': shipId,
         if (shipCode != null) 'ship_code': shipCode,
@@ -53,7 +58,7 @@ class AppUser extends Equatable {
       };
 
   @override
-  List<Object?> get props => [id, name, email, role, shipId, shipCode, shipName];
+  List<Object?> get props => [id, name, email, username, role, shipId, shipCode, shipName];
 }
 
 class AuthSession extends Equatable {

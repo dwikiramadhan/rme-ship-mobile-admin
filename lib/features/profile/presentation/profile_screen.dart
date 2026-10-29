@@ -143,7 +143,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final displayName = user?.name.isNotEmpty == true
         ? user!.name
         : widget.name;
-    final displayEmail = user?.email.isNotEmpty == true ? user!.email : '-';
+    // Nakes accounts may have only a username.
+    final displayEmail = user?.email.isNotEmpty == true
+        ? user!.email
+        : user?.username.isNotEmpty == true
+            ? user!.username
+            : '-';
     final shipCode = user?.shipCode?.isNotEmpty == true
         ? user!.shipCode!
         : 'Hospital Ship';

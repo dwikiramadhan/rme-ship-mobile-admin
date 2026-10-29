@@ -5,23 +5,31 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/network/dio_client.dart';
 import '../domain/app_user.dart';
 
-/// Talks to POST /api/v1/auth/login: {email, password} -> {token, user:{...}},
-/// and GET /api/v1/auth/me for the user's current data.
+/// Talks to POST /api/v1/auth/login: {username or email, password} ->
+/// {token, user:{...}}, and GET /api/v1/auth/me for the user's current data.
 class AuthApi {
   AuthApi({Dio? dio}) : _dio = dio ?? DioClient.instance;
 
   final Dio _dio;
 
+  /// The login request body. [login] is a username or an email; usernames
+  /// never contain "@", so that tells which field the backend should match.
+  static Map<String, String> loginBody(String login, String password) =>
+      login.contains('@')
+          ? {'email': login, 'password': password}
+          : {'username': login, 'password': password};
+
+  /// [email] is what the user typed: a username or an email.
   Future<AuthSession> login({required String email, required String password}) async {
     final Response response;
     try {
       response = await _dio.post(
         ApiConfig.loginPath,
-        data: {'email': email, 'password': password},
+        data: loginBody(email, password),
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        throw const ApiException('Email atau password salah.', statusCode: 401);
+        throw const ApiException('Username/email atau password salah.', statusCode: 401);
       }
       throw DioClient.mapError(e);
     }

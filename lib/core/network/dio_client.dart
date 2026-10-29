@@ -137,7 +137,7 @@ class DioClient {
             _ => null,
           };
           if (statusCode == 401) {
-            return ApiException(serverMessage ?? 'Email atau password salah.', statusCode: statusCode);
+            return ApiException(serverMessage ?? 'Username/email atau password salah.', statusCode: statusCode);
           }
           return ApiException(
             serverMessage ?? 'Terjadi kesalahan pada server (${statusCode ?? '-'}).',

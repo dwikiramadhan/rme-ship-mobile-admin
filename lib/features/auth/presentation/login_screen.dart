@@ -51,7 +51,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               lower.contains('401') ||
               lower.contains('tidak valid') ||
               lower.contains('salah') =>
-        'Email atau password salah',
+        'Username/email atau password salah',
       _ => message,
     };
   }
@@ -315,9 +315,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 14),
             ],
 
-            // Email Input
+            // Username or email input
             const Text(
-              'Email',
+              'Username atau Email',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -328,7 +328,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             const SizedBox(height: 6),
             TextFormField(
               controller: _emailController,
-              keyboardType: TextInputType.emailAddress,
+              keyboardType: TextInputType.text,
+              autocorrect: false,
+              enableSuggestions: false,
               inputFormatters: [
                 TextInputFormatter.withFunction(
                   (oldValue, newValue) =>
@@ -336,7 +338,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ],
               textInputAction: TextInputAction.next,
-              autofillHints: const [AutofillHints.email],
+              autofillHints: const [AutofillHints.username, AutofillHints.email],
               style: const TextStyle(
                 fontSize: 11,
                 color: AppColors.text,
@@ -344,7 +346,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 height: 1.2,
               ),
               decoration: InputDecoration(
-                hintText: 'Masukkan email',
+                hintText: 'Masukkan username atau email',
                 hintStyle: const TextStyle(
                   fontSize: 12,
                   color: AppColors.sub,
@@ -353,7 +355,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 errorStyle: const TextStyle(fontSize: 11, letterSpacing: 0),
                 prefixIcon: const Icon(
-                  LucideIcons.mail,
+                  LucideIcons.user,
                   size: 14,
                   color: AppColors.sub,
                 ),
@@ -381,7 +383,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               validator: (value) {
                 final v = value?.trim() ?? '';
-                if (v.isEmpty) return 'Email wajib diisi';
+                if (v.isEmpty) return 'Username atau email wajib diisi';
                 return null;
               },
             ),
