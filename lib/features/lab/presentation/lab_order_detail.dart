@@ -1497,7 +1497,32 @@ class _ParameterRow extends StatelessWidget {
             controller: controller,
             onChanged: (_) => onChanged(),
             style: const TextStyle(fontSize: 11.5, color: AppColors.text),
-            decoration: _inputDecoration.copyWith(hintText: 'Hasil'),
+            decoration: _inputDecoration.copyWith(
+              hintText: p.isCombo ? 'Pilih / ketik' : 'Hasil',
+              // Combo: type freely, or pick one of the row's options.
+              suffixIcon: p.isCombo
+                  ? PopupMenuButton<String>(
+                      key: ValueKey('lab-param-options-${p.id}'),
+                      tooltip: 'Pilih hasil',
+                      icon: const Icon(
+                        LucideIcons.chevronDown,
+                        size: 14,
+                        color: AppColors.sub,
+                      ),
+                      onSelected: (v) {
+                        controller!.text = v;
+                        onChanged();
+                      },
+                      itemBuilder: (_) => [
+                        for (final o in p.options)
+                          PopupMenuItem(value: o, child: Text(o)),
+                      ],
+                    )
+                  : null,
+              suffixIconConstraints: p.isCombo
+                  ? const BoxConstraints(minWidth: 32, minHeight: 32)
+                  : null,
+            ),
           );
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),

@@ -98,6 +98,74 @@ void main() {
     );
   });
 
+  test('the examining doctor can edit until medicine is dispensed', () {
+    Map<String, dynamic> visit(String status, List<Map<String, dynamic>> rx) => {
+      'status_penanganan': status,
+      'doctor': {'id': 'doc-a', 'user_id': 'user-a'},
+      'prescriptions': rx,
+    };
+    expect(canEditExam(visit('Menunggu Obat', [_pending]), 'user-a'), isTrue);
+    // Another doctor, or no account.
+    expect(canEditExam(visit('Menunggu Obat', [_pending]), 'user-b'), isFalse);
+    expect(canEditExam(visit('Menunggu Obat', [_pending]), ''), isFalse);
+    // The pharmacy already dispensed something.
+    expect(
+      canEditExam(visit('Menunggu Obat', [_dispensed, _pending]), 'user-a'),
+      isFalse,
+    );
+    for (final status in ['Selesai', 'Menunggu Lab', 'Menunggu Dokter']) {
+      expect(canEditExam(visit(status, [_pending]), 'user-a'), isFalse);
+    }
+  });
+
+  testWidgets('editing starts from the saved exam and cannot refer', (tester) async {
+    tester.view.physicalSize = const Size(900, 2800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final history = MedicalHistory.fromApiJson({
+      'id': 'mr-1',
+      'code': 'RJ22102026-00001',
+      'patient_id': 'p-1',
+      'patient': {'id': 'p-1', 'name': 'Siti Aminah'},
+      'status_penanganan': 'Menunggu Obat',
+      'status': 'Stable',
+      'diagnosis': 'J06.9',
+      'diagnoses': [
+        {'code': 'J06.9', 'display': 'ISPA'},
+      ],
+      'notes': '[Dokter] Faring hiperemis',
+      'prescriptions': [_pending],
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            body: ExaminationInputModal(
+              patient: history.toPatient(),
+              history: history,
+              editing: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Edit Rekam Medis'), findsOneWidget);
+    expect(find.textContaining('J06.9'), findsWidgets);
+    expect(find.text('Amoxicillin 500mg'), findsOneWidget);
+    expect(find.text('Simpan Perubahan'), findsOneWidget);
+
+    await tester.tap(find.text('Baik'));
+    await tester.pumpAndSettle();
+    expect(find.text('Perlu Rujukan'), findsNothing);
+
+    // Let the ICD cache warm-up the modal starts finish.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 30));
+  });
+
   test('a prescription line knows it was dispensed', () {
     final item = ResepItem.fromJson(Map<String, dynamic>.from(_dispensed));
     expect(item.dispensed, isTrue);
@@ -155,8 +223,19 @@ void main() {
 
     await tester.tap(find.text('Ya, Perlu Rujukan Lab'));
     await tester.pump();
-    expect(find.text('Resep Obat Pasien'), findsOneWidget);
-    expect(find.text(' (Opsional)'), findsOneWidget);
+    expect(find.text('Perlu Resep Obat?'), findsOneWidget);
+    expect(find.text('2 Item Obat'), findsOneWidget);
+
+    // "Tidak Perlu Obat" hides the picker; the dispensed medicine stays shown.
+    await tester.tap(find.text('Tidak Perlu Obat'));
+    await tester.pump();
+    expect(find.text('1 Item Obat'), findsOneWidget);
+    expect(find.text('Sudah diserahkan farmasi'), findsOneWidget);
+    expect(find.text('Tambah obat lainnya'), findsNothing);
+    await tester.tap(find.text('Ya, Perlu Obat'));
+    await tester.pump();
+    expect(find.text('2 Item Obat'), findsOneWidget);
+    expect(find.text('Tambah obat lainnya'), findsOneWidget);
 
     // Let the ICD cache warm-up the modal starts finish.
     await tester.pumpWidget(const SizedBox());

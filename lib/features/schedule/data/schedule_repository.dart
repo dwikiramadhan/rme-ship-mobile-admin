@@ -327,6 +327,18 @@ final tripDoctorsProvider =
   ];
 });
 
+/// The clinics open on the ongoing trip: the ones a new patient's first visit
+/// can go to. Deactivated or deleted clinics are left out.
+final tripClinicsProvider =
+    FutureProvider.autoDispose<List<PoliklinikItem>>((ref) async {
+  final trip = await ref.watch(ongoingTripProvider.future);
+  return [
+    for (final c in trip?.clinics ?? const <ScheduleClinicItem>[])
+      if (c.poliActive && c.poliCode.isNotEmpty)
+        PoliklinikItem(id: c.poliId, code: c.poliCode, name: c.poliName),
+  ];
+});
+
 /// The clinics a visit can go to, from GET /api/v1/poliklinik; the standard
 /// list when the server can't be reached.
 final poliklinikOptionsProvider =

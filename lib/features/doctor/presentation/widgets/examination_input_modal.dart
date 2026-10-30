@@ -55,8 +55,18 @@ const List<String> _kAturanPakaiList = [
   'Input manual',
 ];
 
-/// Status kondisi pasien options
-const List<String> _kStatusKondisiList = ['Stable', 'Kritis', 'Monitoring'];
+/// Status kondisi pasien: nilai yang disimpan → label untuk dokter
+/// ("Stable" ditampilkan "Baik").
+const List<(String, String)> _kStatusKondisiList = [
+  ('Stable', 'Baik'),
+  ('Kritis', 'Kritis'),
+  ('Perlu Rujukan', 'Perlu Rujukan'),
+  ('Dipulangkan', 'Dipulangkan'),
+  ('Rawat Inap', 'Di Rawat Inap'),
+];
+
+/// Status yang membuka form rujuk ke dokter lain.
+const String _kReferralStatus = 'Perlu Rujukan';
 
 class _ResepRowData {
   String? obat;
@@ -64,12 +74,15 @@ class _ResepRowData {
   int? stock;
   String? category;
   String satuan = 'Tablet';
-  String dosis = '3x1';
   String aturanPakai = 'Sesudah makan';
   final TextEditingController jumlahCtrl = TextEditingController(text: '1');
+  // Dosis bebas diketik; daftar _kDosisList hanya saran.
+  final TextEditingController dosisCtrl = TextEditingController(text: '3x1');
   final TextEditingController customInstruksiCtrl = TextEditingController();
 
   int get jumlah => int.tryParse(jumlahCtrl.text.trim()) ?? 1;
+
+  String get dosis => dosisCtrl.text.trim();
 
   String get instruksi {
     final base = aturanPakai == 'Input manual'
@@ -82,6 +95,7 @@ class _ResepRowData {
 
   void dispose() {
     jumlahCtrl.dispose();
+    dosisCtrl.dispose();
     customInstruksiCtrl.dispose();
   }
 }
@@ -91,13 +105,18 @@ Future<bool?> showExaminationInputModal(
   BuildContext context, {
   required Patient patient,
   required MedicalHistory history,
+  bool editing = false,
 }) {
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     useSafeArea: true,
-    builder: (ctx) => ExaminationInputModal(patient: patient, history: history),
+    builder: (ctx) => ExaminationInputModal(
+      patient: patient,
+      history: history,
+      editing: editing,
+    ),
   );
 }
 
@@ -106,10 +125,16 @@ class ExaminationInputModal extends ConsumerStatefulWidget {
     super.key,
     required this.patient,
     required this.history,
+    this.editing = false,
   });
 
   final Patient patient;
   final MedicalHistory history;
+
+  /// The examining doctor changes their exam while the pharmacy hasn't
+  /// dispensed anything: the form starts from the visit, and can't refer
+  /// (the backend only takes a referral while the patient is being examined).
+  final bool editing;
 
   @override
   ConsumerState<ExaminationInputModal> createState() =>
@@ -123,17 +148,18 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
 
   // Lab referral
   bool _needLab = false;
+  // "Tidak" hides the medicine picker; no prescription goes to the pharmacy.
+  bool _needMeds = true;
   // Tests ticked from the lab request form (master `GET /lab-tests`).
   final Set<String> _selectedLabIds = {};
   final _labOther = TextEditingController();
   final _catatanLab = TextEditingController();
 
-  // Referral to another doctor on the ongoing trip (not with a lab referral).
-  bool _refers = false;
+  // Referral to another doctor on the ongoing trip (not with a lab referral):
+  // shown when the condition is "Perlu Rujukan".
+  bool get _refers => _statusKondisi == _kReferralStatus;
   String? _referToId;
   final _referReason = TextEditingController();
-  // When referring, the exam form is optional and hidden until opened.
-  bool _showExamForm = false;
 
   // Operation (Major / Minor / null)
   String? _operation;
@@ -160,7 +186,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     if (rawOp is String && rawOp.isNotEmpty) {
       _operation = rawOp;
     }
-    if (_isFollowUp || _referredFrom != null) _prefillFromVisit();
+    if (_isFollowUp || _referredFrom != null || widget.editing) {
+      _prefillFromVisit();
+    }
     _prefillPrescriptions();
     // Warm up ICD-10 and ICD-9 caches eagerly so pickers open with 0ms delay
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -178,19 +206,14 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   DoctorReferral? get _referredFrom =>
       referralsOf(widget.history.rawJson).lastOrNull;
 
-  // A lab referral and a doctor referral don't go together.
-  void _setNeedLab(bool value) => setState(() {
-    _needLab = value;
-    if (value) _refers = false;
-  });
+  void _setNeedLab(bool value) => setState(() => _needLab = value);
+  void _setNeedMeds(bool value) => setState(() => _needMeds = value);
 
-  void _setRefers(bool value) => setState(() {
-    _refers = value;
-    if (value) {
-      _needLab = false;
-      _showExamForm = false;
-    }
-  });
+  // When referring the doctor can still fill in the exam and diagnosis
+  // (optional) and order a lab: the patient goes to the lab first, and the
+  // result goes to the referred doctor.
+  void _setStatusKondisi(String value) =>
+      setState(() => _statusKondisi = value);
 
   /// Fills the form with what the doctor already recorded for this visit
   /// (diagnoses, procedures, condition), so continuing after the lab doesn't
@@ -226,8 +249,13 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         Icd9Item(code: code, display: display),
     ]);
 
+    // "Perlu Rujukan" isn't carried over: the doctor it was referred to
+    // doesn't refer again by default.
     final status = (h.status ?? '').trim();
-    if (_kStatusKondisiList.contains(status)) _statusKondisi = status;
+    if (status != _kReferralStatus &&
+        _kStatusKondisiList.any((s) => s.$1 == status)) {
+      _statusKondisi = status;
+    }
   }
 
   /// The visit's prescription so far (e.g. given with a lab referral): what
@@ -252,7 +280,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         final unit = '${medicine['unit'] ?? ''}'.trim();
         if (unit.isNotEmpty) row.satuan = unit;
         final dosage = '${p['dosage'] ?? ''}'.trim();
-        if (_kDosisList.contains(dosage)) row.dosis = dosage;
+        if (dosage.isNotEmpty) row.dosisCtrl.text = dosage;
         row.jumlahCtrl.text = '${p['quantity'] ?? 1}';
         final instructions = '${p['instructions'] ?? ''}'.trim();
         if (_kAturanPakaiList.contains(instructions)) {
@@ -325,8 +353,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
   }
 
   Future<void> _submit() async {
-    // A doctor referral doesn't need the exam filled in.
-    if (!_refers && _tindakanFreetext.text.trim().isEmpty) {
+    // A doctor referral doesn't need the exam filled in; an edit adds to the
+    // exam already saved.
+    if (!_refers && !widget.editing && _tindakanFreetext.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Hasil Pemeriksaan wajib diisi!'),
@@ -345,18 +374,15 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       return;
     }
 
-    // With a lab or doctor referral the prescription is optional, and the
-    // pharmacy dispenses it without waiting.
-    final validResep = _resep
-        .where((r) => r.obat != null && r.obat!.isNotEmpty)
-        .toList();
-    if (!_needLab &&
-        !_refers &&
-        validResep.isEmpty &&
-        _dispensedResep.isEmpty) {
+    final validResep = _needMeds
+        ? _resep.where((r) => r.obat != null && r.obat!.isNotEmpty).toList()
+        : <_ResepRowData>[];
+    if (_needMeds && validResep.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Resep obat pasien wajib diisi minimal 1 item obat!'),
+          content: Text(
+            'Silakan pilih minimal 1 obat, atau pilih "Tidak Perlu Obat"!',
+          ),
           backgroundColor: AppColors.red,
         ),
       );
@@ -445,11 +471,16 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
       final tindakanFormatted = allTindakan.join(', ');
 
       final noteText = _tindakanFreetext.text.trim();
-      final statusPenanganan = _refers
-          ? 'Menunggu Dokter'
-          : _needLab
+      // The lab comes first (also when referring: the result goes to the
+      // referred doctor). No referral, lab, or new medicine: the visit is done
+      // (it doesn't go to the pharmacy queue).
+      final statusPenanganan = _needLab
           ? 'Menunggu Lab'
-          : 'Menunggu Obat';
+          : _refers
+          ? 'Menunggu Dokter'
+          : validResep.isNotEmpty
+          ? 'Menunggu Obat'
+          : 'Selesai';
 
       final prescriptionsPayload = [
         for (final r in validResep)
@@ -483,7 +514,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
           'prescriptions': prescriptionsPayload,
         // Saved by the backend as a Pending lab order for the analyst.
         if (labOrder != null) 'lab_order': labOrderRequestJson(labOrder),
-        // The other doctor takes the visit over (back to Menunggu Dokter).
+        // The other doctor takes the visit over (after the lab, if ordered).
         if (_refers)
           'referral': referralRequestJson(
             toDoctorId: _referToId!,
@@ -667,7 +698,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _isFollowUp
+                                widget.editing
+                                    ? 'Edit Rekam Medis'
+                                    : _isFollowUp
                                     ? 'Lanjutan Pemeriksaan (Setelah Lab)'
                                     : 'Form Input Rekam Medis',
                                 style: const TextStyle(
@@ -729,17 +762,203 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           const SizedBox(height: 16),
                         ],
 
-                        // Rujuk ke Dokter Lain? (sebelum Hasil Pemeriksaan)
+                        // Section 1: Hasil Pemeriksaan *
+                        Text.rich(
+                          TextSpan(
+                            text: 'Hasil Pemeriksaan',
+                            children: [
+                              TextSpan(
+                                text: _refers || widget.editing
+                                    ? ' (Opsional)'
+                                    : ' *',
+                                style: TextStyle(
+                                  color: _refers || widget.editing
+                                      ? AppColors.sub
+                                      : AppColors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.text,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        TextField(
+                          controller: _tindakanFreetext,
+                          textCapitalization: freeTextCapitalization,
+                          inputFormatters: freeTextFormatters,
+                          maxLines: 2,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.text,
+                            letterSpacing: 0,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: widget.editing
+                                ? 'Tambahan hasil pemeriksaan (opsional)...'
+                                : 'Tuliskan hasil pemeriksaan fisik / temuan klinis pasien...',
+                            hintStyle: const TextStyle(
+                              fontSize: 10.5,
+                              color: AppColors.sub,
+                              letterSpacing: 0,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.inputBg,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: AppColors.border,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: AppColors.orange,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (widget.editing &&
+                            doctorExamResult(
+                              widget.history.notes,
+                            ).isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'Tersimpan: ${doctorExamResult(widget.history.notes)}',
+                            style: const TextStyle(
+                              fontSize: 10.5,
+                              color: AppColors.sub,
+                              letterSpacing: 0,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+
+                        // Section 2: Diagnosa Klinis (ICD-10)
+                        Icd10MultiSearchPicker(
+                          label: 'Diagnosa Klinis (ICD-10 / Nama Penyakit)',
+                          required: !_refers,
+                          selectedItems: _diagnosaList,
+                          onChanged: (items) {
+                            setState(() {
+                              _diagnosaList
+                                ..clear()
+                                ..addAll(items);
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Section 3: Tindakan Medis (ICD-9-CM)
+                        Icd9MultiSearchPicker(
+                          label: 'Tindakan Medis (ICD-9-CM / Prosedur)',
+                          selectedItems: _tindakanList,
+                          hint:
+                              'Pilih atau cari tindakan ICD-9-CM (opsional)...',
+                          onChanged: (items) {
+                            setState(() {
+                              _tindakanList
+                                ..clear()
+                                ..addAll(items);
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Section: Operation (Opsional)
+                        Row(
+                          children: [
+                            const Icon(
+                              LucideIcons.scissors,
+                              size: 14,
+                              color: Color(0xFF0D9488),
+                            ),
+                            const SizedBox(width: 7),
+                            const Text(
+                              'Operation',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            const Text(
+                              '(Opsional)',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w400,
+                                color: AppColors.sub,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            if (_operation != null) ...[
+                              const Spacer(),
+                              GestureDetector(
+                                onTap: () => setState(() => _operation = null),
+                                child: const Row(
+                                  children: [
+                                    Icon(
+                                      LucideIcons.x,
+                                      size: 12,
+                                      color: AppColors.red,
+                                    ),
+                                    SizedBox(width: 3),
+                                    Text(
+                                      'Reset',
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppColors.red,
+                                        letterSpacing: 0,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _operationToggleButton(
+                                label: 'Major',
+                                value: 'Major',
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _operationToggleButton(
+                                label: 'Minor',
+                                value: 'Minor',
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Section 4: Perlu Pemeriksaan Laboratorium?
                         const Row(
                           children: [
                             Icon(
-                              LucideIcons.userPlus,
+                              LucideIcons.flaskConical,
                               size: 14,
                               color: Color(0xFF0284C7),
                             ),
                             SizedBox(width: 7),
                             Text(
-                              'Rujuk ke Dokter Lain?',
+                              'Perlu Pemeriksaan Laboratorium?',
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
@@ -754,393 +973,43 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                           children: [
                             Expanded(
                               child: _choiceButton(
-                                label: 'Tidak Dirujuk',
-                                active: !_refers,
-                                onTap: () => _setRefers(false),
+                                label: 'Tidak Perlu Lab',
+                                active: !_needLab,
+                                onTap: () => _setNeedLab(false),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: _choiceButton(
-                                label: 'Ya, Rujuk Dokter',
-                                active: _refers,
-                                onTap: () => _setRefers(true),
+                                label: 'Ya, Perlu Rujukan Lab',
+                                active: _needLab,
+                                onTap: () => _setNeedLab(true),
                               ),
                             ),
                           ],
                         ),
-                        if (_refers) ...[
+
+                        if (_needLab == true) ...[
                           const SizedBox(height: 10),
-                          _DoctorReferralFields(
-                            doctors: ref
-                                .watch(tripDoctorsProvider)
-                                .whenData(
-                                  (d) => referralCandidates(
-                                    d,
-                                    widget.history.doctorId,
-                                  ),
-                                ),
-                            selectedId: _referToId,
-                            onSelect: (id) => setState(() => _referToId = id),
-                            reasonController: _referReason,
-                          ),
-                        ],
-                        const SizedBox(height: 18),
-
-                        if (_refers) ...[
-                          _ExamFormToggle(
-                            expanded: _showExamForm,
-                            onTap: () => setState(
-                              () => _showExamForm = !_showExamForm,
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF0F9FF),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF0284C7,
+                                ).withValues(alpha: 0.3),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                        if (!_refers || _showExamForm) ...[
-                          // Section 1: Hasil Pemeriksaan *
-                          Text.rich(
-                            TextSpan(
-                              text: 'Hasil Pemeriksaan',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                TextSpan(
-                                  text: _refers ? ' (Opsional)' : ' *',
-                                  style: TextStyle(
-                                    color: _refers
-                                        ? AppColors.sub
-                                        : AppColors.red,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.text,
-                              letterSpacing: 0,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: _tindakanFreetext,
-                            textCapitalization: freeTextCapitalization,
-                            inputFormatters: freeTextFormatters,
-                            maxLines: 2,
-                            style: const TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.text,
-                              letterSpacing: 0,
-                            ),
-                            decoration: InputDecoration(
-                              hintText:
-                                  'Tuliskan hasil pemeriksaan fisik / temuan klinis pasien...',
-                              hintStyle: const TextStyle(
-                                fontSize: 10.5,
-                                color: AppColors.sub,
-                                letterSpacing: 0,
-                              ),
-                              filled: true,
-                              fillColor: AppColors.inputBg,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: AppColors.border,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: AppColors.orange,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Section 2: Diagnosa Klinis (ICD-10)
-                          Icd10MultiSearchPicker(
-                            label: 'Diagnosa Klinis (ICD-10 / Nama Penyakit)',
-                            required: !_refers,
-                            selectedItems: _diagnosaList,
-                            onChanged: (items) {
-                              setState(() {
-                                _diagnosaList
-                                  ..clear()
-                                  ..addAll(items);
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Section 3: Tindakan Medis (ICD-9-CM)
-                          Icd9MultiSearchPicker(
-                            label: 'Tindakan Medis (ICD-9-CM / Prosedur)',
-                            selectedItems: _tindakanList,
-                            hint:
-                                'Pilih atau cari tindakan ICD-9-CM (opsional)...',
-                            onChanged: (items) {
-                              setState(() {
-                                _tindakanList
-                                  ..clear()
-                                  ..addAll(items);
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Section: Operation (Opsional)
-                          Row(
-                            children: [
-                              const Icon(
-                                LucideIcons.scissors,
-                                size: 14,
-                                color: Color(0xFF0D9488),
-                              ),
-                              const SizedBox(width: 7),
-                              const Text(
-                                'Operation',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.text,
-                                  letterSpacing: 0,
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              const Text(
-                                '(Opsional)',
-                                style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w400,
-                                  color: AppColors.sub,
-                                  letterSpacing: 0,
-                                ),
-                              ),
-                              if (_operation != null) ...[
-                                const Spacer(),
-                                GestureDetector(
-                                  onTap: () => setState(() => _operation = null),
-                                  child: const Row(
-                                    children: [
-                                      Icon(
-                                        LucideIcons.x,
-                                        size: 12,
-                                        color: AppColors.red,
-                                      ),
-                                      SizedBox(width: 3),
-                                      Text(
-                                        'Reset',
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w500,
-                                          color: AppColors.red,
-                                          letterSpacing: 0,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _operationToggleButton(
-                                  label: 'Major',
-                                  value: 'Major',
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _operationToggleButton(
-                                  label: 'Minor',
-                                  value: 'Minor',
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Not together with a doctor referral.
-                          if (!_refers) ...[
-                            // Section 4: Perlu Pemeriksaan Laboratorium?
-                            const Row(
-                              children: [
-                                Icon(
-                                  LucideIcons.flaskConical,
-                                  size: 14,
-                                  color: Color(0xFF0284C7),
-                                ),
-                                SizedBox(width: 7),
-                                Text(
-                                  'Perlu Pemeriksaan Laboratorium?',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.text,
-                                    letterSpacing: 0,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _choiceButton(
-                                    label: 'Tidak Perlu Lab',
-                                    active: !_needLab,
-                                    onTap: () => _setNeedLab(false),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _choiceButton(
-                                    label: 'Ya, Perlu Rujukan Lab',
-                                    active: _needLab,
-                                    onTap: () => _setNeedLab(true),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            if (_needLab == true) ...[
-                              const SizedBox(height: 10),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF0F9FF),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(
-                                      0xFF0284C7,
-                                    ).withValues(alpha: 0.3),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                // Label: Jenis Pemeriksaan Laboratorium
+                                const Row(
                                   children: [
-                                    // Label: Jenis Pemeriksaan Laboratorium
-                                    const Row(
-                                      children: [
-                                        Text(
-                                          'Jenis Pemeriksaan Laboratorium',
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.text,
-                                            letterSpacing: 0,
-                                          ),
-                                        ),
-                                        Text(
-                                          ' *',
-                                          style: TextStyle(
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.red,
-                                            letterSpacing: 0,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 5),
-                                    _LabTestChecklist(
-                                      tests: ref.watch(labTestsProvider),
-                                      selectedIds: _selectedLabIds,
-                                      otherController: _labOther,
-                                      onToggle: (id) => setState(() {
-                                        if (!_selectedLabIds.remove(id)) {
-                                          _selectedLabIds.add(id);
-                                        }
-                                      }),
-                                    ),
-                                    const SizedBox(height: 10),
-
-                                    // Label: Catatan Khusus untuk Analis Lab
-                                    const Text(
-                                      'Catatan Khusus untuk Analis Lab',
-                                      style: TextStyle(
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.text,
-                                        letterSpacing: 0,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    TextField(
-                                      controller: _catatanLab,
-                                      textCapitalization: freeTextCapitalization,
-                                      inputFormatters: freeTextFormatters,
-                                      maxLines: 2,
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        color: AppColors.text,
-                                        letterSpacing: 0,
-                                      ),
-                                      decoration: InputDecoration(
-                                        hintText:
-                                            'cth: Cek Hemoglobin, Trombosit & Leukosit cito',
-                                        hintStyle: const TextStyle(
-                                          fontSize: 10.5,
-                                          color: AppColors.sub,
-                                          letterSpacing: 0,
-                                        ),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 8,
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                            color: AppColors.border,
-                                          ),
-                                        ),
-                                        focusedBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(8),
-                                          borderSide: const BorderSide(
-                                            color: Color(0xFF0284C7),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Resep obat di bawah opsional dan langsung diproses farmasi tanpa menunggu hasil lab.',
-                                      style: TextStyle(
-                                        fontSize: 10.5,
-                                        color: AppColors.sub,
-                                        letterSpacing: 0,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 18),
-                          ],
-
-                          // Section 5: Resep Obat Pasien (opsional jika rujukan)
-                          ...[
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      LucideIcons.pill,
-                                      size: 14,
-                                      color: AppColors.orange,
-                                    ),
-                                    const SizedBox(width: 7),
-                                    const Text(
-                                      'Resep Obat Pasien',
+                                    Text(
+                                      'Jenis Pemeriksaan Laboratorium',
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
@@ -1149,48 +1018,172 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                       ),
                                     ),
                                     Text(
-                                      _needLab || _refers ? ' (Opsional)' : ' *',
+                                      ' *',
                                       style: TextStyle(
-                                        color: _needLab || _refers
-                                            ? AppColors.sub
-                                            : AppColors.red,
+                                        fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
+                                        color: AppColors.red,
                                         letterSpacing: 0,
                                       ),
                                     ),
                                   ],
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2.5,
+                                const SizedBox(height: 5),
+                                _LabTestChecklist(
+                                  tests: ref.watch(labTestsProvider),
+                                  selectedIds: _selectedLabIds,
+                                  otherController: _labOther,
+                                  onToggle: (id) => setState(() {
+                                    if (!_selectedLabIds.remove(id)) {
+                                      _selectedLabIds.add(id);
+                                    }
+                                  }),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // Label: Catatan Khusus untuk Analis Lab
+                                const Text(
+                                  'Catatan Khusus untuk Analis Lab',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.text,
+                                    letterSpacing: 0,
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.orangeLt,
-                                    borderRadius: BorderRadius.circular(6),
+                                ),
+                                const SizedBox(height: 5),
+                                TextField(
+                                  controller: _catatanLab,
+                                  textCapitalization: freeTextCapitalization,
+                                  inputFormatters: freeTextFormatters,
+                                  maxLines: 2,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: AppColors.text,
+                                    letterSpacing: 0,
                                   ),
-                                  child: Text(
-                                    '${_dispensedResep.length + _resep.length} Item Obat',
-                                    style: const TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w500,
+                                  decoration: InputDecoration(
+                                    hintText:
+                                        'cth: Cek Hemoglobin, Trombosit & Leukosit cito',
+                                    hintStyle: const TextStyle(
+                                      fontSize: 10.5,
                                       color: AppColors.sub,
                                       letterSpacing: 0,
                                     ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(
+                                        color: AppColors.border,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFF0284C7),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  _refers
+                                      ? 'Resep obat di bawah langsung diproses farmasi tanpa menunggu hasil lab. Hasil lab dikirim ke dokter tujuan rujukan.'
+                                      : 'Resep obat di bawah langsung diproses farmasi tanpa menunggu hasil lab.',
+                                  style: const TextStyle(
+                                    fontSize: 10.5,
+                                    color: AppColors.sub,
+                                    letterSpacing: 0,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                          ),
+                        ],
+                        const SizedBox(height: 18),
 
-                            for (final item in _dispensedResep)
-                              _DispensedResepCard(item: item),
+                        // Section 5: Perlu Resep Obat? ("Tidak" hides the picker)
+                        ...[
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(
+                                    LucideIcons.pill,
+                                    size: 14,
+                                    color: AppColors.orange,
+                                  ),
+                                  SizedBox(width: 7),
+                                  Text(
+                                    'Perlu Resep Obat?',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.text,
+                                      letterSpacing: 0,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 2.5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.orangeLt,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${_dispensedResep.length + (_needMeds ? _resep.length : 0)} Item Obat',
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.sub,
+                                    letterSpacing: 0,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _choiceButton(
+                                  label: 'Tidak Perlu Obat',
+                                  active: !_needMeds,
+                                  onTap: () => _setNeedMeds(false),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _choiceButton(
+                                  label: 'Ya, Perlu Obat',
+                                  active: _needMeds,
+                                  onTap: () => _setNeedMeds(true),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
 
-                            // List of Resep Cards
+                          for (final item in _dispensedResep)
+                            _DispensedResepCard(item: item),
+
+                          // List of Resep Cards
+                          if (_needMeds)
                             for (int i = 0; i < _resep.length; i++)
                               _buildResepCard(i),
 
-                            // Button: + Tambah Obat Lainnya (Simple inline link)
+                          // Button: + Tambah Obat Lainnya (Simple inline link)
+                          if (_needMeds)
                             Align(
                               alignment: Alignment.centerLeft,
                               child: InkWell(
@@ -1225,68 +1218,71 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 18),
+                          const SizedBox(height: 18),
+                        ],
+
+                        // Status Kondisi Pasien (paling bawah, selalu tampil):
+                        // "Perlu Rujukan" membuka form rujuk ke dokter lain.
+                        const Row(
+                          children: [
+                            Icon(
+                              LucideIcons.activity,
+                              size: 14,
+                              color: AppColors.orange,
+                            ),
+                            SizedBox(width: 7),
+                            Text(
+                              'Status Kondisi Pasien',
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text,
+                                letterSpacing: 0,
+                              ),
+                            ),
+                            Text(
+                              ' *',
+                              style: TextStyle(
+                                color: AppColors.red,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0,
+                              ),
+                            ),
                           ],
-
-                          // Section 6: Status Kondisi Pasien *
-                          const Row(
-                            children: [
-                              Icon(
-                                LucideIcons.activity,
-                                size: 14,
-                                color: AppColors.orange,
-                              ),
-                              SizedBox(width: 7),
-                              Text(
-                                'Status Kondisi Pasien',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.text,
-                                  letterSpacing: 0,
-                                ),
-                              ),
-                              Text(
-                                ' *',
-                                style: TextStyle(
-                                  color: AppColors.red,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0,
-                                ),
-                              ),
-                            ],
+                        ),
+                        const SizedBox(height: 6),
+                        Container(
+                          // Dense button + 6px padding: about 36px high, like
+                          // the other compact fields (default is 48px).
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
                           ),
-                          const SizedBox(height: 6),
-
-                          Container(
-                            // Dense button + 6px padding: about 36px high, like
-                            // the other compact fields (default is 48px).
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.inputBg,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.border),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                isExpanded: true,
-                                isDense: true,
-                                value: _statusKondisi,
-                                dropdownColor: AppColors.card,
-                                icon: const Icon(
-                                  LucideIcons.chevronDown,
-                                  size: 14,
-                                  color: AppColors.sub,
-                                ),
-                                items: [
-                                  for (final s in _kStatusKondisiList)
+                          decoration: BoxDecoration(
+                            color: AppColors.inputBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              isDense: true,
+                              value: _statusKondisi,
+                              dropdownColor: AppColors.card,
+                              icon: const Icon(
+                                LucideIcons.chevronDown,
+                                size: 14,
+                                color: AppColors.sub,
+                              ),
+                              items: [
+                                for (final (value, label)
+                                    in _kStatusKondisiList)
+                                  if (!widget.editing ||
+                                      value != _kReferralStatus)
                                     DropdownMenuItem(
-                                      value: s,
+                                      value: value,
                                       child: Text(
-                                        s,
+                                        label,
                                         style: const TextStyle(
                                           fontSize: 11.5,
                                           fontWeight: FontWeight.w400,
@@ -1295,26 +1291,31 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                         ),
                                       ),
                                     ),
-                                ],
-                                onChanged: (v) {
-                                  if (v != null) {
-                                    setState(() => _statusKondisi = v);
-                                  }
-                                },
-                              ),
+                              ],
+                              onChanged: (v) {
+                                if (v != null) _setStatusKondisi(v);
+                              },
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Pilih status kondisi pasien: Stable, Kritis, atau Monitoring.',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              color: AppColors.sub,
-                              letterSpacing: 0,
-                            ),
+                        ),
+                        if (_refers) ...[
+                          const SizedBox(height: 10),
+                          _DoctorReferralFields(
+                            doctors: ref
+                                .watch(tripDoctorsProvider)
+                                .whenData(
+                                  (d) => referralCandidates(
+                                    d,
+                                    widget.history.doctorId,
+                                  ),
+                                ),
+                            selectedId: _referToId,
+                            onSelect: (id) => setState(() => _referToId = id),
+                            reasonController: _referReason,
+                            withLab: _needLab,
                           ),
-                          const SizedBox(height: 20),
                         ],
+                        const SizedBox(height: 20),
 
                         // Section 7: Action Buttons (Batal & Simpan)
                         Row(
@@ -1372,9 +1373,13 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                         ),
                                       )
                                     : Text(
-                                        _refers
+                                        widget.editing
+                                            ? 'Simpan Perubahan'
+                                            : _refers
                                             ? 'Simpan & Rujuk ke Dokter'
-                                            : _isFollowUp && !_needLab
+                                            : _isFollowUp &&
+                                                  !_needLab &&
+                                                  _needMeds
                                             ? 'Simpan & Kirim ke Farmasi'
                                             : 'Simpan Rekam Medis',
                                         style: const TextStyle(
@@ -1874,44 +1879,74 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                       ),
                     ),
                     const SizedBox(height: 5),
+                    // Ketik bebas, atau pilih saran dari tombol panah.
                     Container(
                       height: 36,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      padding: const EdgeInsets.only(left: 8),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          isExpanded: true,
-                          value: row.dosis,
-                          dropdownColor: Colors.white,
-                          icon: const Icon(
-                            LucideIcons.chevronDown,
-                            size: 12,
-                            color: AppColors.sub,
-                          ),
-                          items: [
-                            for (final d in _kDosisList)
-                              DropdownMenuItem(
-                                value: d,
-                                child: Text(
-                                  d,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: AppColors.text,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: 0,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: row.dosisCtrl,
+                              maxLength: 100,
+                              cursorColor: AppColors.orange,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.text,
+                                letterSpacing: 0,
+                              ),
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                counterText: '',
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                hintText: 'mis. 3x1',
+                                hintStyle: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.sub,
+                                  letterSpacing: 0,
                                 ),
                               ),
-                          ],
-                          onChanged: (v) {
-                            if (v != null) setState(() => row.dosis = v);
-                          },
-                        ),
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            tooltip: 'Pilih dosis',
+                            padding: EdgeInsets.zero,
+                            iconSize: 12,
+                            color: Colors.white,
+                            icon: const Icon(
+                              LucideIcons.chevronDown,
+                              size: 12,
+                              color: AppColors.sub,
+                            ),
+                            onSelected: (d) =>
+                                setState(() => row.dosisCtrl.text = d),
+                            itemBuilder: (_) => [
+                              for (final d in _kDosisList)
+                                PopupMenuItem(
+                                  value: d,
+                                  height: 36,
+                                  child: Text(
+                                    d,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.text,
+                                      letterSpacing: 0,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -2382,12 +2417,16 @@ class _DoctorReferralFields extends StatelessWidget {
     required this.selectedId,
     required this.onSelect,
     required this.reasonController,
+    this.withLab = false,
   });
 
   final AsyncValue<List<Doctor>> doctors;
   final String? selectedId;
   final ValueChanged<String?> onSelect;
   final TextEditingController reasonController;
+
+  /// A lab is ordered too: the patient sees the lab before the other doctor.
+  final bool withLab;
 
   @override
   Widget build(BuildContext context) {
@@ -2407,6 +2446,22 @@ class _DoctorReferralFields extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Row(
+            children: [
+              Icon(LucideIcons.userPlus, size: 14, color: blue),
+              SizedBox(width: 7),
+              Text(
+                'Rujuk ke Dokter Lain',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           doctors.when(
             loading: () => const Text(
               'Memuat dokter di jadwal perjalanan...',
@@ -2491,60 +2546,13 @@ class _DoctorReferralFields extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Pasien kembali berstatus Menunggu Dokter dan ditangani dokter tujuan. Form pemeriksaan dan resep tidak wajib diisi.',
+          Text(
+            withLab
+                ? 'Pasien diperiksa lab dulu; setelah hasil lab dikirim, pasien masuk antrean dokter tujuan. Form pemeriksaan tidak wajib diisi.'
+                : 'Pasien kembali berstatus Menunggu Dokter dan ditangani dokter tujuan. Form pemeriksaan tidak wajib diisi.',
             style: noteStyle,
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Opens or hides the (optional) exam form while referring.
-class _ExamFormToggle extends StatelessWidget {
-  const _ExamFormToggle({required this.expanded, required this.onTap});
-
-  final bool expanded;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(LucideIcons.fileText, size: 14, color: AppColors.sub),
-            const SizedBox(width: 7),
-            Text(
-              expanded
-                  ? 'Sembunyikan Form Pemeriksaan'
-                  : 'Isi Form Pemeriksaan (Opsional)',
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text,
-                letterSpacing: 0,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-              size: 14,
-              color: AppColors.sub,
-            ),
-          ],
-        ),
       ),
     );
   }

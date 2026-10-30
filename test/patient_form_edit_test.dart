@@ -69,6 +69,8 @@ final _patient = Patient(
   alamat: 'Jl. Pelabuhan Semayang No. 12, Kel. Bani Amas, Kec. Bengkayang, '
       'Kabupaten Bengkayang, Kalimantan Barat, 79211',
   kodeKelurahan: '61.07.04.2006',
+  // Foto identitas wajib; NIK opsional.
+  photoUrl: '/uploads/patients/syafruddin.jpg',
   // Known ship, so saving doesn't look it up in device storage.
   serviceShipCode: 'RSK-001',
   // As opened from the patient detail: no doctor or complaint on the patient.
@@ -139,6 +141,45 @@ void main() {
       'Jl. Pelabuhan Semayang No. 12, Kel. Bani Amas, Kec. Bengkayang, '
       'Kabupaten Bengkayang, Kalimantan Barat, 79211',
     );
+  });
+
+  testWidgets('a patient without an identity photo cannot be saved, even with a NIK', (tester) async {
+    tester.view.physicalSize = const Size(640, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final api = _RecordingPatientApi();
+    var saved = false;
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          patientApiProvider.overrideWithValue(api),
+          wilayahApiProvider.overrideWithValue(_FakeWilayahApi()),
+          doctorsProvider.overrideWith((ref) async => []),
+        ],
+        child: MaterialApp(
+          home: Scaffold(
+            body: PatientForm(
+              initialPatient: _patient.copyWith(photoUrl: null),
+              onBack: () {},
+              onSaved: () => saved = true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // NIK and photo are both shown; there is no identity type to pick.
+    expect(find.text('Nomor NIK (Nomor Induk Kependudukan)'), findsOneWidget);
+    expect(find.text('Jenis Identitas'), findsNothing);
+
+    await tester.tap(find.text('Simpan Perubahan'));
+    await tester.pump();
+
+    expect(saved, isFalse);
+    expect(api.updates, isEmpty);
   });
 
   testWidgets('"Edit Pasien" from the patient detail opens a working page', (tester) async {

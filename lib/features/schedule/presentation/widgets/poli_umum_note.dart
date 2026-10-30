@@ -7,6 +7,10 @@ import '../../../../core/theme/app_colors.dart';
 const String noTripDoctorsMessage =
     'Belum ada dokter di jadwal perjalanan Ongoing.';
 
+/// Shown when the ongoing trip has no clinic for a new patient to go to.
+const String noTripClinicsMessage =
+    'Belum ada Poli Layanan di jadwal perjalanan Ongoing.';
+
 /// Shown instead of the doctor picker for Poli Umum, which needs no assigned
 /// doctor: every doctor on the ongoing trip is told about the patient.
 class PoliUmumDoctorsNote extends StatelessWidget {

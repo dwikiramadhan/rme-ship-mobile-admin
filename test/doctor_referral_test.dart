@@ -155,21 +155,29 @@ void main() {
 
     await tester.tap(find.text('Ya, Perlu Rujukan Lab'));
     await tester.pump();
-    await tester.tap(find.text('Ya, Rujuk Dokter'));
-    await tester.pump();
-    await tester.pump();
-    // The exam form isn't needed for a referral: hidden until opened.
+    // "Perlu Rujukan" as the condition opens the referral form.
+    expect(find.text('Rujuk ke Dokter Lain'), findsNothing);
+    await tester.tap(find.text('Baik'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Perlu Rujukan').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Rujuk ke Dokter Lain'), findsOneWidget);
+    // The doctor can still examine and diagnose first: the exam form stays
+    // (optional for a referral), with no toggle to hide it.
     expect(find.text('Simpan & Rujuk ke Dokter'), findsOneWidget);
-    expect(find.text('Resep Obat Pasien'), findsNothing);
-    await tester.tap(find.text('Isi Form Pemeriksaan (Opsional)'));
-    await tester.pump();
-    expect(find.text('Resep Obat Pasien'), findsOneWidget);
-    expect(find.text(' (Opsional)'), findsOneWidget);
-    // A doctor referral replaces the lab referral.
-    expect(find.text('Perlu Pemeriksaan Laboratorium?'), findsNothing);
-    await tester.tap(find.text('Sembunyikan Form Pemeriksaan'));
-    await tester.pump();
-    expect(find.text('Resep Obat Pasien'), findsNothing);
+    expect(find.text('Perlu Resep Obat?'), findsOneWidget);
+    expect(find.text('Sembunyikan Form Pemeriksaan'), findsNothing);
+    // The lab ordered earlier stays: the patient sees the lab first, then the
+    // referred doctor.
+    expect(find.text('Perlu Pemeriksaan Laboratorium?'), findsOneWidget);
+    expect(
+      find.textContaining('Hasil lab dikirim ke dokter tujuan rujukan.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Pasien diperiksa lab dulu'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();

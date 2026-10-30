@@ -21,6 +21,7 @@ import '../data/patient_repository.dart';
 import '../domain/clinical_notes.dart';
 import '../domain/dispensed_medicine.dart';
 import '../domain/doctor_referral.dart';
+import '../domain/pending_prescription.dart';
 import '../domain/medical_history.dart';
 import '../domain/patient.dart';
 import '../domain/vitals.dart';
@@ -761,6 +762,40 @@ class MedicalHistoryDetailView extends ConsumerWidget {
                               ? 'Tinjau Hasil Lab & Lanjutkan Pemeriksaan'
                               : 'Periksa Pasien / Input Rekam Medis',
                           style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
+                  // The examining doctor can still change their diagnosis
+                  // while the pharmacy hasn't dispensed any medicine.
+                  if (isDoctor && canEditExam(history.rawJson, userId)) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => showExaminationInputModal(
+                          context,
+                          patient: patientObj,
+                          history: history,
+                          editing: true,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.blue,
+                          side: const BorderSide(color: AppColors.blue),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(LucideIcons.pencil, size: 15),
+                        label: const Text(
+                          'Edit Rekam Medis',
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             letterSpacing: 0,

@@ -18,6 +18,21 @@ bool isDispensedPrescription(Map<dynamic, dynamic> prescription) {
   return dispenses is List && dispenses.isNotEmpty;
 }
 
+/// The examining doctor (logged in as [userId]) can still change the exam
+/// while the pharmacy hasn't dispensed anything: their "Menunggu Obat" visit
+/// (API JSON) with no dispensed medicine. Same rule as the backend.
+bool canEditExam(Map<String, dynamic> record, String userId) {
+  if (userId.isEmpty) return false;
+  final doctor = record['doctor'];
+  if (doctor is! Map || doctor['user_id']?.toString() != userId) return false;
+  if ('${record['status_penanganan'] ?? ''}'.trim() != 'Menunggu Obat') {
+    return false;
+  }
+  final prescriptions = record['prescriptions'];
+  return prescriptions is! List ||
+      !prescriptions.whereType<Map>().any(isDispensedPrescription);
+}
+
 /// Whether the visit (API JSON) still has medicine the pharmacy hasn't
 /// dispensed. Uses the backend's `prescription_pending`; works it out from
 /// the prescriptions when it's missing (older backend, offline data).

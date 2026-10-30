@@ -48,6 +48,9 @@ class LabParameter extends Equatable {
 
   bool get isSelect => inputType == kLabInputSelect;
 
+  /// Typed freely, with [options] offered as suggestions (e.g. urine colour).
+  bool get isCombo => inputType == kLabInputCombo;
+
   /// Where it goes on the form: "Kimia Klinik / Gula Darah", or the section.
   String get heading => group.isEmpty ? section : '$section / $group';
 
@@ -94,6 +97,7 @@ class LabParameter extends Equatable {
 
 const String kLabInputText = 'text';
 const String kLabInputSelect = 'select';
+const String kLabInputCombo = 'combo';
 
 /// One line of a reference range: the patient group ('' = everyone, 'L',
 /// 'P', 'Anak', 'Dewasa', 'Bayi') and its range.
@@ -184,7 +188,7 @@ String patientReference(
   DateTime? dob,
   DateTime? at,
 }) {
-  if (p.isSelect) return p.referenceRange;
+  if (p.isSelect || p.isCombo) return p.referenceRange;
   final now = at ?? DateTime.now();
   final ageDays = (dob == null || now.isBefore(dob))
       ? -1

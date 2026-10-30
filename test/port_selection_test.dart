@@ -211,9 +211,7 @@ void main() {
           patientApiProvider.overrideWithValue(_RecordingPatientApi()),
           wilayahApiProvider.overrideWithValue(_EmptyWilayahApi()),
           tripDoctorsProvider.overrideWith((ref) async => _doctors),
-          poliklinikOptionsProvider.overrideWith(
-            (ref) async => defaultPoliklinik,
-          ),
+          tripClinicsProvider.overrideWith((ref) async => defaultPoliklinik),
           currentPortProvider.overrideWith((ref) async => _currentStop),
         ],
         child: MaterialApp(
@@ -229,6 +227,67 @@ void main() {
     expect(find.textContaining(RegExp(r'^Pelabuhan( \*)?$')), findsOneWidget);
     expect(find.text('Pelabuhan Makassar'), findsOneWidget);
     expect(find.text('Pilih pelabuhan...'), findsNothing);
+  });
+
+  test('a clinic deactivated or deleted from the master list is not active', () {
+    ScheduleClinicItem clinic(Map<String, dynamic> poli) =>
+        ScheduleClinicItem.fromJson({'poliklinik_id': 'p-1', 'poliklinik': poli});
+    expect(clinic({'code': 'UMUM', 'status': 'Aktif'}).poliActive, isTrue);
+    expect(clinic({'code': 'GIGI', 'status': 'Tidak Aktif'}).poliActive, isFalse);
+    expect(
+      clinic({'code': 'KIA', 'deleted_at': '2026-10-01T00:00:00Z'}).poliActive,
+      isFalse,
+    );
+  });
+
+  testWidgets('new patient form offers only the clinics of the ongoing trip', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(640, 3200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    Future<void> pumpForm(List<PoliklinikItem> clinics) async {
+      // A fresh scope each time: overrides are fixed once a scope exists.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            patientApiProvider.overrideWithValue(_RecordingPatientApi()),
+            wilayahApiProvider.overrideWithValue(_EmptyWilayahApi()),
+            tripDoctorsProvider.overrideWith((ref) async => _doctors),
+            // The master list has more clinics than the trip.
+            poliklinikOptionsProvider.overrideWith(
+              (ref) async => defaultPoliklinik,
+            ),
+            tripClinicsProvider.overrideWith((ref) async => clinics),
+            currentPortProvider.overrideWith((ref) async => _currentStop),
+          ],
+          child: MaterialApp(
+            home: Scaffold(
+              body: PatientForm(onBack: () {}, onSaved: () {}),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    // No Poli Umum on this trip: the first clinic is preselected.
+    await pumpForm(const [
+      PoliklinikItem(id: 'p-gigi', code: 'GIGI', name: 'Poli Gigi'),
+      PoliklinikItem(id: 'p-mata', code: 'MATA', name: 'Poli Mata'),
+    ]);
+    expect(find.text('Poli Gigi'), findsOneWidget);
+    await tester.tap(find.text('Poli Gigi'));
+    await tester.pumpAndSettle();
+    expect(find.text('Poli Mata'), findsWidgets);
+    expect(find.text('Poli Umum'), findsNothing);
+    expect(find.text('Poli KIA'), findsNothing);
+
+    // A trip without clinics says so.
+    await pumpForm(const []);
+    expect(find.text(noTripClinicsMessage), findsOneWidget);
   });
 
   Future<_RecordingPatientApi> pumpVisitScreen(

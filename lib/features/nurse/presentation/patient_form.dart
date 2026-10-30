@@ -77,12 +77,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
   Gender? _jk;
   String? _bloodType;
   String? _dokterId;
-  String _poliCode = poliUmumCode;
+  // Picked from the clinics of the ongoing trip (Poli Umum by default).
+  String? _poliCode;
   String? _hubunganWali;
   bool _saving = false;
 
-  // Identitas state (NIK atau Photo)
-  String _identityType = 'NIK';
+  // Identitas: foto wajib (KTP / paspor / wajah pasien), NIK opsional.
   XFile? _photoFile;
   String? _existingPhotoUrl;
   final ImagePicker _imagePicker = ImagePicker();
@@ -135,15 +135,6 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       _nama.text = p.nama;
       _nik.text = p.nik;
       _existingPhotoUrl = p.photoUrl;
-      if (p.nik.startsWith('FTO') ||
-          (p.photoUrl != null && p.photoUrl!.isNotEmpty) ||
-          p.nik.isEmpty ||
-          (p.keterangan != null &&
-              p.keterangan!.contains('[Identitas: Foto'))) {
-        _identityType = 'Photo';
-      } else {
-        _identityType = 'NIK';
-      }
       _bloodType = Patient.normalizeBloodType(p.bloodType);
       if (p.kodeKelurahan != null && p.kodeKelurahan!.isNotEmpty) {
         // Region is restored from the code; the field holds only the street.
@@ -369,13 +360,19 @@ class _PatientFormState extends ConsumerState<PatientForm> {
 
   /// Editing only touches patient data; a new patient also needs the
   /// triage (complaint, vitals, doctor) for its first visit.
+  bool get _hasPhoto =>
+      _photoFile != null ||
+      (_existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty);
+
   bool get _valid =>
+      _hasPhoto &&
       _nama.text.trim().isNotEmpty &&
       _jk != null &&
       _dob != null &&
       (widget.isEdit ||
           (_keluhanUtama.text.trim().isNotEmpty &&
               _requiredVitals.every((c) => c.text.trim().isNotEmpty) &&
+              _poliCode != null &&
               (isPoliUmum(_poliCode) || _dokterId != null)));
 
   Future<void> _save() async {
@@ -409,41 +406,23 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     }
 
     try {
-      final String nikValue;
-      if (_identityType == 'Photo') {
-        nikValue = '';
-      } else {
-        nikValue = _nik.text.trim();
-      }
+      final nikValue = _nik.text.trim();
 
-      String? effectiveKeterangan = _keterangan.text.trim().isNotEmpty
+      final String? effectiveKeterangan = _keterangan.text.trim().isNotEmpty
           ? _keterangan.text.trim()
           : null;
-      if (_identityType == 'Photo' && _photoFile != null) {
-        final photoTag = '[Identitas: Foto Kamera (${_photoFile!.name})]';
-        if (effectiveKeterangan == null) {
-          effectiveKeterangan = photoTag;
-        } else if (!effectiveKeterangan.contains('[Identitas: Foto')) {
-          effectiveKeterangan = '$effectiveKeterangan\n$photoTag';
-        }
-      }
 
-      String? photoUrl = _existingPhotoUrl ?? widget.initialPatient?.photoUrl;
-      if (_identityType == 'Photo') {
-        if (_photoFile != null) {
-          try {
-            final uploaded = await ref
-                .read(patientsProvider.notifier)
-                .uploadPhoto(File(_photoFile!.path));
-            if (uploaded.isNotEmpty) {
-              photoUrl = uploaded;
-            }
-          } catch (e) {
-            debugPrint('⚠️ Gagal upload foto ke backend: $e');
-          }
+      // Foto identitas wajib: foto baru diunggah dulu (offline: masuk
+      // antrean), gagal unggah = data pasien tidak disimpan.
+      String? photoUrl = _existingPhotoUrl;
+      if (_photoFile != null) {
+        try {
+          photoUrl = await ref
+              .read(patientsProvider.notifier)
+              .uploadPhoto(File(_photoFile!.path));
+        } catch (e) {
+          throw Exception('Gagal mengunggah foto identitas: $e');
         }
-      } else {
-        photoUrl = null;
       }
 
       final dobStr = _dob != null
@@ -691,6 +670,22 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       });
     }
 
+    // A new patient goes to a clinic open on the ongoing trip: Poli Umum when
+    // the trip has it, else the first one.
+    final clinicsAsync = ref.watch(tripClinicsProvider);
+    final clinics = clinicsAsync.valueOrNull ?? const <PoliklinikItem>[];
+    if (!widget.isEdit &&
+        clinicsAsync.hasValue &&
+        !clinics.any((p) => p.code == _poliCode)) {
+      _poliCode =
+          (clinics.where((p) => isPoliUmum(p.code)).firstOrNull ??
+                  clinics.firstOrNull)
+              ?.code;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateValidState();
+      });
+    }
+
     final theme = Theme.of(context);
     final compactTheme = theme.copyWith(
       inputDecorationTheme: theme.inputDecorationTheme.copyWith(
@@ -792,6 +787,8 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                     children: [
                       _buildDoctorCard(
                         doctorList,
+                        clinics: clinics,
+                        clinicsLoading: clinicsAsync.isLoading,
                         loading: doctorsAsync.isLoading && doctorList.isEmpty,
                       ),
                       const SizedBox(height: 14),
@@ -864,7 +861,12 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     );
   }
 
-  Widget _buildDoctorCard(List<Doctor> doctors, {required bool loading}) {
+  Widget _buildDoctorCard(
+    List<Doctor> doctors, {
+    required bool loading,
+    required List<PoliklinikItem> clinics,
+    required bool clinicsLoading,
+  }) {
     final selectedDoc = doctors.where((d) => d.id == _dokterId).firstOrNull;
 
     return AppCard(
@@ -876,7 +878,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
             title: 'POLIKLINIK & DOKTER PEMERIKSA',
           ),
           const SizedBox(height: 14),
-          _buildPoliSelect(),
+          _buildPoliSelect(clinics, loading: clinicsLoading),
           const SizedBox(height: 12),
           if (isPoliUmum(_poliCode))
             PoliUmumDoctorsNote(doctorCount: doctors.length, loading: loading)
@@ -985,25 +987,40 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     );
   }
 
-  /// Clinic of the first visit; Poli Umum needs no assigned doctor.
-  Widget _buildPoliSelect() {
-    final options =
-        ref.watch(poliklinikOptionsProvider).valueOrNull ?? defaultPoliklinik;
-    return AppSelect<String>(
-      label: 'Poliklinik Tujuan',
-      required: true,
-      value: _poliCode,
-      fontSize: 11.0,
-      labelFontSize: 10.5,
-      options: [
-        for (final poli in options)
-          AppSelectOption(value: poli.code, label: poli.name),
+  /// Clinic of the first visit, from the clinics open on the ongoing trip;
+  /// Poli Umum needs no assigned doctor.
+  Widget _buildPoliSelect(
+    List<PoliklinikItem> clinics, {
+    required bool loading,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        AppSelect<String>(
+          label: 'Poliklinik Tujuan',
+          required: true,
+          value: _poliCode,
+          hint: loading ? 'Memuat poli layanan...' : 'Pilih poliklinik...',
+          fontSize: 11.0,
+          labelFontSize: 10.5,
+          options: [
+            for (final poli in clinics)
+              AppSelectOption(value: poli.code, label: poli.name),
+          ],
+          onChanged: (v) {
+            if (v == null) return;
+            setState(() => _poliCode = v);
+            _updateValidState();
+          },
+        ),
+        if (!loading && clinics.isEmpty) ...[
+          const SizedBox(height: 6),
+          const Text(
+            noTripClinicsMessage,
+            style: TextStyle(fontSize: 10, color: AppColors.red),
+          ),
+        ],
       ],
-      onChanged: (v) {
-        if (v == null) return;
-        setState(() => _poliCode = v);
-        _updateValidState();
-      },
     );
   }
 
@@ -1129,34 +1146,11 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           ),
           const SizedBox(height: 12),
 
-          // Jenis Identitas & Golongan Darah Row
+          // Golongan Darah
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Dropdown Jenis Identitas (NIK atau Photo)
               Expanded(
-                flex: 3,
-                child: AppSelect<String>(
-                  label: 'Jenis Identitas',
-                  value: _identityType,
-                  fontSize: 11.0,
-                  labelFontSize: 10.5,
-                  options: const [
-                    AppSelectOption(value: 'NIK', label: 'NIK'),
-                    AppSelectOption(value: 'Photo', label: 'Photo'),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _identityType = v);
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(width: 10),
-
-              // Golongan Darah Dropdown
-              Expanded(
-                flex: 2,
                 child: AppSelect<String>(
                   label: 'Golongan Darah',
                   value: _bloodType,
@@ -1179,18 +1173,16 @@ class _PatientFormState extends ConsumerState<PatientForm> {
           ),
           const SizedBox(height: 12),
 
-          // Tampilan Sesuai Jenis Identitas (NIK Input atau Area Kamera)
-          if (_identityType == 'NIK') ...[
-            AppTextField(
-              label: 'Nomor NIK (Nomor Induk Kependudukan)',
-              controller: _nik,
-              fontSize: 11.0,
-              labelFontSize: 10.5,
-              placeholder: 'Nomor NIK / KTP / Paspor (opsional)',
-            ),
-          ] else ...[
-            _buildPhotoIdentitySection(),
-          ],
+          // Identitas: NIK opsional, foto wajib.
+          AppTextField(
+            label: 'Nomor NIK (Nomor Induk Kependudukan)',
+            controller: _nik,
+            fontSize: 11.0,
+            labelFontSize: 10.5,
+            placeholder: 'Nomor NIK / KTP / Paspor (opsional)',
+          ),
+          const SizedBox(height: 12),
+          _buildPhotoIdentitySection(),
         ],
       ),
     );
@@ -1206,6 +1198,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       );
       if (photo != null) {
         setState(() => _photoFile = photo);
+        _updateValidState();
       }
     } catch (e) {
       if (!mounted) return;
@@ -1228,6 +1221,7 @@ class _PatientFormState extends ConsumerState<PatientForm> {
       );
       if (photo != null) {
         setState(() => _photoFile = photo);
+        _updateValidState();
       }
     } catch (e) {
       if (!mounted) return;
@@ -1250,7 +1244,11 @@ class _PatientFormState extends ConsumerState<PatientForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const AppFieldLabel(label: 'Foto Identitas Pasien', fontSize: 10.5),
+        const AppFieldLabel(
+          label: 'Foto Identitas Pasien',
+          required: true,
+          fontSize: 10.5,
+        ),
         const SizedBox(height: 5),
         if (!hasPhoto) ...[
           InkWell(
@@ -1460,10 +1458,13 @@ class _PatientFormState extends ConsumerState<PatientForm> {
                       tooltip: 'Hapus Foto',
                       size: 32,
                       foreground: AppColors.red,
-                      onPressed: () => setState(() {
-                        _photoFile = null;
-                        _existingPhotoUrl = null;
-                      }),
+                      onPressed: () {
+                        setState(() {
+                          _photoFile = null;
+                          _existingPhotoUrl = null;
+                        });
+                        _updateValidState();
+                      },
                     ),
                   ],
                 ),

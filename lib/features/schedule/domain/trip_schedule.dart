@@ -131,6 +131,7 @@ class ScheduleClinicItem extends Equatable {
     required this.poliCode,
     required this.openTime,
     required this.closeTime,
+    this.poliActive = true,
   });
 
   final String id;
@@ -139,6 +140,9 @@ class ScheduleClinicItem extends Equatable {
   final String poliCode;
   final String openTime;
   final String closeTime;
+
+  /// False when the clinic was deactivated or deleted from the master list.
+  final bool poliActive;
 
   String get operationalHours => '$openTime – $closeTime';
   String get name => poliName;
@@ -160,11 +164,14 @@ class ScheduleClinicItem extends Equatable {
       poliCode: (poli?['code'] ?? poli?['kode'] ?? json['code'] ?? 'POLI').toString().toUpperCase(),
       openTime: (json['open_time'] ?? '08:00').toString(),
       closeTime: (json['close_time'] ?? '18:00').toString(),
+      poliActive: poli == null ||
+          (poli['status'] != 'Tidak Aktif' && poli['deleted_at'] == null),
     );
   }
 
   @override
-  List<Object?> get props => [id, poliId, poliName, poliCode, openTime, closeTime];
+  List<Object?> get props =>
+      [id, poliId, poliName, poliCode, openTime, closeTime, poliActive];
 }
 
 /// Represents a medical personnel (Doctor or Nurse) assigned to a schedule

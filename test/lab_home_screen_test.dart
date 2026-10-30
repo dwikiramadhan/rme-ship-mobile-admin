@@ -364,6 +364,16 @@ void main() {
                   labTestIds: ['t1'],
                 ),
                 LabParameter(
+                  id: 'warna',
+                  section: 'Urinalisa',
+                  name: 'Warna',
+                  inputType: kLabInputCombo,
+                  options: ['Kuning Muda', 'Kuning', 'Merah'],
+                  referenceRange: 'Kuning Muda',
+                  sortOrder: 2,
+                  labTestIds: ['t1'],
+                ),
+                LabParameter(
                   id: 'goldar',
                   section: 'Golongan Darah',
                   name: 'Golongan Darah',
@@ -441,6 +451,18 @@ void main() {
       await tester.pump();
       expect(button().onPressed, isNotNull);
 
+      // Urine colour: pick a suggestion, or type freely.
+      final warnaOptions = find.byKey(const ValueKey('lab-param-options-warna'));
+      await tester.ensureVisible(warnaOptions);
+      await tester.tap(warnaOptions);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Kuning').last);
+      await tester.pumpAndSettle();
+      final warna = find.byKey(const ValueKey('lab-param-warna'));
+      expect(tester.widget<TextField>(warna).controller!.text, 'Kuning');
+      await tester.enterText(warna, 'Kuning kemerahan');
+      await tester.pump();
+
       await tester.ensureVisible(submitBtn);
       await tester.tap(submitBtn);
       await tester.pump();
@@ -459,9 +481,11 @@ void main() {
       expect(body['items'], isA<List>());
       final items = body['items'] as List;
       // Only rows with a result are sent, by their form row.
-      expect(items, hasLength(1));
+      expect(items, hasLength(2));
       expect(items.first['lab_parameter_id'], 'hb');
       expect(items.first['result_value'], '14,2');
+      expect(items.last['lab_parameter_id'], 'warna');
+      expect(items.last['result_value'], 'Kuning kemerahan');
       expect(mockApi.lastSubmittedFiles, 0);
     },
   );

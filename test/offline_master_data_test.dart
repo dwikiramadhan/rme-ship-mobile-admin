@@ -90,9 +90,7 @@ void main() {
         overrides: [
           wilayahApiProvider.overrideWithValue(_EmptyWilayahApi()),
           tripDoctorsProvider.overrideWith((ref) async => const []),
-          poliklinikOptionsProvider.overrideWith(
-            (ref) async => defaultPoliklinik,
-          ),
+          tripClinicsProvider.overrideWith((ref) async => defaultPoliklinik),
           portsProvider.overrideWith((ref) async => const <PortItem>[]),
         ],
         child: MaterialApp(
