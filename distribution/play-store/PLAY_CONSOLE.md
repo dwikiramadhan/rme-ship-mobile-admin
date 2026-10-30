@@ -1,4 +1,4 @@
-# Isian Google Play Console — RME Bayan
+# Isian Google Play Console — RME Bayan Peduli
 
 Jawaban untuk setiap form Play Console, disusun dari apa yang benar-benar
 dilakukan app (lihat `pubspec.yaml`, `AndroidManifest.xml`, dan fitur per role).
@@ -18,14 +18,14 @@ disajikan backend di **https://api.rmebayanpeduli.com/privacy** (sumber:
 
 | Kolom | Batas | Isi |
 |---|---|---|
-| App name | 30 | `RME Bayan` |
+| App name | 30 | `RME Bayan Peduli` |
 | Short description (id) | 80 | `Rekam medis elektronik untuk staf RS Kapal Bayan Peduli, bisa dipakai offline` |
 | Short description (en) | 80 | `Electronic medical records for Bayan Peduli hospital ship staff, works offline` |
 
 ### Full description (Indonesia)
 
 ```
-RME Bayan adalah aplikasi rekam medis elektronik untuk staf Rumah Sakit Kapal Bayan Peduli. Aplikasi ini hanya untuk staf: akun dibuat dan diberikan oleh pengelola rumah sakit kapal, tidak ada pendaftaran akun dari aplikasi.
+RME Bayan Peduli adalah aplikasi rekam medis elektronik untuk staf Rumah Sakit Kapal Bayan Peduli. Aplikasi ini hanya untuk staf: akun dibuat dan diberikan oleh pengelola rumah sakit kapal, tidak ada pendaftaran akun dari aplikasi.
 
 Setiap petugas melihat fitur sesuai perannya:
 
@@ -47,7 +47,7 @@ Data pasien hanya dapat diakses oleh staf yang berwenang dan dikirim melalui kon
 ### Full description (English)
 
 ```
-RME Bayan is the electronic medical record app for the staff of the Bayan Peduli hospital ship. It is for staff only: accounts are created and issued by the hospital ship's administration; there is no sign-up in the app.
+RME Bayan Peduli is the electronic medical record app for the staff of the Bayan Peduli hospital ship. It is for staff only: accounts are created and issued by the hospital ship's administration; there is no sign-up in the app.
 
 Each staff member sees the features of their role:
 

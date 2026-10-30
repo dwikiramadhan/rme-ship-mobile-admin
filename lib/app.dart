@@ -52,7 +52,7 @@ class _BayanRmeAppState extends ConsumerState<BayanRmeApp>
     ref.watch(offlineWarmupProvider);
     return MaterialApp(
       navigatorKey: rootNavigatorKey,
-      title: 'RME Bayan',
+      title: 'RME Bayan Peduli',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       builder: (context, child) {
