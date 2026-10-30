@@ -57,10 +57,14 @@ bool isReferredAway(Map<String, dynamic> raw, String userId) {
 }
 
 /// The doctors a visit can be referred to: the trip's doctors but the
-/// visit's own doctor.
-List<Doctor> referralCandidates(List<Doctor> tripDoctors, String? doctorId) => [
+/// visit's own doctor and the signed-in doctor ([userId]).
+List<Doctor> referralCandidates(
+  List<Doctor> tripDoctors,
+  String? doctorId, {
+  String? userId,
+}) => [
   for (final d in tripDoctors)
-    if (d.id != doctorId) d,
+    if (d.id != doctorId && ((userId ?? '').isEmpty || d.userId != userId)) d,
 ];
 
 /// `referral` payload for PATCH /patients/:id/medical-records/:recordId.

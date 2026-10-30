@@ -182,6 +182,7 @@ class SchedulePersonnelItem extends Equatable {
     this.role = '',
     this.specialization = '',
     this.type = 'Doctor',
+    this.userId = '',
   });
 
   final String id;
@@ -189,6 +190,9 @@ class SchedulePersonnelItem extends Equatable {
   final String role;
   final String specialization;
   final String type;
+
+  /// The personnel's login account, to tell the signed-in user apart.
+  final String userId;
 
   String get initials {
     final clean = name.replaceAll('dr.', '').replaceAll('Dr.', '').trim();
@@ -246,11 +250,12 @@ class SchedulePersonnelItem extends Equatable {
       specialization: spec,
       role: role,
       type: type,
+      userId: nested?['user_id']?.toString() ?? '',
     );
   }
 
   @override
-  List<Object?> get props => [id, name, role, specialization, type];
+  List<Object?> get props => [id, name, role, specialization, type, userId];
 }
 
 /// Represents a ship crew member assigned to a schedule

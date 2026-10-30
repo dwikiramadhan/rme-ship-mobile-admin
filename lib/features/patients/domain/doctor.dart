@@ -13,6 +13,7 @@ class Doctor extends Equatable {
     this.shipId,
     this.shipName,
     this.availability,
+    this.userId,
   });
 
   final String id;
@@ -29,6 +30,9 @@ class Doctor extends Equatable {
   final String? shipId;
   final String? shipName;
   final String? availability;
+
+  /// The doctor's login account (set for the trip's doctors).
+  final String? userId;
 
   factory Doctor.fromApiJson(Map<String, dynamic> json) {
     final rawAvailability = json['availability']?.toString() ?? '';
@@ -62,7 +66,7 @@ class Doctor extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, nama, spesialisasi, online, email, phone, sip, shipId, shipName, availability];
+  List<Object?> get props => [id, nama, spesialisasi, online, email, phone, sip, shipId, shipName, availability, userId];
 }
 
 const List<String> kObatList = [

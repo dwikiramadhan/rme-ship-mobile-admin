@@ -323,7 +323,13 @@ final tripDoctorsProvider =
   return [
     for (final d in trip?.doctorStaff ?? const <SchedulePersonnelItem>[])
       if (d.id.isNotEmpty)
-        Doctor(id: d.id, nama: d.name, spesialisasi: d.specialization, online: true),
+        Doctor(
+          id: d.id,
+          nama: d.name,
+          spesialisasi: d.specialization,
+          online: true,
+          userId: d.userId,
+        ),
   ];
 });
 

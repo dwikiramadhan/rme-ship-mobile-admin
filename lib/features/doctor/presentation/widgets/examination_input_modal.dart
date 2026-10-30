@@ -352,42 +352,43 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     );
   }
 
-  Future<void> _submit() async {
+  /// The required fields still empty; "Simpan" stays disabled until they're
+  /// filled in.
+  List<String> get _missingFields => [
     // A doctor referral doesn't need the exam filled in; an edit adds to the
     // exam already saved.
-    if (!_refers && !widget.editing && _tindakanFreetext.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Hasil Pemeriksaan wajib diisi!'),
-          backgroundColor: AppColors.red,
-        ),
-      );
-      return;
-    }
-    if (!_refers && _diagnosaList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Diagnosa Klinis (ICD-10) wajib dipilih minimal 1!'),
-          backgroundColor: AppColors.red,
-        ),
-      );
-      return;
-    }
+    if (!_refers && !widget.editing && _tindakanFreetext.text.trim().isEmpty)
+      'Hasil Pemeriksaan',
+    if (!_refers && _diagnosaList.isEmpty) 'Diagnosa Klinis (ICD-10)',
+    if (_needMeds && !_resep.any((r) => (r.obat ?? '').isNotEmpty))
+      'Obat (atau pilih Tidak Perlu Obat)',
+    if (_needLab && _selectedLabIds.isEmpty && _labOther.text.trim().isEmpty)
+      'Jenis Pemeriksaan Lab',
+    if (_refers && (_referToId ?? '').isEmpty) 'Dokter Tujuan Rujukan',
+    if (_refers && _referReason.text.trim().isEmpty) 'Alasan Rujukan',
+  ];
+
+  /// Shown in the banner at the top of the app: a SnackBar would sit behind
+  /// this sheet.
+  void _showError(String title, String message) {
+    ref
+        .read(inAppNotificationProvider.notifier)
+        .showNotification(
+          InAppNotificationItem(
+            id: 'exam_error_${DateTime.now().millisecondsSinceEpoch}',
+            title: title,
+            message: message,
+            type: InAppNotificationType.warning,
+          ),
+        );
+  }
+
+  Future<void> _submit() async {
+    if (_missingFields.isNotEmpty) return;
 
     final validResep = _needMeds
         ? _resep.where((r) => r.obat != null && r.obat!.isNotEmpty).toList()
         : <_ResepRowData>[];
-    if (_needMeds && validResep.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Silakan pilih minimal 1 obat, atau pilih "Tidak Perlu Obat"!',
-          ),
-          backgroundColor: AppColors.red,
-        ),
-      );
-      return;
-    }
 
     final patientId = widget.patient.id.isNotEmpty
         ? widget.patient.id
@@ -400,11 +401,9 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         : (widget.history.rawJson['id']?.toString() ?? '');
 
     if (patientId.isEmpty || recordId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('ID Pasien atau ID Rekam Medis tidak valid!'),
-          backgroundColor: AppColors.red,
-        ),
+      _showError(
+        'Gagal Menyimpan Rekam Medis',
+        'ID Pasien atau ID Rekam Medis tidak valid.',
       );
       return;
     }
@@ -414,31 +413,6 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
         if (_selectedLabIds.contains(t.id)) t,
     ];
     final requestedTest = buildRequestedTest(labTests, _labOther.text);
-    if (_needLab == true && requestedTest.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Silakan pilih minimal 1 jenis pemeriksaan laboratorium!',
-          ),
-          backgroundColor: AppColors.red,
-        ),
-      );
-      return;
-    }
-
-    final referralError = !_refers
-        ? null
-        : (_referToId ?? '').isEmpty
-        ? 'Pilih dokter tujuan rujukan!'
-        : _referReason.text.trim().isEmpty
-        ? 'Alasan rujukan wajib diisi!'
-        : null;
-    if (referralError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(referralError), backgroundColor: AppColors.red),
-      );
-      return;
-    }
 
     setState(() => _saving = true);
 
@@ -617,12 +591,7 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menyimpan rekam medis: $e'),
-          backgroundColor: AppColors.red,
-        ),
-      );
+      _showError('Gagal Menyimpan Rekam Medis', '$e');
     }
   }
 
@@ -1307,6 +1276,11 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                                   (d) => referralCandidates(
                                     d,
                                     widget.history.doctorId,
+                                    userId: ref
+                                        .watch(authControllerProvider)
+                                        .session
+                                        ?.user
+                                        .id,
                                   ),
                                 ),
                             selectedId: _referToId,
@@ -1318,80 +1292,14 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
                         const SizedBox(height: 20),
 
                         // Section 7: Action Buttons (Batal & Simpan)
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: _saving
-                                    ? null
-                                    : () => Navigator.of(context).pop(false),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 11,
-                                  ),
-                                  side: const BorderSide(
-                                    color: AppColors.border,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(100),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Batal',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.text,
-                                    letterSpacing: 0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              flex: 2,
-                              child: ElevatedButton(
-                                onPressed: _saving ? null : _submit,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.orange,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 11,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(100),
-                                  ),
-                                  elevation: 0.5,
-                                ),
-                                child: _saving
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : Text(
-                                        widget.editing
-                                            ? 'Simpan Perubahan'
-                                            : _refers
-                                            ? 'Simpan & Rujuk ke Dokter'
-                                            : _isFollowUp &&
-                                                  !_needLab &&
-                                                  _needMeds
-                                            ? 'Simpan & Kirim ke Farmasi'
-                                            : 'Simpan Rekam Medis',
-                                        style: const TextStyle(
-                                          fontSize: 12.0,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.white,
-                                          letterSpacing: 0,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ],
+                        // Rebuilt as the required text fields are typed in.
+                        ListenableBuilder(
+                          listenable: Listenable.merge([
+                            _tindakanFreetext,
+                            _labOther,
+                            _referReason,
+                          ]),
+                          builder: (context, _) => _buildActions(),
                         ),
                         const SizedBox(height: 8),
                       ],
@@ -1403,6 +1311,106 @@ class _ExaminationInputModalState extends ConsumerState<ExaminationInputModal> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildActions() {
+    final missing = _missingFields;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (missing.isNotEmpty) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(LucideIcons.info, size: 14, color: AppColors.sub),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Lengkapi dulu: ${missing.join(', ')}',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppColors.sub,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _saving
+                    ? null
+                    : () => Navigator.of(context).pop(false),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  side: const BorderSide(color: AppColors.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                ),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: ElevatedButton(
+                onPressed: _saving || missing.isNotEmpty ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.orange,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: AppColors.orange.withValues(
+                    alpha: 0.4,
+                  ),
+                  disabledForegroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  elevation: 0.5,
+                ),
+                child: _saving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        widget.editing
+                            ? 'Simpan Perubahan'
+                            : _refers
+                            ? 'Simpan & Rujuk ke Dokter'
+                            : _isFollowUp && !_needLab && _needMeds
+                            ? 'Simpan & Kirim ke Farmasi'
+                            : 'Simpan Rekam Medis',
+                        style: const TextStyle(
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                          letterSpacing: 0,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
