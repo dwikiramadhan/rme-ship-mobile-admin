@@ -7,7 +7,9 @@ import '../../../core/network/dio_client.dart';
 import '../../../core/offline/http_cache.dart';
 import '../../../core/routing/app_navigator.dart';
 import '../data/auth_repository_impl.dart';
+import '../domain/app_user.dart';
 import '../domain/auth_repository.dart';
+import '../domain/user_role.dart';
 import 'auth_state.dart';
 
 class AuthController extends StateNotifier<AuthState> {
@@ -20,6 +22,14 @@ class AuthController extends StateNotifier<AuthState> {
 
   final AuthRepository _repository;
   final HttpCacheStore _cache;
+
+  /// Koordinator works in the web admin only. Their screens stay in the app,
+  /// but they can't sign in to it.
+  static const webOnlyMessage =
+      'Akun Koordinator hanya bisa digunakan di Web Admin.';
+
+  static bool _isWebOnly(AuthSession session) =>
+      session.user.role == UserRole.koordinator;
 
   void _handleUnauthorized() {
     if (state.status == AuthStatus.unauthenticated) return;
@@ -34,6 +44,11 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> _restore() async {
     try {
       final session = await _repository.restoreSession();
+      // Signed in before Koordinator became web-only.
+      if (session != null && _isWebOnly(session)) {
+        await _signOut(errorMessage: webOnlyMessage);
+        return;
+      }
       state = session != null ? AuthState.authenticated(session) : const AuthState.unauthenticated();
     } catch (_) {
       state = const AuthState.unauthenticated();
@@ -51,6 +66,10 @@ class AuthController extends StateNotifier<AuthState> {
       final updated = await _repository.refreshUser(current);
       // Logged out or in again meanwhile: that session is newer.
       if (!mounted || updated == null || updated == current || state.session != current) return;
+      if (_isWebOnly(updated)) {
+        await _signOut(errorMessage: webOnlyMessage);
+        return;
+      }
       state = AuthState.authenticated(updated);
     } catch (e) {
       debugPrint('⚠️ [Auth] user refresh failed: $e');
@@ -61,6 +80,10 @@ class AuthController extends StateNotifier<AuthState> {
     state = const AuthState.authenticating();
     try {
       final session = await _repository.login(email: email, password: password, rememberMe: rememberMe);
+      if (_isWebOnly(session)) {
+        await _signOut(errorMessage: webOnlyMessage);
+        return;
+      }
       state = AuthState.authenticated(session);
     } catch (e) {
       state = AuthState.unauthenticated(errorMessage: e.toString());
@@ -71,7 +94,10 @@ class AuthController extends StateNotifier<AuthState> {
     return _repository.changePassword(oldPassword: oldPassword, newPassword: newPassword);
   }
 
-  Future<void> logout() async {
+  Future<void> logout() => _signOut();
+
+  /// [errorMessage] is shown on the login screen.
+  Future<void> _signOut({String? errorMessage}) async {
     try {
       await _repository.logout();
     } catch (_) {
@@ -79,7 +105,7 @@ class AuthController extends StateNotifier<AuthState> {
     }
     _clearOfflineCache();
     rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-    state = const AuthState.unauthenticated();
+    state = AuthState.unauthenticated(errorMessage: errorMessage);
   }
 
   /// The cached GET responses belong to the user who fetched them; the next
