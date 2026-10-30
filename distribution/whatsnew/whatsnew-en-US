@@ -1,6 +1,8 @@
-RME Bayan update:
-• Medical record details now show the doctor's examination result
-• Nurse dashboard: today's statistics from the server and the active voyage's clinics
-• Medicine stock: a Medicine Transactions history tab
-• A cleaner login page with rounder corners
-• Other small display fixes
+RME Bayan Peduli update:
+• The app is now called RME Bayan Peduli
+• Sign in with a username or an email
+• Medical records: new condition statuses, referral with a lab order, doctors can edit their exam until medicine is dispensed
+• Save is enabled once the required fields are filled in; errors show above the form
+• The referral list no longer shows the signed-in doctor
+• New patients: identity photo and the ongoing trip's clinics
+• Coordinator accounts are now web admin only

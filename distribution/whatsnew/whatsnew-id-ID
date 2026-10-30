@@ -1,6 +1,8 @@
-Pembaruan RME Bayan:
-• Detail rekam medis kini menampilkan Hasil Pemeriksaan dari dokter
-• Dashboard Perawat: statistik hari ini dari server dan daftar Poli Layanan pelayaran aktif
-• Stok Obat: tab Riwayat Transaksi Obat
-• Halaman login lebih bersih dengan sudut yang lebih bulat
-• Perbaikan tampilan kecil lainnya
+Pembaruan RME Bayan Peduli:
+• Nama aplikasi kini RME Bayan Peduli
+• Login dengan username atau email
+• Rekam medis: status kondisi baru, rujukan bersama lab, dokter bisa mengedit pemeriksaan sebelum obat diserahkan
+• Tombol Simpan aktif setelah isian wajib lengkap; pesan error tampil di atas form
+• Daftar rujukan tidak menampilkan nama dokter sendiri
+• Pasien baru: foto identitas dan poli pelayaran aktif
+• Akun Koordinator kini khusus Web Admin
