@@ -23,6 +23,25 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:138298942116:android:9ae907dfcc05534eecbc31",
+        "android_client_info": {
+          "package_name": "com.bayanrme.rme_bayan_peduli"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyApywbZTgf0rDJ9ohQM0p5PIpbK9foOzas"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

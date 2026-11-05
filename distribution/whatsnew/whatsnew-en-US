@@ -1,8 +1,6 @@
-RME Bayan Peduli update:
-• The app is now called RME Bayan Peduli
-• Sign in with a username or an email
-• Medical records: new condition statuses, referral with a lab order, doctors can edit their exam until medicine is dispensed
-• Save is enabled once the required fields are filled in; errors show above the form
-• The referral list no longer shows the signed-in doctor
-• New patients: identity photo and the ongoing trip's clinics
-• Coordinator accounts are now web admin only
+First release of RME Bayan Peduli, the electronic medical record for the staff of the Bayan Peduli hospital ship:
+• Patient and visit registration per harbor
+• Doctor exams, ICD-10 diagnoses, prescriptions, doctor and lab referrals
+• Pharmacy and lab queues
+• Medicine stock and stock adjustments
+• Works offline and syncs automatically when back online

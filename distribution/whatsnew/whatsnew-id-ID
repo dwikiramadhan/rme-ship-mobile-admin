@@ -1,8 +1,6 @@
-Pembaruan RME Bayan Peduli:
-• Nama aplikasi kini RME Bayan Peduli
-• Login dengan username atau email
-• Rekam medis: status kondisi baru, rujukan bersama lab, dokter bisa mengedit pemeriksaan sebelum obat diserahkan
-• Tombol Simpan aktif setelah isian wajib lengkap; pesan error tampil di atas form
-• Daftar rujukan tidak menampilkan nama dokter sendiri
-• Pasien baru: foto identitas dan poli pelayaran aktif
-• Akun Koordinator kini khusus Web Admin
+Rilis pertama RME Bayan Peduli, rekam medis elektronik untuk staf Rumah Sakit Kapal Bayan Peduli:
+• Pendaftaran pasien dan kunjungan per pelabuhan
+• Pemeriksaan dokter, diagnosa ICD-10, resep, rujukan dokter dan lab
+• Antrean farmasi dan laboratorium
+• Stok obat dan adjustment stok
+• Tetap bisa dipakai saat offline, tersinkron otomatis saat online

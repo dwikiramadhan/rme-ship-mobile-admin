@@ -76,7 +76,7 @@ jobs:
       - uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.bayanrme.bayan_rme
+          packageName: com.bayanrme.rme_bayan_peduli
           releaseFiles: build/app/outputs/bundle/release/app-release.aab
           mappingFile: build/app/outputs/mapping/release/mapping.txt
           # Release notes per language (whatsnew-<locale>, max 500 characters).

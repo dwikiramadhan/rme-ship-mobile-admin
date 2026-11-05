@@ -28,7 +28,8 @@ android {
 
     defaultConfig {
         // The Play Store package name: it can't change once the app is published.
-        applicationId = "com.bayanrme.bayan_rme"
+        // (`namespace` above is only the Kotlin package of MainActivity.)
+        applicationId = "com.bayanrme.rme_bayan_peduli"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
